@@ -28,7 +28,7 @@ const BOCHA_WEB_SEARCH_API = 'https://api.bochaai.com/v1/web-search';
 const BAIDU_AI_SEARCH_API = 'https://qianfan.baidubce.com/v2/ai_search/chat/completions';
 const ALIYUN_IQS_API = 'https://iqs.cn-zhangjiakou.aliyuncs.com'; // 需 AK/SK 签名，见文档
 const VISION_FALLBACK_MODELS = ['gpt-4o', 'gpt-4o-mini'];
-const MAX_VISION_IMAGE_BYTES = 280000;
+const MAX_VISION_IMAGE_BYTES = 1572864;
 const KIMI_CODE_API = 'https://api.kimi.com/coding/v1/chat/completions';
 const KIMI_CODE_MODELS_API = 'https://api.kimi.com/coding/v1/models';
 const KIMI_CODE_DEFAULT_MODEL = 'kimi-for-coding';
@@ -455,24 +455,41 @@ function isQqCdnImageUrl(url) {
   return /multimedia\.nt\.qq\.com|gchat\.qpic\.cn|qpic\.cn\/qq\/|c2cpicdw\.qpic\.cn/i.test(url.replace(/&amp;/g, '&'));
 }
 
+/** 估算 data URL 字符长度（含 data:image/...;base64, 前缀） */
+function estimateVisionDataUrlLength(rawBytes) {
+  const n = Number(rawBytes) || 0;
+  return 23 + Math.ceil(n * 4 / 3);
+}
+
+function visionPayloadTooLarge(lenOrDataUrl) {
+  const size = typeof lenOrDataUrl === 'string' ? lenOrDataUrl.length : estimateVisionDataUrlLength(lenOrDataUrl);
+  return size > MAX_VISION_IMAGE_BYTES;
+}
+
+function bufferToVisionDataUrl(buf, mime = 'image/jpeg', item = null) {
+  if (!buf || !buf.length) return null;
+  if (visionPayloadTooLarge(buf.length)) {
+    log('warn', '图片过大，视觉模式跳过', { size: buf.length, limit: MAX_VISION_IMAGE_BYTES, file: item?.file }, 'image');
+    return null;
+  }
+  const dataUrl = `data:${mime};base64,${buf.toString('base64')}`;
+  if (visionPayloadTooLarge(dataUrl)) {
+    log('warn', '图片 base64 过大，视觉模式跳过', { size: dataUrl.length, limit: MAX_VISION_IMAGE_BYTES, file: item?.file }, 'image');
+    return null;
+  }
+  return dataUrl;
+}
+
 /** 将单条图片信息解析为可访问 URL；requireBase64 时强制 base64（Kimi 等无法拉取 QQ CDN） */
 async function resolveImageToUrl(ctx, item, options = {}) {
   const forVision = !!options.forVision;
   const requireBase64 = !!options.requireBase64;
-  const maxBytes = options.maxBytes || MAX_VISION_IMAGE_BYTES;
   const hasUrl = item.url && /^https?:\/\//i.test(item.url);
   const hasFile = item.file && String(item.file).trim();
   const normalizedUrl = hasUrl ? item.url.replace(/&amp;/g, '&') : null;
   const qqCdn = normalizedUrl && isQqCdnImageUrl(normalizedUrl);
 
-  const toDataUrl = (buf, mime = 'image/jpeg') => {
-    if (!buf || !buf.length) return null;
-    if (forVision && buf.length > maxBytes * 0.75) {
-      log('warn', '图片过大，视觉模式跳过', { size: buf.length, file: item.file }, 'image');
-      return null;
-    }
-    return `data:${mime};base64,${buf.toString('base64')}`;
-  };
+  const toDataUrl = (buf, mime = 'image/jpeg') => bufferToVisionDataUrl(buf, mime, item);
 
   const tryGetImage = async () => {
     if (!hasFile) return null;
@@ -481,12 +498,8 @@ async function resolveImageToUrl(ctx, item, options = {}) {
       if (data?.base64 && typeof data.base64 === 'string') {
         const b64 = data.base64.replace(/^data:image\/\w+;base64,/, '').trim();
         if (!b64.length) return null;
-        const dataUrl = `data:image/jpeg;base64,${b64}`;
-        if (forVision && dataUrl.length > maxBytes) {
-          log('warn', '图片 base64 过大，视觉模式跳过', { size: dataUrl.length, file: item.file }, 'image');
-          return null;
-        }
-        return dataUrl;
+        const buf = Buffer.from(b64, 'base64');
+        return bufferToVisionDataUrl(buf, 'image/jpeg', item);
       }
       if (data?.path || data?.file) {
         const p = path.resolve(String(data.path || data.file));

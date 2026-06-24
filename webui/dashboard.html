@@ -431,15 +431,37 @@
     .log-badge.type-config { background: rgba(100,116,139,0.15); color: #64748b; }
     .log-page-body {
       max-height: calc(100vh - 240px); overflow-y: auto; overflow-x: hidden;
-      background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
-      font-size: 13px;
+      background: #060608; border: 1px solid var(--border); border-radius: var(--radius);
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 12px; line-height: 1.65;
+      padding: 10px 0;
     }
-    .log-terminal-head {
-      display: grid; grid-template-columns: 88px 64px 72px 1fr; gap: 8px;
-      padding: 10px 16px; border-bottom: 1px solid var(--border);
-      color: var(--text3); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
-      background: var(--bg2); position: sticky; top: 0; z-index: 2;
+    body.light .log-page-body { background: #0c0c0e; }
+    .log-stream-line {
+      padding: 3px 16px; white-space: pre-wrap; word-break: break-word;
+      border-left: 3px solid transparent;
+      transition: background 0.12s;
+      animation: fadeSlideIn 0.18s var(--ease) both;
     }
+    .log-stream-line:hover { background: rgba(255,255,255,0.03); }
+    .log-stream-line.level-warn { border-left-color: var(--warn); }
+    .log-stream-line.level-error { border-left-color: var(--danger); }
+    .log-stream-line.level-info { border-left-color: rgba(96,165,250,0.35); }
+    .log-stream-line.level-debug { border-left-color: rgba(113,113,122,0.35); }
+    .log-stream-line .log-ts { color: #6b7280; }
+    .log-stream-line .log-lv { font-weight: 700; }
+    .log-stream-line .log-lv-info { color: #60a5fa; }
+    .log-stream-line .log-lv-warn { color: #fbbf24; }
+    .log-stream-line .log-lv-error { color: #f87171; }
+    .log-stream-line .log-lv-debug { color: #9ca3af; }
+    .log-stream-line .log-mod { color: #a78bfa; }
+    .log-stream-line .log-msg { color: #e5e7eb; }
+    .log-stream-line.level-warn .log-msg { color: #fde68a; }
+    .log-stream-line.level-error .log-msg { color: #fca5a5; }
+    .log-detail-inline {
+      color: #9ca3af; display: inline;
+    }
+    .log-terminal-head { display: none; }
     .log-row .log-time {
       font-family: 'JetBrains Mono', ui-monospace, monospace;
       font-size: 11px; color: var(--text3); white-space: nowrap;
@@ -656,14 +678,18 @@
       .log-sidebar-header { flex-wrap: wrap; gap: 6px; }
       .log-sidebar-header select { flex: 1; min-width: 0; }
 
-      .log-page-body { max-height: calc(100dvh - 300px - var(--safe-top)); }
-      .log-terminal-head { display: none; }
-      .log-row {
-        display: flex; flex-direction: column; gap: 6px;
-        padding: 12px 14px; border-bottom: 1px solid var(--border);
+      .log-page-body { max-height: calc(100dvh - 260px - var(--safe-top)); padding: 6px 0; }
+      .log-stream-line { padding: 5px 12px; font-size: 11px; line-height: 1.55; }
+      .logs-stat-card { padding: 8px 10px; }
+      .logs-stat-card .ls-label { font-size: 10px; margin-bottom: 2px; }
+      .logs-stat-card .ls-value { font-size: 15px; }
+      #pg-logs .logs-panel-toolbar { padding: 10px 12px; }
+      #pg-logs .logs-panel-toolbar .ipt { flex: 1 1 calc(50% - 4px); max-width: none; min-height: 36px; }
+      #pg-logs .logs-panel-toolbar .btn { min-height: 36px; }
+      #pg-logs .log-page-body {
+        max-height: calc(100dvh - var(--header-h) - 200px - var(--safe-top) - var(--safe-bottom));
+        min-height: 240px;
       }
-      .log-row .log-time { font-size: 10px; }
-      .log-row .log-msg-col { width: 100%; }
       .log-toolbar { gap: 6px; }
       .log-toolbar select, .log-toolbar .ipt { max-width: none !important; flex: 1 1 45%; min-width: 0; }
 
@@ -697,6 +723,10 @@
       .conv-detail-actions .btn { flex: 1; min-width: 120px; }
       .page-title { display: none; }
       .page-desc { margin-bottom: 12px; }
+      #pg-logs .page-desc { display: none; }
+      #pg-logs .logs-stat-grid { margin-bottom: 8px; }
+      #pg-logs .logs-panel-head { padding: 10px 12px; }
+      #pg-logs .logs-panel-title { font-size: 12px; }
     }
 
     @media (max-width: 900px) and (orientation: landscape) {
@@ -1607,11 +1637,11 @@
     .token-refresh-bar { display: flex; justify-content: center; margin: 8px 0 20px; }
 
     /* 运行日志页 */
-    #pg-logs { max-width: 1200px; }
+    #pg-logs { max-width: none; }
     .logs-stat-grid {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;
     }
-    @media (max-width: 768px) { .logs-stat-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 768px) { .logs-stat-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; } }
     .logs-stat-card {
       padding: 16px 18px; border-radius: var(--radius);
       border: 1px solid var(--border); background: var(--card);
@@ -1667,13 +1697,13 @@
       font-size: 12px; color: var(--text2); cursor: pointer; user-select: none;
     }
     #pg-logs .log-page-body {
-      max-height: calc(100dvh - 420px);
-      min-height: 360px;
+      max-height: calc(100dvh - 300px);
+      min-height: 420px;
       border: none; border-radius: 0;
-      background: var(--bg);
+      background: #060608;
     }
-    #pg-logs .log-row {
-      animation: logRowIn 0.28s var(--ease) both;
+    #pg-logs .log-stream-line {
+      animation: logRowIn 0.22s var(--ease) both;
     }
     @keyframes logRowIn {
       from { opacity: 0; transform: translateX(-6px); }
@@ -3147,7 +3177,7 @@
       <div id="pg-logs" class="page">
         <div class="page-header">
           <h2 class="page-title">运行日志</h2>
-          <p class="page-desc">实时查看插件运行状态，支持按级别/类型筛选，自动滚动仅在接近底部时生效。</p>
+          <p class="page-desc">NapCat 风格实时日志流，支持级别/类型筛选与自动滚动。</p>
         </div>
         <div class="logs-stat-grid" id="logsStatGrid">
           <div class="logs-stat-card"><div class="ls-label">显示条数</div><div class="ls-value" id="logsStatShown">0</div></div>
@@ -3192,9 +3222,7 @@
             <button class="btn btn-s" onclick="fetchLogsPage(true)">刷新</button>
             <button class="btn btn-d" onclick="clearAllLogs()">清空</button>
           </div>
-          <div class="log-page-body" id="logsPageBody">
-            <div class="log-terminal-head"><span>时间</span><span>级别</span><span>类型</span><span>消息</span></div>
-          </div>
+          <div class="log-page-body" id="logsPageBody"></div>
         </div>
       </div>
 
@@ -3604,41 +3632,55 @@
       } catch (_) { return String(ts).slice(11, 19); }
     }
 
+    function formatLogTimeFull(ts) {
+      if (!ts) return '--:--:--.---';
+      try {
+        const d = new Date(ts);
+        const p = (n, w) => String(n).padStart(w || 2, '0');
+        return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()) + '.' + p(d.getMilliseconds(), 3);
+      } catch (_) { return formatLogTime(ts) + '.000'; }
+    }
+
+    function highlightJsonText(raw) {
+      if (!raw) return '';
+      let formatted = String(raw);
+      try {
+        const parsed = JSON.parse(formatted);
+        formatted = JSON.stringify(parsed);
+      } catch (_) {}
+      const escaped = escapeHtml(formatted);
+      return escaped
+        .replace(/(^|[\{\[,]\s*)"((?:\\.|[^"\\])*)"\s*:/gm, '$1<span class="log-hl-key">"$2"</span>:')
+        .replace(/:\s*"((?:\\.|[^"\\])*)"/g, ': <span class="log-hl-str">"$1"</span>')
+        .replace(/\b(true|false|null)\b/g, '<span class="log-hl-kw">$1</span>')
+        .replace(/([{}\[\]])/g, '<span class="log-hl-brace">$1</span>')
+        .replace(/: (-?\d+(?:\.\d+)?)(?=[,\}\]\s]|$)/g, ': <span class="log-hl-num">$1</span>');
+    }
+
     function highlightLogDetail(raw) {
       if (!raw) return '';
       let formatted = String(raw);
       try { formatted = JSON.stringify(JSON.parse(formatted), null, 2); } catch (_) {}
-      return escapeHtml(formatted)
-        .replace(/"([^"\\]*(?:\\.[^"\\]*)*)"\s*:/g, '<span class="log-hl-key">"$1"</span>:')
-        .replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, '<span class="log-hl-str">"$1"</span>')
-        .replace(/\b(true|false|null)\b/g, '<span class="log-hl-kw">$1</span>')
-        .replace(/([{}\[\]])/g, '<span class="log-hl-brace">$1</span>')
-        .replace(/: (\d+(?:\.\d+)?)/g, ': <span class="log-hl-num">$1</span>')
-        .replace(/^\s+(\d+(?:\.\d+)?)\s*$/gm, '  <span class="log-hl-num">$1</span>');
+      return highlightJsonText(formatted);
     }
 
     function renderLogEntry(e, animIdx) {
       const level = (e.level || 'info').toLowerCase();
+      const levelU = level.toUpperCase();
       const type = (e.type || 'system').toLowerCase();
-      const delay = animIdx != null ? Math.min(animIdx * 0.015, 0.45) : 0;
+      const delay = animIdx != null ? Math.min(animIdx * 0.012, 0.4) : 0;
       const animStyle = delay ? ' style="animation-delay:' + delay + 's"' : '';
-      let imageHtml = '';
-      if (e.imagePreview && /^https?:\/\//i.test(e.imagePreview)) {
-        imageHtml = '<img class="log-image-preview" src="' + escapeHtml(e.imagePreview) + '" alt="log image" loading="lazy" referrerpolicy="no-referrer" />';
-      } else if (e.detail) {
-        try {
-          const parsed = JSON.parse(e.detail);
-          if (parsed.previewUrl && /^https?:\/\//i.test(parsed.previewUrl)) {
-            imageHtml = '<img class="log-image-preview" src="' + escapeHtml(parsed.previewUrl) + '" alt="log image" loading="lazy" referrerpolicy="no-referrer" />';
-          }
-        } catch (_) { /* ignore */ }
+      const ts = formatLogTimeFull(e.ts);
+      const msg = escapeHtml(e.message || '');
+      let detailHtml = '';
+      if (e.detail) {
+        detailHtml = ' <span class="log-detail-inline">' + highlightJsonText(String(e.detail)) + '</span>';
       }
-      const detail = e.detail ? '<div class="log-detail-box">' + highlightLogDetail(e.detail) + '</div>' : '';
-      return '<div class="log-row level-' + level + '"' + animStyle + '>' +
-        '<div class="log-time">' + escapeHtml(formatLogTime(e.ts)) + '</div>' +
-        '<div><span class="log-pill l-' + level + '">' + escapeHtml(level) + '</span></div>' +
-        '<div><span class="log-pill t-' + type + '">' + escapeHtml(type) + '</span></div>' +
-        '<div class="log-msg-col"><div class="log-msg-text">' + escapeHtml(e.message || '') + '</div>' + imageHtml + detail + '</div>' +
+      return '<div class="log-stream-line level-' + level + '"' + animStyle + '>' +
+        '<span class="log-ts">[' + escapeHtml(ts) + ']</span> ' +
+        '<span class="log-lv log-lv-' + level + '">[' + levelU + ']</span> ' +
+        '<span class="log-mod">[' + escapeHtml(type) + ']</span> ' +
+        '<span class="log-msg">' + msg + '</span>' + detailHtml +
         '</div>';
     }
 
@@ -3652,11 +3694,7 @@
       const nearBottom = isLogNearBottom(body);
       const autoScroll = (body.id === 'logsPageBody' ? document.getElementById('logsPageAutoScroll') : document.getElementById('logAutoScroll'))?.checked;
       const rows = logs.slice().reverse().map((e, i) => renderLogEntry(e, i)).join('');
-      if (body.id === 'logsPageBody') {
-        body.innerHTML = '<div class="log-terminal-head"><span>时间</span><span>级别</span><span>类型</span><span>消息</span></div>' + rows;
-      } else {
-        body.innerHTML = rows;
-      }
+      body.innerHTML = rows;
       if (forceScroll || (autoScroll && nearBottom)) {
         requestAnimationFrame(function () { body.scrollTop = body.scrollHeight; });
       }
