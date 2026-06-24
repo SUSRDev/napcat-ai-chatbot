@@ -1732,6 +1732,93 @@
     .vision-config-grid {
       display: grid; grid-template-columns: 1fr 1fr; gap: 0;
     }
+    @media (max-width: 768px) { .vision-config-grid { grid-template-columns: 1fr; } }
+
+    /* API 轮询列表 */
+    .failover-section { padding: 0; overflow: hidden; }
+    .failover-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      padding: 14px 18px; border-bottom: 1px solid var(--border); background: var(--bg2);
+    }
+    .failover-head-title {
+      display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text);
+    }
+    .failover-head-title .material-symbols-outlined { font-size: 18px; opacity: 0.75; }
+    .failover-settings-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .failover-settings-grid .fs-cell {
+      padding: 12px 16px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    }
+    .failover-settings-grid .fs-cell:nth-child(4n) { border-right: none; }
+    .failover-settings-grid .fs-label { font-size: 11px; color: var(--text3); font-weight: 600; margin-bottom: 6px; }
+    .failover-settings-grid .fs-hint { font-size: 10px; color: var(--text3); margin-top: 4px; }
+    .failover-checks {
+      display: flex; flex-wrap: wrap; gap: 10px 16px; padding: 12px 18px;
+      border-bottom: 1px solid var(--border); background: var(--bg2);
+    }
+    .failover-checks label {
+      display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); cursor: pointer;
+    }
+    .failover-list { padding: 12px 14px 16px; display: flex; flex-direction: column; gap: 10px; min-height: 48px; }
+    .failover-list-empty {
+      padding: 28px 16px; text-align: center; color: var(--text3); font-size: 12px;
+      border: 1px dashed var(--border); border-radius: var(--radius);
+    }
+    .failover-item {
+      border: 1px solid var(--border); border-radius: var(--radius); background: var(--card);
+      overflow: hidden; animation: failoverItemIn 0.32s var(--ease) both;
+      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    }
+    .failover-item:hover { border-color: var(--border-hover); }
+    .failover-item.is-disabled { opacity: 0.55; }
+    .failover-item.is-primary { border-color: color-mix(in srgb, var(--text) 25%, var(--border)); }
+    @keyframes failoverItemIn {
+      from { opacity: 0; transform: translateY(8px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .failover-item-head {
+      display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+      border-bottom: 1px solid var(--border); background: var(--bg2);
+    }
+    .failover-order {
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .failover-order button {
+      width: 26px; height: 22px; border: 1px solid var(--border); border-radius: 4px;
+      background: var(--bg); color: var(--text2); cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .failover-order button:hover:not(:disabled) { background: var(--card-hover); color: var(--text); border-color: var(--border-hover); }
+    .failover-order button:disabled { opacity: 0.35; cursor: not-allowed; }
+    .failover-order button .material-symbols-outlined { font-size: 14px; }
+    .failover-index {
+      min-width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); color: var(--text2); border: 1px solid var(--border);
+    }
+    .failover-item.is-primary .failover-index { background: var(--text); color: var(--bg); border-color: var(--text); }
+    .failover-item-name { flex: 1; min-width: 0; }
+    .failover-item-name input { width: 100%; }
+    .failover-item-actions { display: flex; align-items: center; gap: 6px; }
+    .failover-item-body {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 0;
+    }
+    @media (max-width: 768px) { .failover-item-body { grid-template-columns: 1fr; } }
+    .failover-field {
+      padding: 10px 12px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    }
+    .failover-field:nth-child(2n) { border-right: none; }
+    .failover-field.full { grid-column: 1 / -1; border-right: none; }
+    .failover-field-label { font-size: 11px; color: var(--text3); font-weight: 600; margin-bottom: 6px; }
+    .failover-primary-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+      border: 1px solid var(--border); color: var(--text2); white-space: nowrap;
+    }
+    .btn-failover-add {
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-failover-add .material-symbols-outlined { font-size: 16px; }
     @media (max-width: 768px) {
       .vision-config-grid { grid-template-columns: 1fr; }
       .param-grid { grid-template-columns: 1fr 1fr; }
@@ -2201,6 +2288,56 @@
           </div>
         </div>
 
+        <div class="section failover-section" id="section-api-failover">
+          <div class="failover-head">
+            <div class="failover-head-title">
+              <span class="material-symbols-outlined">swap_horiz</span>
+              API 轮询 / 故障转移
+            </div>
+            <div class="tgl" id="tgl-apiFailoverEnabled" onclick="toggle(this,'apiFailoverEnabled')"></div>
+          </div>
+          <div class="provider-desc-box" style="margin:0;border-bottom:1px solid var(--border)">
+            主配置始终排第一。当前端点在达到「每端点尝试次数」后仍失败，将按列表顺序切换下一备用 API。可与上方 429 备用模型配合使用。
+          </div>
+          <div class="failover-settings-grid">
+            <div class="fs-cell">
+              <div class="fs-label">每端点尝试次数</div>
+              <input type="number" class="ipt" id="cfg-apiFailoverRetries" min="1" max="10" value="2" />
+              <div class="fs-hint">失败重试后再切换</div>
+            </div>
+            <div class="fs-cell">
+              <div class="fs-label">最多轮询端点</div>
+              <input type="number" class="ipt" id="cfg-apiFailoverMaxEndpoints" min="1" max="20" value="5" />
+              <div class="fs-hint">含主配置</div>
+            </div>
+            <div class="fs-cell">
+              <div class="fs-label">请求超时 (ms)</div>
+              <input type="number" class="ipt" id="cfg-apiFailoverTimeoutMs" min="3000" max="300000" step="1000" value="90000" />
+            </div>
+            <div class="fs-cell">
+              <div class="fs-label">重试间隔 (ms)</div>
+              <input type="number" class="ipt" id="cfg-apiFailoverRetryDelayMs" min="0" max="30000" step="100" value="1200" />
+            </div>
+          </div>
+          <div class="failover-checks">
+            <label><input type="checkbox" id="cfg-apiFailoverOnAuth" checked /> 401/403 鉴权失败</label>
+            <label><input type="checkbox" id="cfg-apiFailoverOnRateLimit" checked /> 429 限流</label>
+            <label><input type="checkbox" id="cfg-apiFailoverOnServerError" checked /> 5xx 服务端错误</label>
+            <label><input type="checkbox" id="cfg-apiFailoverOnTimeout" checked /> 请求超时</label>
+            <label><input type="checkbox" id="cfg-apiFailoverOnNetwork" checked /> 网络异常</label>
+          </div>
+          <div style="padding:10px 14px 0;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+            <div style="font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px">
+              <span class="material-symbols-outlined" style="font-size:16px;opacity:.7">format_list_numbered</span>
+              备用端点列表（主配置之后）
+            </div>
+            <button type="button" class="btn btn-s btn-failover-add" onclick="addApiPoolItem()">
+              <span class="material-symbols-outlined">add</span>添加端点
+            </button>
+          </div>
+          <div class="failover-list" id="api-pool-list"></div>
+        </div>
+
         <div class="section" style="padding:0;overflow:hidden">
           <div class="section-title" style="margin:0">生成参数</div>
           <div class="param-grid">
@@ -2261,6 +2398,49 @@
                 <button type="button" class="btn btn-s" onclick="loadKimiModels()">刷新列表</button>
           </div>
         </div>
+
+          <div class="failover-head" style="border-top:1px solid var(--border)">
+            <div class="failover-head-title">
+              <span class="material-symbols-outlined">visibility</span>
+              视觉 API 轮询
+            </div>
+            <div class="tgl" id="tgl-visionFailoverEnabled" onclick="toggle(this,'visionFailoverEnabled')"></div>
+          </div>
+          <div class="failover-settings-grid">
+            <div class="fs-cell">
+              <div class="fs-label">每端点尝试次数</div>
+              <input type="number" class="ipt" id="cfg-visionFailoverRetries" min="1" max="10" value="2" />
+            </div>
+            <div class="fs-cell">
+              <div class="fs-label">最多轮询端点</div>
+              <input type="number" class="ipt" id="cfg-visionFailoverMaxEndpoints" min="1" max="20" value="4" />
+            </div>
+            <div class="fs-cell">
+              <div class="fs-label">请求超时 (ms)</div>
+              <input type="number" class="ipt" id="cfg-visionFailoverTimeoutMs" min="3000" max="300000" step="1000" value="60000" />
+            </div>
+            <div class="fs-cell">
+              <div class="fs-label">重试间隔 (ms)</div>
+              <input type="number" class="ipt" id="cfg-visionFailoverRetryDelayMs" min="0" max="30000" step="100" value="1000" />
+            </div>
+          </div>
+          <div class="failover-checks">
+            <label><input type="checkbox" id="cfg-visionFailoverOnAuth" checked /> 401/403</label>
+            <label><input type="checkbox" id="cfg-visionFailoverOnRateLimit" checked /> 429</label>
+            <label><input type="checkbox" id="cfg-visionFailoverOnServerError" checked /> 5xx</label>
+            <label><input type="checkbox" id="cfg-visionFailoverOnTimeout" checked /> 超时</label>
+            <label><input type="checkbox" id="cfg-visionFailoverOnNetwork" checked /> 网络异常</label>
+          </div>
+          <div style="padding:10px 14px 0;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+            <div style="font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px">
+              <span class="material-symbols-outlined" style="font-size:16px;opacity:.7">photo_library</span>
+              备用视觉端点
+            </div>
+            <button type="button" class="btn btn-s btn-failover-add" onclick="addVisionPoolItem()">
+              <span class="material-symbols-outlined">add</span>添加视觉端点
+            </button>
+          </div>
+          <div class="failover-list" id="vision-pool-list"></div>
           </div>
         </div>
 
@@ -3603,6 +3783,271 @@
       syncKimiVisionRow();
     }
 
+    function toggleChatParseImage(el) {
+      toggle(el, 'chatParseImage');
+      syncKimiVisionRow();
+    }
+
+    const FAILOVER_PROVIDER_OPTIONS = [
+      ['siliconflow', 'SiliconFlow'],
+      ['deepseek', 'DeepSeek'],
+      ['bailian', '阿里云百炼'],
+      ['codingplan', 'Coding Plan'],
+      ['openai', '魔搭 ModelScope'],
+      ['custom', '自定义 OpenAI 兼容']
+    ];
+
+    let apiPoolWorking = [];
+    let visionPoolWorking = [];
+
+    function makeUiPoolId(prefix) {
+      return prefix + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+    }
+
+    function providerSelectHtml(selected, cls) {
+      return '<select class="ipt ' + (cls || '') + '">' + FAILOVER_PROVIDER_OPTIONS.map(function (pair) {
+        return '<option value="' + pair[0] + '"' + (selected === pair[0] ? ' selected' : '') + '>' + pair[1] + '</option>';
+      }).join('') + '</select>';
+    }
+
+    function syncFailoverFormFromConfig() {
+      const apiTgl = document.getElementById('tgl-apiFailoverEnabled');
+      if (apiTgl) apiTgl.classList.toggle('on', config.apiFailoverEnabled === true);
+      const visTgl = document.getElementById('tgl-visionFailoverEnabled');
+      if (visTgl) visTgl.classList.toggle('on', config.visionFailoverEnabled === true);
+      const setNum = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+      const setChk = (id, v) => { const el = document.getElementById(id); if (el) el.checked = v !== false; };
+      setNum('cfg-apiFailoverRetries', config.apiFailoverRetries ?? 2);
+      setNum('cfg-apiFailoverMaxEndpoints', config.apiFailoverMaxEndpoints ?? 5);
+      setNum('cfg-apiFailoverTimeoutMs', config.apiFailoverTimeoutMs ?? 90000);
+      setNum('cfg-apiFailoverRetryDelayMs', config.apiFailoverRetryDelayMs ?? 1200);
+      setChk('cfg-apiFailoverOnAuth', config.apiFailoverOnAuth);
+      setChk('cfg-apiFailoverOnRateLimit', config.apiFailoverOnRateLimit);
+      setChk('cfg-apiFailoverOnServerError', config.apiFailoverOnServerError);
+      setChk('cfg-apiFailoverOnTimeout', config.apiFailoverOnTimeout);
+      setChk('cfg-apiFailoverOnNetwork', config.apiFailoverOnNetwork);
+      setNum('cfg-visionFailoverRetries', config.visionFailoverRetries ?? 2);
+      setNum('cfg-visionFailoverMaxEndpoints', config.visionFailoverMaxEndpoints ?? 4);
+      setNum('cfg-visionFailoverTimeoutMs', config.visionFailoverTimeoutMs ?? 60000);
+      setNum('cfg-visionFailoverRetryDelayMs', config.visionFailoverRetryDelayMs ?? 1000);
+      setChk('cfg-visionFailoverOnAuth', config.visionFailoverOnAuth);
+      setChk('cfg-visionFailoverOnRateLimit', config.visionFailoverOnRateLimit);
+      setChk('cfg-visionFailoverOnServerError', config.visionFailoverOnServerError);
+      setChk('cfg-visionFailoverOnTimeout', config.visionFailoverOnTimeout);
+      setChk('cfg-visionFailoverOnNetwork', config.visionFailoverOnNetwork);
+      apiPoolWorking = Array.isArray(config.apiPool) ? JSON.parse(JSON.stringify(config.apiPool)) : [];
+      visionPoolWorking = Array.isArray(config.visionPool) ? JSON.parse(JSON.stringify(config.visionPool)) : [];
+      renderApiPoolList();
+      renderVisionPoolList();
+    }
+
+    function renderApiPoolList() {
+      const list = document.getElementById('api-pool-list');
+      if (!list) return;
+      const items = apiPoolWorking;
+      if (!items.length) {
+        list.innerHTML = '<div class="failover-list-empty"><span class="material-symbols-outlined" style="font-size:28px;opacity:.35;display:block;margin:0 auto 8px">dns</span>暂无备用端点，点击「添加端点」</div>';
+        return;
+      }
+      list.innerHTML = items.map(function (item, idx) { return renderApiPoolItemHtml(item, idx, items.length); }).join('');
+    }
+
+    function renderApiPoolItemHtml(item, idx, total) {
+      const id = item.id || makeUiPoolId('api');
+      item.id = id;
+      const enabled = item.enabled !== false;
+      return '<div class="failover-item' + (enabled ? '' : ' is-disabled') + '" data-pool-id="' + escapeHtml(id) + '" style="animation-delay:' + Math.min(idx * 0.04, 0.28) + 's">' +
+        '<div class="failover-item-head">' +
+          '<div class="failover-order">' +
+            '<button type="button" title="上移" onclick="moveApiPoolItem(\'' + escapeHtml(id) + '\',-1)"' + (idx === 0 ? ' disabled' : '') + '><span class="material-symbols-outlined">keyboard_arrow_up</span></button>' +
+            '<button type="button" title="下移" onclick="moveApiPoolItem(\'' + escapeHtml(id) + '\',1)"' + (idx >= total - 1 ? ' disabled' : '') + '><span class="material-symbols-outlined">keyboard_arrow_down</span></button>' +
+          '</div>' +
+          '<div class="failover-index">' + (idx + 2) + '</div>' +
+          '<div class="failover-item-name"><input type="text" class="ipt pool-name" value="' + escapeHtml(item.name || ('备用端点 ' + (idx + 1))) + '" placeholder="端点名称" /></div>' +
+          '<label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)"><input type="checkbox" class="pool-enabled"' + (enabled ? ' checked' : '') + ' />启用</label>' +
+          '<div class="failover-item-actions">' +
+            '<button type="button" class="btn btn-d btn-s" title="删除" onclick="removeApiPoolItem(\'' + escapeHtml(id) + '\')"><span class="material-symbols-outlined" style="font-size:16px">delete</span></button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="failover-item-body">' +
+          '<div class="failover-field"><div class="failover-field-label">提供商</div>' + providerSelectHtml(item.provider || 'custom', 'pool-provider') + '</div>' +
+          '<div class="failover-field"><div class="failover-field-label">模型 ID</div><input type="text" class="ipt pool-model" value="' + escapeHtml(item.model || '') + '" placeholder="如 deepseek-ai/DeepSeek-V3" /></div>' +
+          '<div class="failover-field full"><div class="failover-field-label">API URL <span style="font-weight:400;color:var(--text3)">（自定义提供商必填）</span></div><input type="text" class="ipt pool-url" value="' + escapeHtml(item.apiUrl || '') + '" placeholder="https://api.example.com/v1/chat/completions" /></div>' +
+          '<div class="failover-field full"><div class="failover-field-label">API Key</div><input type="password" class="ipt pool-key" value="' + escapeHtml(item.apiKey || '') + '" placeholder="sk-..." autocomplete="off" /></div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function renderVisionPoolList() {
+      const list = document.getElementById('vision-pool-list');
+      if (!list) return;
+      const items = visionPoolWorking;
+      if (!items.length) {
+        list.innerHTML = '<div class="failover-list-empty"><span class="material-symbols-outlined" style="font-size:28px;opacity:.35;display:block;margin:0 auto 8px">image</span>暂无备用视觉端点</div>';
+        return;
+      }
+      list.innerHTML = items.map(function (item, idx) { return renderVisionPoolItemHtml(item, idx, items.length); }).join('');
+    }
+
+    function renderVisionPoolItemHtml(item, idx, total) {
+      const id = item.id || makeUiPoolId('vis');
+      item.id = id;
+      const enabled = item.enabled !== false;
+      return '<div class="failover-item' + (enabled ? '' : ' is-disabled') + '" data-pool-id="' + escapeHtml(id) + '" style="animation-delay:' + Math.min(idx * 0.04, 0.28) + 's">' +
+        '<div class="failover-item-head">' +
+          '<div class="failover-order">' +
+            '<button type="button" title="上移" onclick="moveVisionPoolItem(\'' + escapeHtml(id) + '\',-1)"' + (idx === 0 ? ' disabled' : '') + '><span class="material-symbols-outlined">keyboard_arrow_up</span></button>' +
+            '<button type="button" title="下移" onclick="moveVisionPoolItem(\'' + escapeHtml(id) + '\',1)"' + (idx >= total - 1 ? ' disabled' : '') + '><span class="material-symbols-outlined">keyboard_arrow_down</span></button>' +
+          '</div>' +
+          '<div class="failover-index">' + (idx + 2) + '</div>' +
+          '<div class="failover-item-name"><input type="text" class="ipt pool-name" value="' + escapeHtml(item.name || ('备用视觉 ' + (idx + 1))) + '" placeholder="端点名称" /></div>' +
+          '<label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)"><input type="checkbox" class="pool-enabled"' + (enabled ? ' checked' : '') + ' />启用</label>' +
+          '<div class="failover-item-actions">' +
+            '<button type="button" class="btn btn-d btn-s" title="删除" onclick="removeVisionPoolItem(\'' + escapeHtml(id) + '\')"><span class="material-symbols-outlined" style="font-size:16px">delete</span></button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="failover-item-body">' +
+          '<div class="failover-field"><div class="failover-field-label">视觉模型</div><input type="text" class="ipt pool-model" value="' + escapeHtml(item.model || 'kimi-for-coding') + '" placeholder="kimi-for-coding" /></div>' +
+          '<div class="failover-field"><div class="failover-field-label">Kimi Code 头</div><label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;margin-top:8px"><input type="checkbox" class="pool-kimi"' + (item.kimiCode !== false ? ' checked' : '') + ' />自动附加 User-Agent</label></div>' +
+          '<div class="failover-field full"><div class="failover-field-label">Chat API URL</div><input type="text" class="ipt pool-url" value="' + escapeHtml(item.apiUrl || '') + '" placeholder="https://api.kimi.com/coding/v1/chat/completions" /></div>' +
+          '<div class="failover-field full"><div class="failover-field-label">Models API URL</div><input type="text" class="ipt pool-models-url" value="' + escapeHtml(item.modelsUrl || '') + '" placeholder="https://api.kimi.com/coding/v1/models" /></div>' +
+          '<div class="failover-field full"><div class="failover-field-label">API Key</div><input type="password" class="ipt pool-key" value="' + escapeHtml(item.apiKey || '') + '" placeholder="sk-..." autocomplete="off" /></div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function collectApiPoolFromUI() {
+      const list = document.getElementById('api-pool-list');
+      if (!list) return apiPoolWorking.slice();
+      return Array.from(list.querySelectorAll('.failover-item[data-pool-id]')).map(function (el, idx) {
+        return {
+          id: el.getAttribute('data-pool-id') || makeUiPoolId('api'),
+          name: (el.querySelector('.pool-name')?.value || '').trim() || ('备用端点 ' + (idx + 1)),
+          enabled: el.querySelector('.pool-enabled')?.checked !== false,
+          provider: el.querySelector('.pool-provider')?.value || 'custom',
+          apiUrl: (el.querySelector('.pool-url')?.value || '').trim(),
+          apiKey: (el.querySelector('.pool-key')?.value || '').trim(),
+          model: (el.querySelector('.pool-model')?.value || '').trim()
+        };
+      });
+    }
+
+    function collectVisionPoolFromUI() {
+      const list = document.getElementById('vision-pool-list');
+      if (!list) return visionPoolWorking.slice();
+      return Array.from(list.querySelectorAll('.failover-item[data-pool-id]')).map(function (el, idx) {
+        return {
+          id: el.getAttribute('data-pool-id') || makeUiPoolId('vis'),
+          name: (el.querySelector('.pool-name')?.value || '').trim() || ('备用视觉 ' + (idx + 1)),
+          enabled: el.querySelector('.pool-enabled')?.checked !== false,
+          apiUrl: (el.querySelector('.pool-url')?.value || '').trim(),
+          modelsUrl: (el.querySelector('.pool-models-url')?.value || '').trim(),
+          apiKey: (el.querySelector('.pool-key')?.value || '').trim(),
+          model: (el.querySelector('.pool-model')?.value || '').trim() || 'kimi-for-coding',
+          kimiCode: el.querySelector('.pool-kimi')?.checked !== false
+        };
+      });
+    }
+
+    function addApiPoolItem() {
+      apiPoolWorking = collectApiPoolFromUI();
+      apiPoolWorking.push({
+        id: makeUiPoolId('api'),
+        name: '备用端点 ' + (apiPoolWorking.length + 1),
+        enabled: true,
+        provider: 'custom',
+        apiUrl: '',
+        apiKey: '',
+        model: ''
+      });
+      renderApiPoolList();
+    }
+
+    function removeApiPoolItem(id) {
+      apiPoolWorking = collectApiPoolFromUI().filter(function (x) { return x.id !== id; });
+      renderApiPoolList();
+    }
+
+    function moveApiPoolItem(id, dir) {
+      apiPoolWorking = collectApiPoolFromUI();
+      const idx = apiPoolWorking.findIndex(function (x) { return x.id === id; });
+      if (idx < 0) return;
+      const next = idx + dir;
+      if (next < 0 || next >= apiPoolWorking.length) return;
+      const tmp = apiPoolWorking[idx];
+      apiPoolWorking[idx] = apiPoolWorking[next];
+      apiPoolWorking[next] = tmp;
+      renderApiPoolList();
+    }
+
+    function addVisionPoolItem() {
+      visionPoolWorking = collectVisionPoolFromUI();
+      visionPoolWorking.push({
+        id: makeUiPoolId('vis'),
+        name: '备用视觉 ' + (visionPoolWorking.length + 1),
+        enabled: true,
+        apiUrl: 'https://api.kimi.com/coding/v1/chat/completions',
+        modelsUrl: 'https://api.kimi.com/coding/v1/models',
+        apiKey: '',
+        model: 'kimi-for-coding',
+        kimiCode: true
+      });
+      renderVisionPoolList();
+    }
+
+    function removeVisionPoolItem(id) {
+      visionPoolWorking = collectVisionPoolFromUI().filter(function (x) { return x.id !== id; });
+      renderVisionPoolList();
+    }
+
+    function moveVisionPoolItem(id, dir) {
+      visionPoolWorking = collectVisionPoolFromUI();
+      const idx = visionPoolWorking.findIndex(function (x) { return x.id === id; });
+      if (idx < 0) return;
+      const next = idx + dir;
+      if (next < 0 || next >= visionPoolWorking.length) return;
+      const tmp = visionPoolWorking[idx];
+      visionPoolWorking[idx] = visionPoolWorking[next];
+      visionPoolWorking[next] = tmp;
+      renderVisionPoolList();
+    }
+
+    function collectFailoverSettings(cfg) {
+      const num = (id, d, min, max) => {
+        const el = document.getElementById(id);
+        const n = el ? Number(el.value) : d;
+        if (isNaN(n)) return d;
+        return Math.max(min, Math.min(max, n));
+      };
+      const chk = (id, d) => {
+        const el = document.getElementById(id);
+        return el ? el.checked : d;
+      };
+      cfg.apiFailoverEnabled = document.getElementById('tgl-apiFailoverEnabled')?.classList.contains('on') === true;
+      cfg.apiFailoverRetries = num('cfg-apiFailoverRetries', 2, 1, 10);
+      cfg.apiFailoverMaxEndpoints = num('cfg-apiFailoverMaxEndpoints', 5, 1, 20);
+      cfg.apiFailoverTimeoutMs = num('cfg-apiFailoverTimeoutMs', 90000, 3000, 300000);
+      cfg.apiFailoverRetryDelayMs = num('cfg-apiFailoverRetryDelayMs', 1200, 0, 30000);
+      cfg.apiFailoverOnAuth = chk('cfg-apiFailoverOnAuth', true);
+      cfg.apiFailoverOnRateLimit = chk('cfg-apiFailoverOnRateLimit', true);
+      cfg.apiFailoverOnServerError = chk('cfg-apiFailoverOnServerError', true);
+      cfg.apiFailoverOnTimeout = chk('cfg-apiFailoverOnTimeout', true);
+      cfg.apiFailoverOnNetwork = chk('cfg-apiFailoverOnNetwork', true);
+      cfg.apiPool = collectApiPoolFromUI();
+      cfg.visionFailoverEnabled = document.getElementById('tgl-visionFailoverEnabled')?.classList.contains('on') === true;
+      cfg.visionFailoverRetries = num('cfg-visionFailoverRetries', 2, 1, 10);
+      cfg.visionFailoverMaxEndpoints = num('cfg-visionFailoverMaxEndpoints', 4, 1, 20);
+      cfg.visionFailoverTimeoutMs = num('cfg-visionFailoverTimeoutMs', 60000, 3000, 300000);
+      cfg.visionFailoverRetryDelayMs = num('cfg-visionFailoverRetryDelayMs', 1000, 0, 30000);
+      cfg.visionFailoverOnAuth = chk('cfg-visionFailoverOnAuth', true);
+      cfg.visionFailoverOnRateLimit = chk('cfg-visionFailoverOnRateLimit', true);
+      cfg.visionFailoverOnServerError = chk('cfg-visionFailoverOnServerError', true);
+      cfg.visionFailoverOnTimeout = chk('cfg-visionFailoverOnTimeout', true);
+      cfg.visionFailoverOnNetwork = chk('cfg-visionFailoverOnNetwork', true);
+      cfg.visionPool = collectVisionPoolFromUI();
+      return cfg;
+    }
+
     async function loadKimiModels() {
       const sel = document.getElementById('cfg-kimiVisionModel');
       if (!sel) return;
@@ -3957,6 +4402,7 @@
       });
       document.getElementById('cfg-model').value = config.model || 'deepseek-ai/DeepSeek-V3';
       document.getElementById('cfg-modelFallbackList').value = Array.isArray(config.modelFallbackList) ? config.modelFallbackList.join('\n') : '';
+      syncFailoverFormFromConfig();
       filterModelList();
       document.getElementById('cfg-temperature').value = config.temperature ?? 0.6;
       document.getElementById('cfg-top_p').value = config.top_p ?? 0.95;
@@ -5202,7 +5648,11 @@
       const tokSub = document.getElementById('ov-tokens-sub');
       if (statusEl) statusEl.textContent = config.enabled !== false ? '运行中' : '已暂停';
       if (statusEl) statusEl.style.color = config.enabled !== false ? 'var(--success)' : 'var(--warn)';
-      if (provEl) provEl.textContent = (config.apiProvider || '—') + ' · ' + (config.model || '—');
+      if (provEl) {
+        const poolN = Array.isArray(config.apiPool) ? config.apiPool.filter(function (x) { return x && x.enabled !== false; }).length : 0;
+        const fo = config.apiFailoverEnabled ? ' · 轮询×' + (1 + poolN) : '';
+        provEl.textContent = (config.apiProvider || '—') + ' · ' + (config.model || '—') + fo;
+      }
       const iso = config.conversationIsolationMode || 'user_group';
       if (isoEl) isoEl.textContent = (ISOLATION_LABELS[iso] || iso) + ' · ' + (config.triggerMode || 'at_only');
       const featOn = [
@@ -5275,6 +5725,7 @@
         .split(/\r?\n|[,，]/)
         .map(function (s) { return s.trim(); })
         .filter(Boolean);
+      collectFailoverSettings(cfg);
       cfg.temperature = parseFloat(document.getElementById('cfg-temperature').value) || 0.6;
       cfg.top_p = parseFloat(document.getElementById('cfg-top_p').value);
       if (isNaN(cfg.top_p) || cfg.top_p < 0 || cfg.top_p > 1) cfg.top_p = 0.95;

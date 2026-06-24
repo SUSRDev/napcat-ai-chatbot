@@ -119,6 +119,17 @@ const DEFAULT_CONFIG = {
   customApiKey: '',
   model: 'deepseek-ai/DeepSeek-V3',
   modelFallbackList: [],
+  apiFailoverEnabled: false,
+  apiFailoverRetries: 2,
+  apiFailoverMaxEndpoints: 5,
+  apiFailoverTimeoutMs: 90000,
+  apiFailoverRetryDelayMs: 1200,
+  apiFailoverOnAuth: true,
+  apiFailoverOnRateLimit: true,
+  apiFailoverOnServerError: true,
+  apiFailoverOnTimeout: true,
+  apiFailoverOnNetwork: true,
+  apiPool: [],
   temperature: 0.7,
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
   cooldownSeconds: 10,
@@ -222,6 +233,17 @@ const DEFAULT_CONFIG = {
   kimiVisionApiKey: '',
   kimiVisionApiUrl: KIMI_CODE_API,
   kimiVisionModelsUrl: KIMI_CODE_MODELS_API,
+  visionFailoverEnabled: false,
+  visionFailoverRetries: 2,
+  visionFailoverMaxEndpoints: 4,
+  visionFailoverTimeoutMs: 60000,
+  visionFailoverRetryDelayMs: 1000,
+  visionFailoverOnAuth: true,
+  visionFailoverOnRateLimit: true,
+  visionFailoverOnServerError: true,
+  visionFailoverOnTimeout: true,
+  visionFailoverOnNetwork: true,
+  visionPool: [],
   imageGenAllowUsers: [],
   videoAllowUsers: [],
   fakeHumanEnabled: false,
@@ -388,6 +410,8 @@ function loadConfig(ctx) {
       if (pluginState.config.messages.thinking) pluginState.config.thinkingMessage = pluginState.config.messages.thinking;
       else if (pluginState.config.thinkingMessage) pluginState.config.messages.thinking = pluginState.config.thinkingMessage;
       pluginState.config.modelFallbackList = normalizeModelList(pluginState.config.modelFallbackList);
+      pluginState.config.apiPool = normalizeApiPool(pluginState.config.apiPool);
+      pluginState.config.visionPool = normalizeVisionPool(pluginState.config.visionPool);
       if (!pluginState.config.kimiVisionModel && pluginState.config.chatVisionModel) {
         pluginState.config.kimiVisionModel = pluginState.config.chatVisionModel;
       }
@@ -652,55 +676,100 @@ async function fetchKimiModels() {
   }
 }
 
-/** OpenAI 兼容视觉接口：按用户问题提取图片信息，最终回复由主文字模型生成 */
 async function analyzeImageWithKimi(imageUrls, userQuestion, model) {
-  const useModel = (model || KIMI_CODE_DEFAULT_MODEL).trim() || KIMI_CODE_DEFAULT_MODEL;
   const urls = (imageUrls || []).slice(0, 1);
   if (!urls.length) return '';
-  const { apiKey, apiUrl } = getKimiVisionConfig();
-  if (!apiKey) {
+  const cfg = pluginState.config;
+  const endpoints = buildVisionEndpointList(cfg);
+  if (!endpoints.length) {
     log('warn', '未配置视觉 API Key，跳过图片分析', null, 'image');
     return '';
   }
+  const settings = getVisionFailoverSettings(cfg);
   const q = String(userQuestion || '').trim();
   const userContent = buildKimiAnalyzeContent(urls, q);
-  log('info', '视觉模型图片分析开始', {
-    model: useModel,
-    userQuestion: q ? q.slice(0, 120) : '(无文字，全图描述)',
-    payloadSize: urls[0]?.length || 0
-  }, 'image');
-  const res = await fetch(apiUrl, {
-    method: 'POST',
-    headers: kimiCodeRequestHeaders(pluginState.config, { 'Content-Type': 'application/json' }),
-    body: JSON.stringify({
-      model: useModel,
-      messages: [
-        { role: 'system', content: KIMI_IMAGE_ANALYZE_PROMPT },
-        { role: 'user', content: userContent }
-      ],
-      stream: false,
-      temperature: 1,
-      max_tokens: 800
-    })
-  });
-  const text = await res.text();
-  if (!res.ok) {
-    const hint = res.status === 403 ? '（需 Coding Agent User-Agent，已自动附加）' : '';
-    log('warn', `Kimi Code 图片分析失败${hint}`, { status: res.status, body: text.slice(0, 300) }, 'image');
-    return '';
+  let lastStatus = 0;
+
+  for (let ei = 0; ei < endpoints.length; ei++) {
+    const endpoint = endpoints[ei];
+    const useModel = (model || endpoint.model || KIMI_CODE_DEFAULT_MODEL).trim() || KIMI_CODE_DEFAULT_MODEL;
+    const retries = settings.enabled ? settings.retries : 1;
+
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      log('info', '视觉模型图片分析开始', {
+        endpoint: endpoint.name,
+        attempt,
+        model: useModel,
+        userQuestion: q ? q.slice(0, 120) : '(无文字，全图描述)',
+        payloadSize: urls[0]?.length || 0
+      }, 'image');
+
+      let res;
+      let text = '';
+      try {
+        res = await fetchWithTimeout(endpoint.apiUrl, {
+          method: 'POST',
+          headers: visionHeadersForEndpoint(endpoint, { 'Content-Type': 'application/json' }),
+          body: JSON.stringify({
+            model: useModel,
+            messages: [
+              { role: 'system', content: KIMI_IMAGE_ANALYZE_PROMPT },
+              { role: 'user', content: userContent }
+            ],
+            stream: false,
+            temperature: 1,
+            max_tokens: 800
+          })
+        }, settings.timeoutMs);
+        text = await res.text();
+      } catch (e) {
+        log('warn', '视觉 API 请求异常', { endpoint: endpoint.name, err: e.message, attempt }, 'image');
+        if (!settings.enabled || !shouldRotateApiFailure(0, '', e, settings)) return '';
+        if (attempt < retries) {
+          await sleep(settings.retryDelayMs);
+          continue;
+        }
+        break;
+      }
+
+      if (res.ok) {
+        let data;
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch (e) {
+          log('warn', '视觉 API 响应解析失败', e.message, 'image');
+          if (attempt < retries) {
+            await sleep(settings.retryDelayMs);
+            continue;
+          }
+          break;
+        }
+        const analysis = extractKimiMessageText(data?.choices?.[0]?.message);
+        if (analysis) {
+          log('info', '视觉图片分析完成', { endpoint: endpoint.name, length: analysis.length, model: useModel }, 'image');
+          return analysis;
+        }
+      } else {
+        lastStatus = res.status;
+        const hint = res.status === 403 ? '（需 Coding Agent User-Agent，已自动附加）' : '';
+        log('warn', `视觉 API 图片分析失败${hint}`, { endpoint: endpoint.name, status: res.status, body: text.slice(0, 300), attempt }, 'image');
+        if (!settings.enabled || !shouldRotateApiFailure(res.status, text, null, settings)) return '';
+        if (attempt < retries) {
+          await sleep(settings.retryDelayMs);
+          continue;
+        }
+      }
+      break;
+    }
+
+    if (settings.enabled && ei < endpoints.length - 1) {
+      log('info', '切换下一视觉 API 端点', { from: endpoint.name, to: endpoints[ei + 1]?.name }, 'image');
+      await sleep(settings.retryDelayMs);
+    }
   }
-  let data;
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch (e) {
-    log('warn', 'Kimi Code 响应解析失败', e.message, 'image');
-    return '';
-  }
-  const analysis = extractKimiMessageText(data?.choices?.[0]?.message);
-  if (analysis) {
-    log('info', 'Kimi Code 图片分析完成', { length: analysis.length, model: useModel }, 'image');
-  }
-  return analysis;
+
+  if (lastStatus) log('warn', '所有视觉端点均失败', { lastStatus }, 'image');
+  return '';
 }
 
 const ISOLATION_MODES = ['user_group', 'group', 'user'];
@@ -901,7 +970,218 @@ function getApiConfig(options = {}) {
     }
   }
   apiUrl = normalizeCompatChatCompletionsUrl(apiUrl);
-  return { apiUrl, apiKey, model };
+  return { apiUrl, apiKey, model, provider };
+}
+
+const API_PROVIDERS = ['siliconflow', 'deepseek', 'bailian', 'codingplan', 'openai', 'custom'];
+
+function getProviderDefaultUrl(cfg, provider) {
+  const p = String(provider || 'siliconflow').toLowerCase();
+  if (p === 'deepseek') return DEEPSEEK_API;
+  if (p === 'openai') return OPENAI_API;
+  if (p === 'bailian') return (cfg.bailianApiUrl || BAILIAN_API).trim() || BAILIAN_API;
+  if (p === 'codingplan') return (cfg.codingPlanApiUrl || CODING_PLAN_API).trim() || CODING_PLAN_API;
+  if (p === 'custom') return (cfg.customApiUrl || '').trim();
+  return SILICONFLOW_API;
+}
+
+function getProviderApiKey(cfg, provider) {
+  const p = String(provider || 'siliconflow').toLowerCase();
+  if (p === 'deepseek') return String(cfg.deepseekApiKey || '').trim();
+  if (p === 'openai') return String(cfg.openaiApiKey || '').trim();
+  if (p === 'bailian') return String(cfg.bailianApiKey || '').trim();
+  if (p === 'codingplan') return String(cfg.codingPlanApiKey || '').trim();
+  if (p === 'custom') return String(cfg.customApiKey || '').trim();
+  return String(cfg.siliconflowApiKey || '').trim();
+}
+
+function makePoolId(prefix = 'pool') {
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function normalizeApiPool(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map((raw, i) => {
+    const provider = String(raw?.provider || 'custom').toLowerCase();
+    return {
+      id: String(raw?.id || makePoolId('api')).trim() || makePoolId('api'),
+      name: String(raw?.name || `备用端点 ${i + 1}`).trim() || `备用端点 ${i + 1}`,
+      enabled: raw?.enabled !== false,
+      provider: API_PROVIDERS.includes(provider) ? provider : 'custom',
+      apiUrl: String(raw?.apiUrl || '').trim(),
+      apiKey: String(raw?.apiKey || '').trim(),
+      model: String(raw?.model || '').trim()
+    };
+  });
+}
+
+function normalizeVisionPool(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map((raw, i) => ({
+    id: String(raw?.id || makePoolId('vis')).trim() || makePoolId('vis'),
+    name: String(raw?.name || `备用视觉 ${i + 1}`).trim() || `备用视觉 ${i + 1}`,
+    enabled: raw?.enabled !== false,
+    apiKey: String(raw?.apiKey || '').trim(),
+    apiUrl: String(raw?.apiUrl || '').trim(),
+    modelsUrl: String(raw?.modelsUrl || '').trim(),
+    model: String(raw?.model || KIMI_CODE_DEFAULT_MODEL).trim() || KIMI_CODE_DEFAULT_MODEL,
+    kimiCode: raw?.kimiCode !== false
+  }));
+}
+
+function resolveChatEndpoint(entry, cfg = pluginState.config) {
+  const provider = String(entry?.provider || cfg.apiProvider || 'siliconflow').toLowerCase();
+  const apiKey = String(entry?.apiKey || '').trim() || getProviderApiKey(cfg, provider);
+  let apiUrl = String(entry?.apiUrl || '').trim() || getProviderDefaultUrl(cfg, provider);
+  let model = String(entry?.model || '').trim() || String(cfg.model || '').trim();
+  if (provider === 'custom' && !model) model = 'gpt-4o';
+  if (provider === 'deepseek' && !model) model = 'deepseek-chat';
+  if (provider === 'openai' && !model) model = 'gpt-3.5-turbo';
+  if (provider === 'bailian' && !model) model = 'qwen3.5-plus';
+  if (provider === 'codingplan' && !model) model = 'qwen3.5-plus';
+  if (provider === 'siliconflow' && !model) model = 'deepseek-ai/DeepSeek-V3';
+  apiUrl = normalizeCompatChatCompletionsUrl(apiUrl);
+  return {
+    id: entry?.id || 'primary',
+    name: entry?.name || '主配置',
+    enabled: entry?.enabled !== false,
+    provider: API_PROVIDERS.includes(provider) ? provider : 'custom',
+    apiUrl,
+    apiKey,
+    model,
+    isPrimary: !!entry?.isPrimary
+  };
+}
+
+function resolveVisionEndpoint(entry, cfg = pluginState.config) {
+  const apiKey = String(entry?.apiKey || '').trim() || String(cfg.kimiVisionApiKey || '').trim();
+  const apiUrl = normalizeCompatChatCompletionsUrl(
+    String(entry?.apiUrl || '').trim() || String(cfg.kimiVisionApiUrl || KIMI_CODE_API).trim() || KIMI_CODE_API
+  );
+  const modelsUrl = String(entry?.modelsUrl || '').trim() || String(cfg.kimiVisionModelsUrl || KIMI_CODE_MODELS_API).trim() || KIMI_CODE_MODELS_API;
+  const model = String(entry?.model || '').trim() || String(cfg.kimiVisionModel || KIMI_CODE_DEFAULT_MODEL).trim() || KIMI_CODE_DEFAULT_MODEL;
+  const kimiCode = entry?.kimiCode !== false && /api\.kimi\.com\/coding/i.test(apiUrl);
+  return {
+    id: entry?.id || 'vision-primary',
+    name: entry?.name || '主视觉配置',
+    enabled: entry?.enabled !== false,
+    apiKey,
+    apiUrl,
+    modelsUrl,
+    model,
+    kimiCode,
+    isPrimary: !!entry?.isPrimary
+  };
+}
+
+function buildChatEndpointList(cfg = pluginState.config) {
+  const settings = getChatFailoverSettings(cfg);
+  const primary = resolveChatEndpoint({
+    id: 'primary',
+    name: '主配置',
+    enabled: true,
+    provider: cfg.apiProvider,
+    model: cfg.model,
+    isPrimary: true
+  }, cfg);
+  const list = [];
+  if (primary.apiKey) list.push(primary);
+  if (settings.enabled && Array.isArray(cfg.apiPool)) {
+    for (const raw of cfg.apiPool) {
+      if (!raw?.enabled) continue;
+      const resolved = resolveChatEndpoint(raw, cfg);
+      if (!resolved.apiKey) continue;
+      if (list.some((e) => e.apiUrl === resolved.apiUrl && e.apiKey === resolved.apiKey && e.model === resolved.model)) continue;
+      list.push(resolved);
+    }
+  }
+  return list.slice(0, settings.maxEndpoints);
+}
+
+function buildVisionEndpointList(cfg = pluginState.config) {
+  const settings = getVisionFailoverSettings(cfg);
+  const primary = resolveVisionEndpoint({ id: 'vision-primary', name: '主视觉配置', isPrimary: true }, cfg);
+  const list = [];
+  if (primary.apiKey) list.push(primary);
+  if (settings.enabled && Array.isArray(cfg.visionPool)) {
+    for (const raw of cfg.visionPool) {
+      if (!raw?.enabled) continue;
+      const resolved = resolveVisionEndpoint(raw, cfg);
+      if (!resolved.apiKey) continue;
+      if (list.some((e) => e.apiUrl === resolved.apiUrl && e.apiKey === resolved.apiKey && e.model === resolved.model)) continue;
+      list.push(resolved);
+    }
+  }
+  return list.slice(0, settings.maxEndpoints);
+}
+
+function getChatFailoverSettings(cfg = pluginState.config) {
+  return {
+    enabled: Boolean(cfg.apiFailoverEnabled),
+    retries: Math.max(1, Math.min(10, Number(cfg.apiFailoverRetries) || 2)),
+    maxEndpoints: Math.max(1, Math.min(20, Number(cfg.apiFailoverMaxEndpoints) || 5)),
+    timeoutMs: Math.max(3000, Math.min(300000, Number(cfg.apiFailoverTimeoutMs) || 90000)),
+    retryDelayMs: Math.max(0, Math.min(30000, Number(cfg.apiFailoverRetryDelayMs) || 1200)),
+    onAuth: cfg.apiFailoverOnAuth !== false,
+    onRateLimit: cfg.apiFailoverOnRateLimit !== false,
+    onServerError: cfg.apiFailoverOnServerError !== false,
+    onTimeout: cfg.apiFailoverOnTimeout !== false,
+    onNetwork: cfg.apiFailoverOnNetwork !== false
+  };
+}
+
+function getVisionFailoverSettings(cfg = pluginState.config) {
+  return {
+    enabled: Boolean(cfg.visionFailoverEnabled),
+    retries: Math.max(1, Math.min(10, Number(cfg.visionFailoverRetries) || 2)),
+    maxEndpoints: Math.max(1, Math.min(20, Number(cfg.visionFailoverMaxEndpoints) || 4)),
+    timeoutMs: Math.max(3000, Math.min(300000, Number(cfg.visionFailoverTimeoutMs) || 60000)),
+    retryDelayMs: Math.max(0, Math.min(30000, Number(cfg.visionFailoverRetryDelayMs) || 1000)),
+    onAuth: cfg.visionFailoverOnAuth !== false,
+    onRateLimit: cfg.visionFailoverOnRateLimit !== false,
+    onServerError: cfg.visionFailoverOnServerError !== false,
+    onTimeout: cfg.visionFailoverOnTimeout !== false,
+    onNetwork: cfg.visionFailoverOnNetwork !== false
+  };
+}
+
+function shouldRotateApiFailure(status, text, err, settings) {
+  if (err?.code === 'TIMEOUT' || err?.message === 'TIMEOUT') return settings.onTimeout;
+  if (err && (err.name === 'TypeError' || err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED')) return settings.onNetwork;
+  if (status === 401 || status === 403) return settings.onAuth;
+  if (status === 429) return settings.onRateLimit;
+  if (status >= 500) return settings.onServerError;
+  if (isTransientApiError(status, text)) return settings.onServerError;
+  if (isModelRouteError(status, text)) return true;
+  return false;
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 60000) {
+  const ms = Math.max(1000, Math.min(300000, Number(timeoutMs) || 60000));
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (e) {
+    if (e?.name === 'AbortError') {
+      const err = new Error('TIMEOUT');
+      err.code = 'TIMEOUT';
+      throw err;
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function visionHeadersForEndpoint(endpoint, extra = {}) {
+  if (endpoint?.kimiCode) {
+    const cfg = { ...pluginState.config, kimiVisionApiKey: endpoint.apiKey };
+    return kimiCodeRequestHeaders(cfg, extra);
+  }
+  const headers = { ...extra };
+  if (endpoint?.apiKey) headers.Authorization = `Bearer ${endpoint.apiKey}`;
+  return headers;
 }
 
 /** Serper 联网搜索，返回摘要文本，失败返回空字符串 */
@@ -1276,10 +1556,9 @@ async function webSearchMulti(query, cfg) {
   return combined;
 }
 
-async function chatCompletion(messages, options = {}) {
+async function chatCompletionOnEndpoint(messages, options, endpoint, settings) {
   const cfg = pluginState.config;
-  const { apiUrl, apiKey, model } = getApiConfig();
-  if (!apiKey) throw new Error('NO_KEY');
+  if (!endpoint?.apiKey) throw new Error('NO_KEY');
   const temperature = Math.max(0, Math.min(2, Number(cfg.temperature) ?? 0.7));
   const maxTokens = Math.max(100, Math.min(32768, Number(cfg.maxTokens) ?? 8192));
   const topP = Math.max(0, Math.min(1, Number(cfg.top_p) ?? 0.95));
@@ -1289,9 +1568,9 @@ async function chatCompletion(messages, options = {}) {
   const stop = cfg.stop != null && (Array.isArray(cfg.stop) ? cfg.stop.length > 0 : String(cfg.stop).trim()) ? (Array.isArray(cfg.stop) ? cfg.stop : [String(cfg.stop).trim()]) : undefined;
   const enableThinking = Boolean(cfg.enableThinking);
   const thinkingBudget = Math.max(0, Math.min(65536, Number(cfg.thinkingBudget) ?? 4096));
-
-  const provider = (cfg.apiProvider || 'siliconflow').toLowerCase();
-  const baseModel = options.model || model || 'deepseek-ai/DeepSeek-V3';
+  const provider = String(endpoint.provider || cfg.apiProvider || 'siliconflow').toLowerCase();
+  const baseModel = options.model || endpoint.model || 'deepseek-ai/DeepSeek-V3';
+  const retries = settings.enabled ? settings.retries : 1;
 
   async function doRequest(useModel) {
     const body = {
@@ -1306,25 +1585,39 @@ async function chatCompletion(messages, options = {}) {
       presence_penalty: options.presence_penalty ?? presPenalty
     };
     if (stop && stop.length) body.stop = stop;
-    if (enableThinking && cfg.apiProvider === 'siliconflow') {
+    if (enableThinking && provider === 'siliconflow') {
       body.extra_body = body.extra_body || {};
       body.extra_body.thinking_budget = options.thinking_budget ?? thinkingBudget;
     }
 
-    log('info', '调用对话 API', { model: useModel, provider, messagesCount: messages.length, max_tokens: maxTokens, top_p: body.top_p, frequency_penalty: body.frequency_penalty, presence_penalty: body.presence_penalty }, 'api');
-    const res = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify(body)
-    });
+    log('info', '调用对话 API', {
+      endpoint: endpoint.name,
+      model: useModel,
+      provider,
+      messagesCount: messages.length,
+      max_tokens: maxTokens
+    }, 'api');
+
+    let res;
+    let text = '';
+    try {
+      res = await fetchWithTimeout(endpoint.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${endpoint.apiKey}`
+        },
+        body: JSON.stringify(body)
+      }, settings.timeoutMs);
+      text = await res.text();
+    } catch (e) {
+      log('warn', '对话 API 请求异常', { endpoint: endpoint.name, err: e.message }, 'api');
+      return { ok: false, status: 0, text: e.message, error: e };
+    }
 
     const status = res.status;
-    const text = await res.text();
     if (!res.ok) {
-      log('warn', '对话 API 错误', { status, body: text.slice(0, 300) }, 'api');
+      log('warn', '对话 API 错误', { endpoint: endpoint.name, status, body: text.slice(0, 300) }, 'api');
       return { ok: false, status, text };
     }
 
@@ -1339,44 +1632,82 @@ async function chatCompletion(messages, options = {}) {
     const usage = data?.usage;
     if (usage && (usage.prompt_tokens != null || usage.completion_tokens != null)) {
       recordTokenUsage(options.usageKey, usage.prompt_tokens || 0, usage.completion_tokens || 0, useModel);
-      log('info', 'Token 使用', { prompt: usage.prompt_tokens, completion: usage.completion_tokens, total: usage.total_tokens, model: useModel }, 'token');
+      log('info', 'Token 使用', { prompt: usage.prompt_tokens, completion: usage.completion_tokens, total: usage.total_tokens, model: useModel, endpoint: endpoint.name }, 'token');
     }
     return { ok: true, content, usage };
   }
 
-  // 首次尝试当前模型
-  const first = await doRequest(baseModel);
-  if (first.ok) return { ok: true, content: first.content, usage: first.usage };
+  let last = null;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    const first = await doRequest(baseModel);
+    if (first.ok) return { ok: true, content: first.content, usage: first.usage };
+    last = first;
 
-  const modelRouteErr = isModelRouteError(first.status, first.text);
-  const transientErr = isTransientApiError(first.status, first.text);
-  const shouldRetryModels = first.status === 429 || modelRouteErr || transientErr;
+    const modelRouteErr = isModelRouteError(first.status, first.text);
+    const transientErr = isTransientApiError(first.status, first.text) || first.error?.code === 'TIMEOUT';
+    const shouldRetryModels = first.status === 429 || modelRouteErr || transientErr;
 
-  if (transientErr && !modelRouteErr) {
-    log('warn', '对话 API 临时错误，将重试', { status: first.status, model: baseModel }, 'api');
-    await sleep(1500);
-    const retrySame = await doRequest(baseModel);
-    if (retrySame.ok) return { ok: true, content: retrySame.content, usage: retrySame.usage };
-  }
-
-  if (shouldRetryModels) {
-    const visionExtra = options.hasVision ? getVisionFallbackModels(cfg) : [];
-    const genericFallback = options.hasVision ? [] : getFallbackModelCandidates(cfg, provider, baseModel);
-    const candidates = normalizeModelList([...visionExtra, ...genericFallback]).filter((m) => m !== baseModel);
-    for (const fallbackModel of candidates) {
-      const reason = first.status === 429 ? '429' : transientErr ? 'transient' : 'model_route';
-      log('info', '切换备用模型重试', { from: baseModel, to: fallbackModel, provider, reason }, 'model');
-      const retry = await doRequest(fallbackModel);
-      if (retry.ok) {
-        return { ok: true, content: retry.content, usage: retry.usage };
-      }
-      if (first.status === 429 && retry.status !== 429) throw new Error(`API ${retry.status}`);
-      if (!isModelRouteError(retry.status, retry.text) && !isTransientApiError(retry.status, retry.text) && first.status !== 429) break;
+    if (transientErr && !modelRouteErr && attempt < retries) {
+      log('warn', '对话 API 临时错误，将重试', { endpoint: endpoint.name, status: first.status, attempt }, 'api');
+      await sleep(settings.retryDelayMs || 1500);
+      continue;
     }
-    if (first.status === 429) return { ok: false, status: 429, text: resolveTemplate(pluginState.config, 'rateLimit', {}) };
+
+    if (shouldRetryModels) {
+      const visionExtra = options.hasVision ? getVisionFallbackModels(cfg) : [];
+      const genericFallback = options.hasVision ? [] : getFallbackModelCandidates(cfg, provider, baseModel);
+      const candidates = normalizeModelList([...visionExtra, ...genericFallback]).filter((m) => m !== baseModel);
+      for (const fallbackModel of candidates) {
+        const reason = first.status === 429 ? '429' : transientErr ? 'transient' : 'model_route';
+        log('info', '切换备用模型重试', { endpoint: endpoint.name, from: baseModel, to: fallbackModel, provider, reason }, 'model');
+        const retry = await doRequest(fallbackModel);
+        if (retry.ok) return { ok: true, content: retry.content, usage: retry.usage };
+        last = retry;
+        if (first.status === 429 && retry.status !== 429) break;
+        if (!isModelRouteError(retry.status, retry.text) && !isTransientApiError(retry.status, retry.text) && first.status !== 429) break;
+      }
+      if (first.status === 429) return { ok: false, status: 429, text: resolveTemplate(pluginState.config, 'rateLimit', {}) };
+    }
+
+    if (!settings.enabled || !shouldRotateApiFailure(first.status, first.text, first.error, settings)) {
+      throw new Error(`API ${first.status || first.error?.message || 'error'}`);
+    }
+    if (attempt < retries) {
+      await sleep(settings.retryDelayMs);
+      continue;
+    }
+    break;
   }
 
-  throw new Error(`API ${first.status}`);
+  if (last?.status === 429) return { ok: false, status: 429, text: resolveTemplate(pluginState.config, 'rateLimit', {}) };
+  throw new Error(`API ${last?.status || last?.error?.message || 'error'}`);
+}
+
+async function chatCompletion(messages, options = {}) {
+  const cfg = pluginState.config;
+  const settings = getChatFailoverSettings(cfg);
+  const endpoints = buildChatEndpointList(cfg);
+  if (!endpoints.length) throw new Error('NO_KEY');
+
+  if (!settings.enabled || endpoints.length <= 1) {
+    return chatCompletionOnEndpoint(messages, options, endpoints[0], settings);
+  }
+
+  let lastErr = null;
+  for (let i = 0; i < endpoints.length; i++) {
+    const endpoint = endpoints[i];
+    try {
+      return await chatCompletionOnEndpoint(messages, options, endpoint, settings);
+    } catch (err) {
+      lastErr = err;
+      log('warn', '对话端点失败', { endpoint: endpoint.name, message: err.message }, 'api');
+      if (i < endpoints.length - 1) {
+        log('info', '切换下一对话 API 端点', { from: endpoint.name, to: endpoints[i + 1]?.name }, 'api');
+        await sleep(settings.retryDelayMs);
+      }
+    }
+  }
+  throw lastErr || new Error('API_FAILOVER_EXHAUSTED');
 }
 
 function formatReply(template, vars) {
@@ -2455,6 +2786,17 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
             : String(body.modelFallbackList || '').split(/\r?\n|[,，]/);
           cfg.modelFallbackList = normalizeModelList(rawFallbacks);
         }
+        if (body.apiFailoverEnabled !== undefined) cfg.apiFailoverEnabled = bool('apiFailoverEnabled', false);
+        if (body.apiFailoverRetries !== undefined) cfg.apiFailoverRetries = num('apiFailoverRetries', 2, 1, 10);
+        if (body.apiFailoverMaxEndpoints !== undefined) cfg.apiFailoverMaxEndpoints = num('apiFailoverMaxEndpoints', 5, 1, 20);
+        if (body.apiFailoverTimeoutMs !== undefined) cfg.apiFailoverTimeoutMs = num('apiFailoverTimeoutMs', 90000, 3000, 300000);
+        if (body.apiFailoverRetryDelayMs !== undefined) cfg.apiFailoverRetryDelayMs = num('apiFailoverRetryDelayMs', 1200, 0, 30000);
+        if (body.apiFailoverOnAuth !== undefined) cfg.apiFailoverOnAuth = bool('apiFailoverOnAuth', true);
+        if (body.apiFailoverOnRateLimit !== undefined) cfg.apiFailoverOnRateLimit = bool('apiFailoverOnRateLimit', true);
+        if (body.apiFailoverOnServerError !== undefined) cfg.apiFailoverOnServerError = bool('apiFailoverOnServerError', true);
+        if (body.apiFailoverOnTimeout !== undefined) cfg.apiFailoverOnTimeout = bool('apiFailoverOnTimeout', true);
+        if (body.apiFailoverOnNetwork !== undefined) cfg.apiFailoverOnNetwork = bool('apiFailoverOnNetwork', true);
+        if (body.apiPool !== undefined) cfg.apiPool = normalizeApiPool(body.apiPool);
         if (body.temperature !== undefined) cfg.temperature = num('temperature', 0.7, 0, 2);
         if (body.systemPrompt !== undefined) cfg.systemPrompt = str('systemPrompt', DEFAULT_CONFIG.systemPrompt);
         if (body.cooldownSeconds !== undefined) cfg.cooldownSeconds = num('cooldownSeconds', 10, 0, 3600);
@@ -2594,6 +2936,17 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         if (body.kimiVisionApiKey !== undefined) cfg.kimiVisionApiKey = str('kimiVisionApiKey', '');
         if (body.kimiVisionApiUrl !== undefined) cfg.kimiVisionApiUrl = str('kimiVisionApiUrl', KIMI_CODE_API);
         if (body.kimiVisionModelsUrl !== undefined) cfg.kimiVisionModelsUrl = str('kimiVisionModelsUrl', KIMI_CODE_MODELS_API);
+        if (body.visionFailoverEnabled !== undefined) cfg.visionFailoverEnabled = bool('visionFailoverEnabled', false);
+        if (body.visionFailoverRetries !== undefined) cfg.visionFailoverRetries = num('visionFailoverRetries', 2, 1, 10);
+        if (body.visionFailoverMaxEndpoints !== undefined) cfg.visionFailoverMaxEndpoints = num('visionFailoverMaxEndpoints', 4, 1, 20);
+        if (body.visionFailoverTimeoutMs !== undefined) cfg.visionFailoverTimeoutMs = num('visionFailoverTimeoutMs', 60000, 3000, 300000);
+        if (body.visionFailoverRetryDelayMs !== undefined) cfg.visionFailoverRetryDelayMs = num('visionFailoverRetryDelayMs', 1000, 0, 30000);
+        if (body.visionFailoverOnAuth !== undefined) cfg.visionFailoverOnAuth = bool('visionFailoverOnAuth', true);
+        if (body.visionFailoverOnRateLimit !== undefined) cfg.visionFailoverOnRateLimit = bool('visionFailoverOnRateLimit', true);
+        if (body.visionFailoverOnServerError !== undefined) cfg.visionFailoverOnServerError = bool('visionFailoverOnServerError', true);
+        if (body.visionFailoverOnTimeout !== undefined) cfg.visionFailoverOnTimeout = bool('visionFailoverOnTimeout', true);
+        if (body.visionFailoverOnNetwork !== undefined) cfg.visionFailoverOnNetwork = bool('visionFailoverOnNetwork', true);
+        if (body.visionPool !== undefined) cfg.visionPool = normalizeVisionPool(body.visionPool);
         if (body.chatVisionModel !== undefined) {
           cfg.kimiVisionModel = str('chatVisionModel', cfg.kimiVisionModel || KIMI_CODE_DEFAULT_MODEL) || KIMI_CODE_DEFAULT_MODEL;
         }
