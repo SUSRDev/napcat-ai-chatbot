@@ -68,6 +68,26 @@
       from { opacity: 0; transform: scale(0.98); }
       to { opacity: 1; transform: scale(1); }
     }
+    @keyframes bgFloatA {
+      0% { transform: translate3d(-6%, -4%, 0) scale(1); opacity: 0.18; }
+      50% { transform: translate3d(6%, 5%, 0) scale(1.08); opacity: 0.28; }
+      100% { transform: translate3d(-6%, -4%, 0) scale(1); opacity: 0.18; }
+    }
+    @keyframes bgFloatB {
+      0% { transform: translate3d(6%, 4%, 0) scale(1.02); opacity: 0.12; }
+      50% { transform: translate3d(-5%, -6%, 0) scale(1.12); opacity: 0.2; }
+      100% { transform: translate3d(6%, 4%, 0) scale(1.02); opacity: 0.12; }
+    }
+    @keyframes gridPulse {
+      0% { opacity: 0.16; }
+      50% { opacity: 0.3; }
+      100% { opacity: 0.16; }
+    }
+    @keyframes gridSweep {
+      0% { transform: translateX(-120%); opacity: 0; }
+      20% { opacity: 0.18; }
+      100% { transform: translateX(120%); opacity: 0; }
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     .material-symbols-outlined {
       font-family: 'Material Symbols Outlined';
@@ -86,7 +106,7 @@
       display: inline-flex; align-items: center; justify-content: center;
       width: 36px; height: 36px; padding: 0; border-radius: 10px;
       border: 1px solid var(--border); background: var(--bg2); color: var(--text2);
-      cursor: pointer; transition: all 0.22s var(--ease); flex-shrink: 0;
+      cursor: pointer; transition: all 0.28s var(--ease); flex-shrink: 0;
     }
     .icon-btn .material-symbols-outlined { font-size: 20px; line-height: 1; }
     .icon-btn:hover {
@@ -156,7 +176,37 @@
     .theme-toggle .material-symbols-outlined { font-size: 18px; }
     .log-sidebar-header h3 { display: flex; align-items: center; gap: 6px; }
     html, body { height: 100%; font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif; }
-    body { background: var(--bg); color: var(--text); overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      position: relative;
+      isolation: isolate;
+    }
+    body::before,
+    body::after {
+      content: '';
+      position: fixed;
+      inset: -20vh -20vw;
+      pointer-events: none;
+      z-index: -2;
+      filter: blur(42px);
+      will-change: transform, opacity;
+    }
+    body::before {
+      background:
+        radial-gradient(38% 30% at 18% 22%, color-mix(in srgb, var(--accent) 35%, transparent), transparent 70%),
+        radial-gradient(32% 28% at 78% 68%, color-mix(in srgb, var(--accent2) 30%, transparent), transparent 72%);
+      animation: bgFloatA 20s var(--ease) infinite;
+    }
+    body::after {
+      background:
+        radial-gradient(34% 30% at 80% 20%, color-mix(in srgb, #ffffff 16%, transparent), transparent 72%),
+        radial-gradient(28% 22% at 22% 78%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 70%);
+      animation: bgFloatB 26s var(--ease) infinite;
+      z-index: -1;
+    }
 
     .header-bar {
       position: sticky; top: 0; z-index: 100;
@@ -203,7 +253,7 @@
     .nav-item {
       display: flex; align-items: center; gap: 8px;
       padding: 9px 12px 9px 28px; border-radius: 8px; cursor: pointer; color: var(--text2);
-      font-size: 13px; margin-bottom: 2px; transition: all 0.22s var(--ease);
+      font-size: 13px; margin-bottom: 2px; transition: all 0.3s var(--ease);
       border: 1px solid transparent; transform: translateX(0);
     }
     .nav-item .nav-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); flex-shrink: 0; transition: background 0.15s; }
@@ -211,7 +261,34 @@
     .nav-item.active { background: var(--accent-glow); color: var(--text); border-color: var(--border-hover); font-weight: 500; }
     .nav-item.active .nav-dot { background: var(--accent); }
 
-    .main { flex: 1; overflow-y: auto; padding: 28px 36px calc(64px + var(--safe-bottom)); min-width: 0; }
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px 36px calc(64px + var(--safe-bottom));
+      min-width: 0;
+      position: relative;
+    }
+    .main::before,
+    .main::after {
+      content: '';
+      position: fixed;
+      inset: var(--header-h) 0 0 var(--sidebar-w);
+      pointer-events: none;
+      z-index: -1;
+    }
+    .main::before {
+      background-image:
+        linear-gradient(to right, color-mix(in srgb, var(--border) 30%, transparent) 1px, transparent 1px),
+        linear-gradient(to bottom, color-mix(in srgb, var(--border) 30%, transparent) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: 0.18;
+      animation: gridPulse 8s ease-in-out infinite;
+    }
+    .main::after {
+      background: linear-gradient(102deg, transparent 42%, color-mix(in srgb, var(--accent) 14%, transparent) 50%, transparent 58%);
+      animation: gridSweep 9s linear infinite;
+      opacity: 0;
+    }
     .page {
       display: none; max-width: 1080px;
     }
@@ -256,9 +333,14 @@
 
     .section {
       background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-      padding: 20px 24px; margin-bottom: 16px; transition: border-color 0.2s var(--ease);
+      padding: 20px 24px; margin-bottom: 16px;
+      transition: border-color 0.28s var(--ease), transform 0.28s var(--ease), box-shadow 0.28s var(--ease);
     }
-    .section:hover { border-color: var(--border-hover); }
+    .section:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 10px 28px rgba(0,0,0,0.2);
+    }
     .section-title {
       font-size: 12px; font-weight: 600; color: var(--text2);
       text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 14px;
@@ -307,14 +389,19 @@
       width: 100%; max-width: 420px; padding: 10px 14px; border-radius: 8px;
       border: 1px solid var(--border); background: var(--bg2); color: var(--text); font-size: 13px; font-family: inherit;
     }
-    .ipt:focus { outline: none; border-color: var(--accent); }
+    .ipt:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+      transform: translateY(-1px);
+    }
     textarea.ipt { min-height: 88px; resize: vertical; }
     select.ipt { cursor: pointer; max-width: 200px; }
 
     .btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 8px;
       padding: 0 16px; height: 36px; border-radius: 8px; font-size: 13px; font-weight: 500;
-      cursor: pointer; border: 1px solid transparent; transition: all 0.15s var(--ease); font-family: inherit;
+      cursor: pointer; border: 1px solid transparent; transition: all 0.28s var(--ease); font-family: inherit;
     }
     .btn-p { background: var(--text); color: var(--bg); border-color: var(--text); }
     .btn-p:hover { opacity: 0.85; transform: translateY(-1px); }
@@ -331,7 +418,7 @@
     .groups-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
     .group-card {
       background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
-      padding: 14px; cursor: pointer; transition: all 0.2s;
+      padding: 14px; cursor: pointer; transition: all 0.28s var(--ease);
     }
     .group-card:hover { border-color: rgba(59,130,246,0.4); }
     .group-card.enabled { border-color: var(--accent); background: rgba(59,130,246,0.08); }
@@ -648,6 +735,7 @@
       .nav-item { padding: 11px 14px 11px 32px; min-height: 44px; }
 
       .main { padding: 16px 14px calc(40px + var(--safe-bottom)); }
+      .main::before, .main::after { inset: var(--header-h) 0 0 0; }
       .page-title { font-size: 20px; margin-bottom: 6px; }
       .page-desc { font-size: 12px; margin-bottom: 16px; }
       .section { padding: 14px 16px; margin-bottom: 12px; }
@@ -699,27 +787,156 @@
 
     /* 竖屏手机：对话主从、全高面板 */
     @media (max-width: 900px) and (orientation: portrait) {
-      .conv-layout { grid-template-columns: 1fr; gap: 0; min-height: auto; }
+      #pg-conversations .page-header {
+        margin-bottom: 10px;
+        padding: 0 2px;
+      }
+      #pg-conversations .page-title {
+        display: block;
+        font-size: 18px;
+        margin-bottom: 4px;
+      }
+      #pg-conversations .page-desc {
+        font-size: 11px;
+        line-height: 1.55;
+        margin-bottom: 10px;
+        color: var(--text3);
+      }
+      .conv-layout {
+        grid-template-columns: 1fr;
+        gap: 10px;
+        min-height: auto;
+        max-width: none;
+        width: 100%;
+        margin: 0;
+      }
+      .conv-panel {
+        width: 100%;
+        min-width: 0;
+        border-radius: 14px;
+      }
       .conv-panel-list {
         display: flex;
-        max-height: calc(100dvh - var(--header-h) - 160px - var(--safe-top) - var(--safe-bottom));
+        width: 100%;
+        max-height: calc(100dvh - var(--header-h) - 150px - var(--safe-top) - var(--safe-bottom));
       }
       .conv-panel-detail { display: none; }
       .conv-layout.show-detail .conv-panel-list { display: none; }
       .conv-layout.show-detail .conv-panel-detail {
         display: flex;
-        max-height: calc(100dvh - var(--header-h) - 120px - var(--safe-top) - var(--safe-bottom));
+        width: 100%;
+        max-height: calc(100dvh - var(--header-h) - 112px - var(--safe-top) - var(--safe-bottom));
       }
       .conv-back-btn { display: inline-flex; min-height: 36px; }
-      .conv-panel-head { padding: 12px 14px; flex-wrap: wrap; gap: 8px; }
-      .conv-panel-head h3 { font-size: 12px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .conv-panel-head {
+        padding: 12px 12px 10px;
+        flex-wrap: nowrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .conv-panel-head h3 {
+        font-size: 14px;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .conv-head-actions {
+        gap: 4px;
+        flex-wrap: nowrap;
+        flex-shrink: 0;
+      }
+      .view-toggle button,
+      .conv-head-actions .icon-btn.sm {
+        width: 32px;
+        height: 32px;
+        min-height: 32px;
+      }
       .conv-panel-detail .conv-panel-head { align-items: center; }
-      #conv-detail-meta { width: 100%; flex-basis: 100%; font-size: 10px; }
-      .conv-search { margin: 10px 12px 0; }
-      .conv-list { max-height: none; flex: 1; }
-      .conv-chat { min-height: 240px; padding: 14px; flex: 1; }
-      .chat-bubble { max-width: 92%; font-size: 14px; }
-      .conv-detail-actions { padding: 10px 14px calc(10px + var(--safe-bottom)); flex-wrap: wrap; position: sticky; bottom: 0; background: var(--card); }
+      #conv-detail-meta {
+        width: auto;
+        flex-basis: auto;
+        font-size: 10px;
+        margin-left: 0;
+        max-width: 48%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .conv-toolbar {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        padding: 10px 12px 0;
+      }
+      .conv-toolbar .search-input-wrap {
+        grid-column: 1 / -1;
+      }
+      .conv-toolbar .search-input-wrap .conv-search,
+      .conv-toolbar .conv-search,
+      .conv-toolbar select.conv-search {
+        height: 38px;
+        font-size: 12px;
+        border-radius: 10px;
+      }
+      .conv-toolbar #conv-sort {
+        grid-column: 1 / -1;
+      }
+      .conv-stats-bar {
+        padding: 8px 12px 10px;
+        font-size: 11px;
+        gap: 4px 10px;
+      }
+      .conv-list {
+        max-height: none;
+        flex: 1;
+        padding: 8px;
+      }
+      .conv-item {
+        margin-bottom: 6px;
+        padding: 11px 12px;
+        border-radius: 12px;
+      }
+      .conv-item-user {
+        font-size: 12px;
+      }
+      .conv-item-meta {
+        font-size: 10px;
+        gap: 6px;
+      }
+      .conv-item-preview {
+        font-size: 11px;
+        margin-top: 5px;
+      }
+      #conversations-empty {
+        padding: 18px 12px 24px !important;
+        font-size: 12px !important;
+      }
+      .conv-chat {
+        min-height: 240px;
+        padding: 12px;
+        flex: 1;
+        gap: 10px;
+      }
+      .chat-bubble {
+        max-width: 94%;
+        font-size: 13px;
+        padding: 10px 12px;
+      }
+      .chat-bubble-label {
+        font-size: 9px;
+      }
+      .conv-empty-state {
+        padding: 28px 18px;
+        font-size: 12px;
+      }
+      .conv-detail-actions {
+        padding: 10px 12px calc(10px + var(--safe-bottom));
+        flex-wrap: wrap;
+        position: sticky;
+        bottom: 0;
+        background: var(--card);
+      }
       .conv-detail-actions .btn { flex: 1; min-width: 120px; }
       .page-title { display: none; }
       .page-desc { margin-bottom: 12px; }
@@ -981,6 +1198,79 @@
       font-weight: 600;
       letter-spacing: 0;
       text-transform: none;
+    }
+    .section-body {
+      padding: 16px 18px 18px;
+    }
+    .section-subtitle {
+      font-size: 12px;
+      color: var(--text3);
+      line-height: 1.65;
+      margin-bottom: 12px;
+    }
+    .section-toolbar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .section-body > .section-toolbar:first-child { margin-top: 2px; }
+    .section-body > .perm-toolbar:first-child { margin-top: 2px; }
+    .section-toolbar .resolve-box {
+      flex: 1;
+      min-width: 220px;
+      max-width: 420px;
+    }
+    .admin-users-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+      min-height: 24px;
+    }
+    .admin-user-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      font-size: 12px;
+      color: var(--text2);
+    }
+    .admin-user-chip button {
+      border: none;
+      background: transparent;
+      color: var(--text3);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      padding: 0;
+    }
+    .admin-user-chip button:hover { color: var(--danger); }
+    .confirm-user-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg2);
+    }
+    .confirm-user-head img {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid var(--border);
+    }
+    .confirm-user-meta {
+      font-size: 12px;
+      color: var(--text2);
+      line-height: 1.6;
     }
     .form-row {
       display: grid;
@@ -1337,6 +1627,25 @@
         width: 100%;
       }
       .conv-detail-actions .btn { width: auto; }
+      .groups-actions-bar {
+        align-items: stretch;
+      }
+      .groups-actions-btns {
+        width: 100%;
+        margin-left: 0;
+      }
+      .groups-actions-btns .btn {
+        flex: 1;
+        justify-content: center;
+      }
+      .fakehuman-actions-btns {
+        width: 100%;
+        margin-left: 0;
+      }
+      .fakehuman-actions-btns .btn {
+        flex: 1;
+        justify-content: center;
+      }
     }
 
     /* ── 重设计侧边栏 ── */
@@ -1348,10 +1657,15 @@
     }
     .sidebar-brand-icon {
       width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      background: var(--bg2);
+      border: 1px solid var(--border);
       display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 4px 14px var(--accent-glow);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.24);
       animation: pulseGlow 3s ease-in-out infinite;
+    }
+    .sidebar-brand-icon .material-symbols-outlined {
+      color: var(--text);
+      font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 24;
     }
     @keyframes pulseGlow {
       0%, 100% { box-shadow: 0 4px 14px var(--accent-glow); }
@@ -1373,6 +1687,14 @@
     .nav-item .nav-icon {
       width: var(--nav-icon-size); height: var(--nav-icon-size); flex-shrink: 0;
       opacity: 0.7; transition: opacity 0.2s, transform 0.2s var(--ease);
+      color: color-mix(in srgb, var(--text) 88%, #fff);
+      stroke: currentColor;
+      font-size: var(--nav-icon-size);
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
     }
     .nav-item:hover { background: var(--card-hover); color: var(--text); border-color: var(--border); }
     .nav-item:hover .nav-icon { opacity: 1; transform: scale(1.05); }
@@ -1382,6 +1704,10 @@
       font-weight: 600;
     }
     .nav-item.active .nav-icon { opacity: 1; color: var(--accent); }
+    body.dark .nav-item .nav-icon {
+      color: color-mix(in srgb, #ffffff 90%, var(--text));
+      opacity: 0.92;
+    }
     .nav-item.active::before {
       content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px;
       border-radius: 0 3px 3px 0; background: linear-gradient(180deg, var(--accent), var(--accent2));
@@ -1389,9 +1715,76 @@
     }
     @keyframes slideInLeft { from { transform: scaleY(0); } to { transform: scaleY(1); } }
     .sidebar-footer {
-      margin-top: auto; padding: 12px 10px 8px; border-top: 1px solid var(--border);
-      font-size: 11px; color: var(--text3); text-align: center;
-      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      margin-top: auto;
+      padding: 12px 10px 8px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .sidebar-config-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 0;
+    }
+    .sidebar-config-actions .icon-btn.sm {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+    }
+    .about-hero {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--bg2);
+      padding: 16px 18px;
+      margin-bottom: 14px;
+      animation: fadeSlideIn 0.35s var(--ease) both;
+    }
+    .about-hero h3 {
+      font-size: 15px;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+    .about-hero p {
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.65;
+    }
+    .about-links {
+      display: grid;
+      gap: 10px;
+    }
+    .about-link-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--card);
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      transition: all 0.2s var(--ease);
+    }
+    .about-link-card:hover {
+      border-color: var(--border-hover);
+      background: var(--card-hover);
+      transform: translateY(-1px);
+    }
+    .about-link-label {
+      font-size: 12px;
+      color: var(--text3);
+      margin-bottom: 3px;
+    }
+    .about-link-value {
+      font-size: 13px;
+      color: var(--text);
+      word-break: break-all;
+    }
+    .about-link-card a {
+      color: inherit;
+      text-decoration: none;
     }
     .theme-toggle .theme-icon { margin-right: 4px; font-size: 13px; }
 
@@ -1508,47 +1901,235 @@
       margin-left: 4px; font-weight: 600;
     }
     .admin-cmd-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
       padding: 0 18px 18px;
     }
     .admin-cmd-card {
-      padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border);
-      background: var(--bg2); font-size: 13px; line-height: 1.6; color: var(--text2);
-      transition: border-color 0.2s var(--ease), transform 0.2s var(--ease);
+      min-height: 98px;
+      border-radius: 14px;
+      border: 1px solid color-mix(in srgb, var(--border) 85%, var(--accent) 15%);
+      background:
+        radial-gradient(circle at 88% -22%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 58%),
+        linear-gradient(160deg, color-mix(in srgb, var(--bg2) 94%, transparent), color-mix(in srgb, var(--card) 97%, transparent));
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 8px;
+      transition: border-color 0.25s var(--ease), transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
     }
     .admin-cmd-card:hover {
-      border-color: var(--border-hover); transform: translateY(-1px);
+      border-color: color-mix(in srgb, var(--accent) 45%, var(--border-hover));
+      transform: translateY(-2px);
+      box-shadow: 0 10px 22px rgba(0,0,0,0.22);
+    }
+    .admin-cmd-main {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .admin-cmd-main .material-symbols-outlined {
+      font-size: 16px;
+      color: var(--accent);
+      opacity: 0.95;
     }
     .cmd-chip {
-      display: inline-block; margin-bottom: 8px; padding: 5px 10px; border-radius: 8px;
-      font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
-      font-size: 13px; font-weight: 600; letter-spacing: 0.02em;
-      color: var(--text); background: var(--card);
-      border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
-      box-shadow: 0 1px 0 color-mix(in srgb, var(--text) 4%, transparent);
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 4px 11px;
+      border-radius: 999px;
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      color: var(--text);
+      background: color-mix(in srgb, var(--card) 92%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border));
+      white-space: nowrap;
     }
-    body.light .cmd-chip {
-      background: #fff;
-      border-color: color-mix(in srgb, #0070f3 22%, var(--border));
-    }
-    .admin-cmd-card code {
-      font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
-      font-weight: 600; font-size: 13px;
+    .admin-cmd-desc {
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--text2);
     }
     .isolation-mode-cards {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 12px 0;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin: 12px 0;
     }
     .isolation-mode-card {
-      padding: 16px; border-radius: 10px; border: 2px solid var(--border);
-      cursor: pointer; transition: all 0.2s var(--ease); background: var(--bg2);
+      padding: 16px; border-radius: 12px; border: 1px solid var(--border);
+      cursor: pointer; transition: all 0.24s var(--ease);
+      background: linear-gradient(165deg, color-mix(in srgb, var(--bg2) 95%, transparent), color-mix(in srgb, var(--card) 96%, transparent));
+      position: relative; overflow: hidden;
     }
-    .isolation-mode-card:hover { border-color: var(--border-hover); }
+    .isolation-mode-card::after {
+      content: '';
+      position: absolute; inset: auto -35% -40% auto;
+      width: 140px; height: 140px; border-radius: 50%;
+      background: radial-gradient(circle, color-mix(in srgb, var(--accent) 15%, transparent), transparent 72%);
+      pointer-events: none;
+    }
+    .isolation-mode-card:hover { border-color: var(--border-hover); transform: translateY(-2px); }
     .isolation-mode-card.selected {
-      border-color: var(--accent); background: var(--accent-glow);
-      box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+      background: color-mix(in srgb, var(--accent-glow) 70%, var(--card));
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent), 0 10px 24px rgba(0,0,0,0.24);
     }
     .isolation-mode-card h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
     .isolation-mode-card p { font-size: 12px; color: var(--text2); line-height: 1.5; }
+    .groups-page-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+    .groups-panel {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--card) 96%, transparent);
+      overflow: hidden;
+    }
+    .groups-panel-head {
+      min-height: 48px;
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .groups-panel-body { padding: 12px 16px 16px; }
+    .groups-help-text { font-size: 12px; color: var(--text3); line-height: 1.65; margin-bottom: 12px; }
+    .groups-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+    .groups-toolbar .ipt { margin: 0; max-width: 280px; }
+    .groups-legend-chip {
+      font-size: 11px; color: var(--text2); border: 1px solid var(--border);
+      border-radius: 999px; padding: 3px 10px; background: var(--bg2);
+    }
+    .groups-actions-bar {
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--bg2) 92%, var(--card));
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .groups-actions-hint {
+      font-size: 12px;
+      color: var(--text3);
+      line-height: 1.5;
+    }
+    .groups-actions-btns {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+      flex-wrap: wrap;
+    }
+    .groups-actions-btns .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 34px;
+    }
+    .groups-actions-btns .btn .material-symbols-outlined {
+      font-size: 17px;
+    }
+    .fakehuman-groups-panel {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--card) 96%, transparent);
+      overflow: hidden;
+    }
+    .fakehuman-groups-head {
+      min-height: 48px;
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .fakehuman-groups-body { padding: 12px 16px 16px; }
+    .fakehuman-groups-help {
+      font-size: 12px;
+      color: var(--text3);
+      line-height: 1.65;
+      margin-bottom: 12px;
+    }
+    .fakehuman-groups-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+    .fakehuman-groups-toolbar .ipt { margin: 0; max-width: 280px; }
+    .fakehuman-actions-bar {
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--bg2) 92%, var(--card));
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .fakehuman-actions-btns { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+    .fakehuman-actions-btns .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 34px;
+    }
+    .var-help-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 10px;
+      padding: 0 18px 18px;
+    }
+    .var-help-item {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg2);
+      min-height: 84px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+      color: var(--text2);
+      line-height: 1.5;
+    }
+    .var-help-main {
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .var-help-example {
+      font-size: 12px;
+      color: var(--text3);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .var-help-item code {
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      color: var(--text);
+      font-size: 12px;
+    }
     .toast { animation: toastIn 0.35s var(--ease); }
     @keyframes toastIn {
       from { opacity: 0; transform: translateX(16px); }
@@ -1971,6 +2552,7 @@
       font-size: 12px; color: var(--text3); cursor: pointer; user-select: none;
       width: fit-content; padding: 6px 10px; border-radius: 8px;
       transition: background 0.2s, color 0.2s;
+      margin-bottom: 8px;
     }
     .reaction-json-toggle:hover { background: var(--bg2); color: var(--text2); }
     .reaction-json-panel {
@@ -1978,10 +2560,11 @@
       transition: max-height 0.35s var(--ease), opacity 0.28s var(--ease), margin 0.28s;
     }
     .reaction-json-panel.open {
-      max-height: 200px; opacity: 1; margin-top: 10px;
+      max-height: 340px; opacity: 1; margin-top: 10px;
     }
     @media (prefers-reduced-motion: reduce) {
       .page, .nav-item, .sticker-card, .reaction-emoji-card, .icon-btn { transition: none !important; animation: none !important; }
+      body::before, body::after, .main::before, .main::after { animation: none !important; display: none !important; }
     }
 
     /* 弹窗 */
@@ -2018,6 +2601,60 @@
     .reaction-emoji-modal-grid {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 10px;
     }
+    .kv-editor-inline {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg2);
+      padding: 10px 12px;
+    }
+    .kv-editor-summary {
+      font-size: 12px;
+      color: var(--text2);
+      line-height: 1.55;
+      flex: 1;
+      min-width: 220px;
+    }
+    .structured-modal-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .structured-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 8px;
+      align-items: center;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg2);
+      padding: 8px;
+    }
+    .structured-row.single {
+      grid-template-columns: 1fr auto;
+    }
+    .structured-row .ipt {
+      margin: 0;
+      max-width: none;
+    }
+    .structured-add-bar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .structured-muted {
+      font-size: 12px;
+      color: var(--text3);
+      line-height: 1.6;
+      margin-bottom: 10px;
+    }
     .config-io-bar {
       display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;
     }
@@ -2045,12 +2682,46 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="user-confirm-modal" onclick="closeUserConfirmModal(event)">
+    <div class="modal-panel" role="dialog" aria-labelledby="user-confirm-title" onclick="event.stopPropagation()">
+      <div class="modal-head">
+        <h3 id="user-confirm-title">确认添加用户</h3>
+        <button type="button" class="icon-btn sm" title="关闭" onclick="closeUserConfirmModal()"><span class="material-symbols-outlined">close</span></button>
+      </div>
+      <div class="modal-body">
+        <div class="confirm-user-head" id="user-confirm-head"></div>
+        <div id="user-confirm-text" style="font-size:13px;color:var(--text2);line-height:1.7"></div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-d" onclick="closeUserConfirmModal()">取消</button>
+        <button type="button" class="btn btn-p" id="user-confirm-ok">确认添加</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="structured-editor-modal" onclick="closeStructuredEditorModal(event)">
+    <div class="modal-panel" role="dialog" aria-labelledby="structured-editor-title" onclick="event.stopPropagation()">
+      <div class="modal-head">
+        <h3 id="structured-editor-title">编辑配置</h3>
+        <button type="button" class="icon-btn sm" title="关闭" onclick="closeStructuredEditorModal()"><span class="material-symbols-outlined">close</span></button>
+      </div>
+      <div class="modal-body">
+        <p class="structured-muted" id="structured-editor-desc"></p>
+        <div id="structured-editor-body"></div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-d" onclick="closeStructuredEditorModal()">取消</button>
+        <button type="button" class="btn btn-p" onclick="applyStructuredEditor()">应用</button>
+      </div>
+    </div>
+  </div>
+
   <div class="header-bar">
     <div class="header-left">
       <button type="button" class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" aria-label="打开菜单">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
-      <span class="header-brand">聊天机器人</span>
+      <span class="header-brand"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px;margin-right:6px">auto_awesome</span>聊天机器人</span>
       <span class="mobile-page-title" id="mobilePageTitle">概览</span>
     </div>
     <div class="header-right">
@@ -2065,99 +2736,102 @@
     <aside class="sidebar">
       <div class="sidebar-brand">
         <div class="sidebar-brand-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span class="material-symbols-outlined" style="font-size:20px;color:#fff">neurology</span>
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span>NapCat 插件 · v1.2</span>
+          <span>NapCat 插件 · v1.3</span>
         </div>
       </div>
       <nav class="sidebar-nav">
         <div class="nav-section-label">概览</div>
         <div class="nav-item active" data-page="overview" data-title="概览">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          <span class="material-symbols-outlined nav-icon">dashboard</span>
           仪表盘
           </div>
 
         <div class="nav-section-label">AI 能力</div>
         <div class="nav-item" data-page="api" data-title="API 与模型">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+          <span class="material-symbols-outlined nav-icon">hub</span>
           API 与模型
         </div>
         <div class="nav-item" data-page="search" data-title="智能搜索">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span class="material-symbols-outlined nav-icon">travel_explore</span>
           智能搜索
           </div>
         <div class="nav-item" data-page="persona" data-title="人设与回复">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span class="material-symbols-outlined nav-icon">smart_toy</span>
           人设与回复
         </div>
         <div class="nav-item" data-page="stickers" data-title="表情管理">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+          <span class="material-symbols-outlined nav-icon">sticker</span>
           收藏表情
           </div>
         <div class="nav-item" data-page="reactions" data-title="表情回应">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <span class="material-symbols-outlined nav-icon">favorite</span>
           表情回应
         </div>
         <div class="nav-item" data-page="imagegen" data-title="图像生成">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          <span class="material-symbols-outlined nav-icon">imagesmode</span>
           图像生成
           </div>
 
         <div class="nav-section-label">行为控制</div>
         <div class="nav-item" data-page="trigger" data-title="触发与指令">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          <span class="material-symbols-outlined nav-icon">switch_access_shortcut</span>
           触发与指令
         </div>
         <div class="nav-item" data-page="admin" data-title="管理员指令">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span class="material-symbols-outlined nav-icon">admin_panel_settings</span>
           管理员指令
         </div>
         <div class="nav-item" data-page="cooldown" data-title="冷却与隔离">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span class="material-symbols-outlined nav-icon">timer</span>
           冷却与隔离
         </div>
         <div class="nav-item" data-page="messages" data-title="消息模板">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span class="material-symbols-outlined nav-icon">text_snippet</span>
           消息模板
         </div>
 
         <div class="nav-section-label">权限</div>
         <div class="nav-item" data-page="groups" data-title="群组">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span class="material-symbols-outlined nav-icon">groups</span>
           群组管理
         </div>
         <div class="nav-item" data-page="users" data-title="黑白名单">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="18" y1="8" x2="23" y2="13"/><line x1="23" y1="8" x2="18" y2="13"/></svg>
+          <span class="material-symbols-outlined nav-icon">person_off</span>
           黑白名单
         </div>
         <div class="nav-item" data-page="permissions" data-title="权限管理">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span class="material-symbols-outlined nav-icon">lock</span>
           功能权限
         </div>
         <div class="nav-item" data-page="fakehuman" data-title="伪人">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+          <span class="material-symbols-outlined nav-icon">face_6</span>
           伪人模式
         </div>
 
         <div class="nav-section-label">数据</div>
         <div class="nav-item" data-page="conversations" data-title="对话管理">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span class="material-symbols-outlined nav-icon">forum</span>
           对话管理
         </div>
         <div class="nav-item" data-page="tokens" data-title="Token 统计">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span class="material-symbols-outlined nav-icon">bar_chart</span>
           Token 统计
         </div>
         <div class="nav-item" data-page="logs" data-title="运行日志">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span class="material-symbols-outlined nav-icon">description</span>
           运行日志
+        </div>
+        <div class="nav-item" data-page="about" data-title="关于我们">
+          <span class="material-symbols-outlined nav-icon">info</span>
+          关于我们
         </div>
       </nav>
       <div class="sidebar-footer">
-        <span>开源就绪 · MIT</span>
-        <div class="config-io-bar">
+        <div class="sidebar-config-actions">
           <button type="button" class="icon-btn sm" title="导出配置" onclick="exportConfigFile()"><span class="material-symbols-outlined">download</span></button>
           <button type="button" class="icon-btn sm" title="导入配置" onclick="document.getElementById('config-import-file').click()"><span class="material-symbols-outlined">upload</span></button>
         </div>
@@ -2551,10 +3225,12 @@
         </div>
         <div class="section">
           <div class="section-title">三路联合搜索</div>
-          <p style="font-size:12px;color:var(--text3);margin-bottom:10px">开启后由 AI 生成最多 3 条不同搜索词，分别检索后合并结果再交给 AI 整理回复，信息更全面。</p>
-          <div class="form-row">
-            <div class="form-label">启用三路联合搜索</div>
-            <div class="tgl" id="tgl-webSearchTriple" onclick="toggle(this,'webSearchTriple')"></div>
+          <div class="section-body">
+            <p class="section-subtitle">开启后由 AI 生成最多 3 条不同搜索词，分别检索后合并结果再交给 AI 整理回复，信息更全面。</p>
+            <div class="form-row">
+              <div class="form-label">启用三路联合搜索</div>
+              <div class="tgl" id="tgl-webSearchTriple" onclick="toggle(this,'webSearchTriple')"></div>
+            </div>
           </div>
         </div>
         <button class="btn btn-p" onclick="saveSearchConfig()">保存智能搜索配置</button>
@@ -2564,12 +3240,15 @@
         <h2 class="page-title">人设与回复</h2>
         <div class="section">
           <div class="section-title">系统人设（System Prompt）</div>
-          <p style="font-size:12px;color:var(--text3);margin-bottom:10px">设定 AI 的身份与风格，多轮对话会带上下文。</p>
-          <textarea class="ipt" id="cfg-systemPrompt" placeholder="你是友好、有帮助的助手。请用简洁自然的语言回复，适合群聊/私聊场景。" style="min-height:120px"></textarea>
+          <div class="section-body">
+            <p class="section-subtitle">设定 AI 的身份与风格，多轮对话会带上下文。</p>
+            <textarea class="ipt" id="cfg-systemPrompt" placeholder="你是友好、有帮助的助手。请用简洁自然的语言回复，适合群聊/私聊场景。" style="min-height:120px;max-width:100%"></textarea>
+          </div>
         </div>
         <div class="section">
           <div class="section-title">回复时是否 @ 对方 + 是否戳一戳</div>
-          <p style="font-size:12px;color:var(--text3);margin-bottom:12px">群聊里有人 @ 机器人或发指令后，机器人会回复一段话。<strong>回复前缀</strong>决定是否在回复文字前 @ 对方；<strong>戳一戳</strong>决定回复发完后是否再发一个「戳一戳」动作（像 QQ 里的戳一戳提醒）。两者可任意组合。</p>
+          <div class="section-body">
+          <p class="section-subtitle">群聊里有人 @ 机器人或发指令后，机器人会回复一段话。<strong>回复前缀</strong>决定是否在回复文字前 @ 对方；<strong>戳一戳</strong>决定回复发完后是否再发一个「戳一戳」动作（像 QQ 里的戳一戳提醒）。两者可任意组合。</p>
           <div class="form-row">
             <div class="form-label">快捷组合<div class="hint">选一个后会自动填好下面的「回复前缀」和「戳一戳」</div></div>
             <select class="ipt" id="reply-poke-preset" style="max-width:220px" onchange="applyReplyPokePreset()">
@@ -2602,6 +3281,7 @@
             <input type="number" class="ipt" id="cfg-pokeRandomChance" min="0" max="1" step="0.1" value="0.5" style="max-width:80px" oninput="updateReplyPokeSummary();" />
           </div>
           <div id="reply-poke-summary" style="font-size:12px;color:var(--text2);margin-top:8px;padding:10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border);"></div>
+          </div>
         </div>
         <div class="section">
           <div class="section-title">私聊</div>
@@ -2612,10 +3292,12 @@
         </div>
         <div class="section">
           <div class="section-title">回复后发送表情</div>
-          <p style="font-size:12px;color:var(--text3);margin-bottom:10px">发完文字回复后可再发 QQ 收藏表情。完整配置（拉取账号表情、勾选池、权重）请前往 <a href="#" onclick="navigatePage('stickers',document.querySelector('[data-page=stickers]'));return false" style="color:var(--accent)">表情管理</a> 页。</p>
-          <div class="form-row">
-            <div class="form-label">启用回复后发表情</div>
-            <div class="tgl" id="tgl-appendStickerAfterReply" onclick="toggle(this,'appendStickerAfterReply')"></div>
+          <div class="section-body">
+            <p class="section-subtitle">发完文字回复后可再发 QQ 收藏表情。完整配置（拉取账号表情、勾选池、权重）请前往 <a href="#" onclick="navigatePage('stickers',document.querySelector('[data-page=stickers]'));return false" style="color:var(--accent)">表情管理</a> 页。</p>
+            <div class="form-row">
+              <div class="form-label">启用回复后发表情</div>
+              <div class="tgl" id="tgl-appendStickerAfterReply" onclick="toggle(this,'appendStickerAfterReply')"></div>
+            </div>
           </div>
         </div>
         <button class="btn btn-p" onclick="saveConfig()">保存配置</button>
@@ -2871,7 +3553,7 @@
             高级：手动编辑表情 JSON
           </div>
           <div class="reaction-json-panel" id="reaction-json-panel">
-            <textarea class="ipt" id="cfg-reactionEmojiCatalog" style="min-height:100px;font-family:monospace;font-size:11px;margin:0 18px 14px;width:calc(100% - 36px)" placeholder='[{"id":"76","name":"赞","glyph":"+"}]'></textarea>
+            <textarea class="ipt" id="cfg-reactionEmojiCatalog" style="min-height:140px;font-family:monospace;font-size:11px;margin:0 18px 14px;width:calc(100% - 36px)" placeholder='[{"id":"76","name":"赞","glyph":"+"}]'></textarea>
           </div>
         </div>
         <div class="page-footer-actions">
@@ -2919,8 +3601,19 @@
             <div class="tgl" id="tgl-adminCommandsEnabled" onclick="toggle(this,'adminCommandsEnabled')"></div>
           </div>
           <div class="form-row">
-            <div class="form-label">管理员 QQ<div class="hint">逗号分隔，仅这些 QQ 可执行管理指令</div></div>
-            <input type="text" class="ipt" id="cfg-adminUsers" placeholder="123456789, 987654321" />
+            <div class="form-label">管理员用户<div class="hint">支持按 QQ 或昵称搜索添加，不再手填逗号列表</div></div>
+            <div style="width:100%">
+              <div class="section-toolbar" style="margin-bottom:6px">
+                <div class="resolve-box" style="max-width:360px">
+                  <input type="text" class="ipt" id="admin-user-input" placeholder="搜索 QQ 号或昵称" autocomplete="off"
+                    oninput="onAdminUserResolveInput()" onkeydown="onAdminUserResolveKeydown(event)" />
+                  <div class="resolve-dropdown" id="admin-user-dropdown" style="display:none"></div>
+                </div>
+                <button class="btn btn-s" type="button" onclick="addAdminUser()">添加管理员</button>
+              </div>
+              <div id="admin-users-list" class="admin-users-list"></div>
+              <input type="hidden" id="cfg-adminUsers" />
+            </div>
           </div>
           <div class="form-row">
             <div class="form-label">指令前缀<div class="hint">默认 #，如 #status、#clear</div></div>
@@ -2931,17 +3624,20 @@
             <input type="text" class="ipt" id="cfg-adminCommands" placeholder="clear, status, draw-cancel, draw-queue, draw-stats, on, off" />
           </div>
         </div>
-        <div class="section" style="padding:18px">
-          <div class="section-title" style="border:none;padding:0 0 12px;margin:0;background:transparent">指令参考</div>
+        <div class="section" style="padding:0;overflow:hidden">
+          <div class="section-title">指令参考</div>
+          <div class="section-body">
+          <p class="section-subtitle">常用管理指令速查，支持群聊和私聊场景，建议只给可信管理员。</p>
           <div class="admin-cmd-grid">
-            <div class="admin-cmd-card"><span class="cmd-chip">#help</span>显示可用指令列表</div>
-            <div class="admin-cmd-card"><span class="cmd-chip">#status</span>查看运行状态、隔离模式、当前会话条数</div>
-            <div class="admin-cmd-card"><span class="cmd-chip">#clear [QQ|all]</span>清空记忆；无参数清空当前会话；群内 all 清空本群全部</div>
-            <div class="admin-cmd-card"><span class="cmd-chip">#cooldown [秒]</span>查看冷却或设置全局冷却秒数</div>
-            <div class="admin-cmd-card"><span class="cmd-chip">#on / #off</span>开启或暂停机器人（持久化）</div>
-            <div class="admin-cmd-card"><span class="cmd-chip">#draw-queue</span>查看画图队列</div>
-            <div class="admin-cmd-card"><span class="cmd-chip">#draw-cancel [序号]</span>取消画图任务</div>
-            <div class="admin-cmd-card"><span class="cmd-chip">#draw-stats</span>画图服务统计</div>
+            <div class="admin-cmd-card"><div class="admin-cmd-main"><span class="material-symbols-outlined">help</span><span class="cmd-chip">#help</span></div><div class="admin-cmd-desc">显示可用指令列表</div></div>
+            <div class="admin-cmd-card"><div class="admin-cmd-main"><span class="material-symbols-outlined">monitoring</span><span class="cmd-chip">#status</span></div><div class="admin-cmd-desc">查看运行状态、隔离模式、当前会话条数</div></div>
+            <div class="admin-cmd-card"><div class="admin-cmd-main"><span class="material-symbols-outlined">delete_sweep</span><span class="cmd-chip">#clear [QQ|all]</span></div><div class="admin-cmd-desc">清空记忆；无参数清空当前会话；群内 all 清空本群全部</div></div>
+            <div class="admin-cmd-card"><div class="admin-cmd-main"><span class="material-symbols-outlined">timer</span><span class="cmd-chip">#cooldown [秒]</span></div><div class="admin-cmd-desc">查看冷却或设置全局冷却秒数</div></div>
+            <div class="admin-cmd-card"><div class="admin-cmd-main"><span class="material-symbols-outlined">toggle_on</span><span class="cmd-chip">#on / #off</span></div><div class="admin-cmd-desc">开启或暂停机器人（持久化）</div></div>
+            <div class="admin-cmd-card"><div class="admin-cmd-main"><span class="material-symbols-outlined">queue</span><span class="cmd-chip">#draw-queue</span></div><div class="admin-cmd-desc">查看画图队列</div></div>
+            <div class="admin-cmd-card"><div class="admin-cmd-main"><span class="material-symbols-outlined">cancel</span><span class="cmd-chip">#draw-cancel [序号]</span></div><div class="admin-cmd-desc">取消画图任务</div></div>
+            <div class="admin-cmd-card"><div class="admin-cmd-main"><span class="material-symbols-outlined">analytics</span><span class="cmd-chip">#draw-stats</span></div><div class="admin-cmd-desc">画图服务统计</div></div>
+          </div>
           </div>
         </div>
         <button class="btn btn-p" onclick="saveAdminConfig()">保存管理员配置</button>
@@ -2952,25 +3648,31 @@
         <p class="page-desc">控制触发频率与对话记忆隔离策略，支持全局模式与按群覆盖。</p>
         <div class="section">
           <div class="section-title">对话隔离</div>
-          <p style="font-size:12px;color:var(--text3);padding:12px 18px 0;line-height:1.6">决定群聊中不同用户是否共享上下文。私聊始终按用户隔离。</p>
-          <div class="isolation-mode-cards" id="isolation-mode-cards">
-            <div class="isolation-mode-card" data-mode="user_group" onclick="selectIsolationMode('user_group')">
-              <h4>群+用户</h4>
-              <p>同一用户在不同群独立记忆；群内每人独立上下文（推荐）</p>
-            </div>
-            <div class="isolation-mode-card" data-mode="group" onclick="selectIsolationMode('group')">
-              <h4>群隔离</h4>
-              <p>整个群共享一份对话记忆，适合群公共助手场景</p>
-            </div>
-            <div class="isolation-mode-card" data-mode="user" onclick="selectIsolationMode('user')">
-              <h4>用户隔离</h4>
-              <p>同一用户跨群共享记忆，私聊与群聊仍分开</p>
+          <div class="section-body">
+            <p class="section-subtitle">决定群聊中不同用户是否共享上下文。私聊始终按用户隔离。</p>
+            <div class="isolation-mode-cards" id="isolation-mode-cards">
+              <div class="isolation-mode-card" data-mode="user_group" onclick="selectIsolationMode('user_group')">
+                <h4>群+用户</h4>
+                <p>同一用户在不同群独立记忆；群内每人独立上下文（推荐）</p>
+              </div>
+              <div class="isolation-mode-card" data-mode="group" onclick="selectIsolationMode('group')">
+                <h4>群隔离</h4>
+                <p>整个群共享一份对话记忆，适合群公共助手场景</p>
+              </div>
+              <div class="isolation-mode-card" data-mode="user" onclick="selectIsolationMode('user')">
+                <h4>用户隔离</h4>
+                <p>同一用户跨群共享记忆，私聊与群聊仍分开</p>
+              </div>
             </div>
           </div>
           <input type="hidden" id="cfg-conversationIsolationMode" value="user_group" />
           <div class="form-row">
             <div class="form-label">按群覆盖隔离<div class="hint">每行 群号:模式，模式为 user_group / group / user。例：123456:group</div></div>
-            <textarea class="ipt" id="cfg-groupIsolationOverrides" rows="4" placeholder="123456789:group&#10;987654321:user" style="max-width:100%"></textarea>
+            <div class="kv-editor-inline">
+              <div class="kv-editor-summary" id="sum-groupIsolationOverrides">暂无覆盖规则（使用全局隔离模式）</div>
+              <button type="button" class="btn btn-s" onclick="openStructuredEditor('groupIsolationOverrides')"><span class="material-symbols-outlined">tune</span>编辑规则</button>
+            </div>
+            <textarea class="ipt" id="cfg-groupIsolationOverrides" rows="4" placeholder="123456789:group&#10;987654321:user" style="display:none"></textarea>
           </div>
           <div class="form-row">
             <div class="form-label">助手显示名<div class="hint">对话管理中助手气泡的标签</div></div>
@@ -2992,11 +3694,19 @@
           </div>
           <div class="form-row">
             <div class="form-label">按用户冷却覆盖<div class="hint">每行 QQ:秒数，覆盖全局冷却</div></div>
-            <textarea class="ipt" id="cfg-cooldownByUser" rows="3" placeholder="123456789:5" style="max-width:100%"></textarea>
+            <div class="kv-editor-inline">
+              <div class="kv-editor-summary" id="sum-cooldownByUser">暂无按用户冷却覆盖</div>
+              <button type="button" class="btn btn-s" onclick="openStructuredEditor('cooldownByUser')"><span class="material-symbols-outlined">tune</span>编辑覆盖</button>
+            </div>
+            <textarea class="ipt" id="cfg-cooldownByUser" rows="3" placeholder="123456789:5" style="display:none"></textarea>
           </div>
           <div class="form-row">
             <div class="form-label">按群冷却覆盖<div class="hint">每行 群号:秒数</div></div>
-            <textarea class="ipt" id="cfg-cooldownByGroup" rows="3" placeholder="123456789:30" style="max-width:100%"></textarea>
+            <div class="kv-editor-inline">
+              <div class="kv-editor-summary" id="sum-cooldownByGroup">暂无按群冷却覆盖</div>
+              <button type="button" class="btn btn-s" onclick="openStructuredEditor('cooldownByGroup')"><span class="material-symbols-outlined">tune</span>编辑覆盖</button>
+            </div>
+            <textarea class="ipt" id="cfg-cooldownByGroup" rows="3" placeholder="123456789:30" style="display:none"></textarea>
           </div>
         </div>
         <div class="section">
@@ -3023,37 +3733,51 @@
 
       <div id="pg-groups" class="page">
         <h2 class="page-title">群组（卡片选择）</h2>
-        <div class="section">
-          <div class="section-title">开启群聊</div>
-          <p style="font-size:12px;color:var(--text3);margin-bottom:12px">点击卡片切换开启/关闭。留空则对所有群生效；有选择则仅对已开启的群生效。</p>
-          <input type="text" class="ipt" id="groups-search" placeholder="搜索群号或群名..." style="margin-bottom:12px;max-width:280px" oninput="filterGroupsGrid()" />
-          <div id="groups-grid" class="groups-grid"></div>
-          <p id="groups-empty" style="display:none;font-size:13px;color:var(--text3);padding:24px">暂无群聊或获取失败</p>
-          <div style="padding:0 18px 14px">
-            <button type="button" class="icon-btn" title="刷新群列表" onclick="loadGroups()"><span class="material-symbols-outlined">refresh</span></button>
+        <div class="groups-page-layout">
+          <div class="groups-panel">
+            <div class="groups-panel-head">
+              <span>开启群聊</span>
+            </div>
+            <div class="groups-panel-body">
+              <p class="groups-help-text">点击卡片切换开启/关闭。留空则对所有群生效；有选择则仅对已开启的群生效。</p>
+              <div class="groups-toolbar">
+                <input type="text" class="ipt" id="groups-search" placeholder="搜索群号或群名..." oninput="filterGroupsGrid()" />
+              </div>
+              <div id="groups-grid" class="groups-grid"></div>
+              <p id="groups-empty" style="display:none;font-size:13px;color:var(--text3);padding:16px 0">暂无群聊或获取失败</p>
+            </div>
+          </div>
+          <div class="groups-panel">
+            <div class="groups-panel-head">
+              <span>白名单群 / 黑名单群</span>
+              <div style="display:flex;gap:6px">
+                <span class="groups-legend-chip">绿 = 白名单</span>
+                <span class="groups-legend-chip">红 = 黑名单</span>
+              </div>
+            </div>
+            <div class="groups-panel-body">
+              <p class="groups-help-text">点击群卡片切换：无标记 &rarr; 白名单（绿）&rarr; 黑名单（红）&rarr; 取消。也可在下方搜索框快速定位。</p>
+              <div class="groups-toolbar">
+                <input type="text" class="ipt" id="groups-wlbl-search" placeholder="搜索群号或群名..." oninput="filterGroupsWlBlGrid()" />
+              </div>
+              <div id="groups-wlbl-grid" class="groups-grid"></div>
+              <div class="form-row" style="margin-top:12px">
+                <div class="form-label">白名单群号（高级）</div>
+                <input type="text" class="ipt" id="cfg-whitelistGroups" placeholder="自动同步卡片选择，也可手动填写" />
+              </div>
+              <div class="form-row">
+                <div class="form-label">黑名单群号（高级）</div>
+                <input type="text" class="ipt" id="cfg-blacklistGroups" placeholder="自动同步卡片选择，也可手动填写" />
+              </div>
+            </div>
           </div>
         </div>
-        <div class="section">
-          <div class="section-title">白名单群 / 黑名单群</div>
-          <p style="font-size:12px;color:var(--text3);margin-bottom:10px">点击群卡片切换：无标记 → 白名单（绿）→ 黑名单（红）→ 取消。也可在下方搜索框快速定位。</p>
-          <div class="group-pick-toolbar">
-            <span class="group-pick-label">绿=白名单</span>
-            <span class="group-pick-label">红=黑名单</span>
-            <input type="text" class="ipt" id="groups-wlbl-search" placeholder="搜索群号或群名..." style="max-width:220px;margin:0" oninput="filterGroupsWlBlGrid()" />
+        <div class="groups-actions-bar">
+          <span class="groups-actions-hint">操作会同时作用于开启群聊与白/黑名单配置</span>
+          <div class="groups-actions-btns">
+            <button type="button" class="btn btn-s" onclick="loadGroups()"><span class="material-symbols-outlined">refresh</span>刷新群列表</button>
+            <button type="button" class="btn btn-p" onclick="saveGroupsConfig()"><span class="material-symbols-outlined">save</span>保存配置</button>
           </div>
-          <div id="groups-wlbl-grid" class="groups-grid"></div>
-          <div class="form-row" style="margin-top:14px">
-            <div class="form-label">白名单群号（高级）</div>
-            <input type="text" class="ipt" id="cfg-whitelistGroups" placeholder="自动同步卡片选择，也可手动填写" />
-          </div>
-          <div class="form-row">
-            <div class="form-label">黑名单群号（高级）</div>
-            <input type="text" class="ipt" id="cfg-blacklistGroups" placeholder="自动同步卡片选择，也可手动填写" />
-          </div>
-        </div>
-        <div class="page-footer-actions">
-          <button type="button" class="icon-btn lg primary" title="保存群组配置" onclick="saveGroupsConfig()"><span class="material-symbols-outlined">save</span></button>
-          <span class="save-hint">保存群开关与白/黑名单</span>
         </div>
       </div>
 
@@ -3064,7 +3788,8 @@
         </div>
         <div class="section">
           <div class="section-title">白名单用户</div>
-          <div style="display:flex;gap:8px;margin-bottom:12px;align-items:flex-start;flex-wrap:wrap;padding:0 18px">
+          <div class="section-body">
+          <div class="section-toolbar">
             <div class="resolve-box">
               <input type="text" class="ipt" id="user-whitelist-input" placeholder="QQ 号或昵称" style="width:100%" autocomplete="off"
                 oninput="onUserResolveInput('whitelist')" onkeydown="onUserResolveKeydown(event,'whitelist')" />
@@ -3074,10 +3799,12 @@
             <button class="btn btn-s" onclick="refreshUserListProfiles()">刷新资料</button>
           </div>
           <div id="whitelist-users" class="user-list"></div>
+          </div>
         </div>
         <div class="section">
           <div class="section-title">黑名单用户</div>
-          <div style="display:flex;gap:8px;margin-bottom:12px;align-items:flex-start;flex-wrap:wrap;padding:0 18px">
+          <div class="section-body">
+          <div class="section-toolbar">
             <div class="resolve-box">
               <input type="text" class="ipt" id="user-blacklist-input" placeholder="QQ 号或昵称" style="width:100%" autocomplete="off"
                 oninput="onUserResolveInput('blacklist')" onkeydown="onUserResolveKeydown(event,'blacklist')" />
@@ -3086,6 +3813,7 @@
             <button class="btn btn-s" onclick="addUserToList('blacklist')">添加</button>
           </div>
           <div id="blacklist-users" class="user-list"></div>
+          </div>
         </div>
         <div class="page-footer-actions">
           <button type="button" class="icon-btn lg primary" title="保存用户配置" onclick="saveUsersConfig()"><span class="material-symbols-outlined">save</span></button>
@@ -3100,15 +3828,17 @@
         </div>
         <div class="section">
           <div class="section-title">用户池</div>
-          <p class="section-intro">从最近对话加载用户，或搜索 QQ / 昵称添加后，在下方各功能卡片中点击切换允许状态。</p>
-          <div class="perm-toolbar">
-            <div class="resolve-box" style="flex:1;max-width:320px">
-              <input type="text" class="ipt" id="perm-add-qq" placeholder="QQ 号或昵称搜索" style="width:100%" autocomplete="off"
-                oninput="onPermUserResolveInput()" onkeydown="onPermUserResolveKeydown(event)" />
-              <div class="resolve-dropdown" id="perm-user-dropdown" style="display:none"></div>
+          <div class="section-body">
+            <p class="section-subtitle">从最近对话加载用户，或搜索 QQ / 昵称添加后，在下方各功能卡片中点击切换允许状态。</p>
+            <div class="perm-toolbar" style="padding:0 0 6px">
+              <div class="resolve-box" style="flex:1;max-width:320px">
+                <input type="text" class="ipt" id="perm-add-qq" placeholder="QQ 号或昵称搜索" style="width:100%" autocomplete="off"
+                  oninput="onPermUserResolveInput()" onkeydown="onPermUserResolveKeydown(event)" />
+                <div class="resolve-dropdown" id="perm-user-dropdown" style="display:none"></div>
+              </div>
+              <button type="button" class="icon-btn" title="添加用户" onclick="addPermUser()"><span class="material-symbols-outlined">person_add</span></button>
+              <button type="button" class="icon-btn" title="从最近对话加载" onclick="loadPermissionUsers()"><span class="material-symbols-outlined">history</span></button>
             </div>
-            <button type="button" class="icon-btn" title="添加用户" onclick="addPermUser()"><span class="material-symbols-outlined">person_add</span></button>
-            <button type="button" class="icon-btn" title="从最近对话加载" onclick="loadPermissionUsers()"><span class="material-symbols-outlined">history</span></button>
           </div>
         </div>
         <div class="section">
@@ -3147,7 +3877,11 @@
           </div>
           <div class="form-row">
             <div class="form-label">按群概率覆盖（可选）<div class="hint">每行 群号:概率 如 123456:0.1 表示该群 10%，不填则用上方全局概率</div></div>
-            <textarea class="ipt" id="cfg-fakeHumanGroupChance" placeholder="123456:0.1&#10;789012:0.02" style="min-height:60px;font-family:monospace"></textarea>
+            <div class="kv-editor-inline">
+              <div class="kv-editor-summary" id="sum-fakeHumanGroupChance">暂无按群概率覆盖（使用全局概率）</div>
+              <button type="button" class="btn btn-s" onclick="openStructuredEditor('fakeHumanGroupChance')"><span class="material-symbols-outlined">percent</span>编辑概率</button>
+            </div>
+            <textarea class="ipt" id="cfg-fakeHumanGroupChance" placeholder="123456:0.1&#10;789012:0.02" style="display:none"></textarea>
           </div>
           <div class="form-row">
             <div class="form-label">最小间隔（秒）<div class="hint">同一群两次插话至少间隔秒数，避免刷屏</div></div>
@@ -3195,15 +3929,27 @@
           </div>
           <div class="form-row">
             <div class="form-label">随机短句列表<div class="hint">每行一句，回复模式为「随机短句」或「混合」时使用</div></div>
-            <textarea class="ipt" id="cfg-fakeHumanTextList" placeholder="哈哈&#10;确实&#10;666&#10;笑死" style="min-height:80px"></textarea>
+            <div class="kv-editor-inline">
+              <div class="kv-editor-summary" id="sum-fakeHumanTextList">默认短句：哈哈、确实、666</div>
+              <button type="button" class="btn btn-s" onclick="openStructuredEditor('fakeHumanTextList')"><span class="material-symbols-outlined">chat</span>编辑短句</button>
+            </div>
+            <textarea class="ipt" id="cfg-fakeHumanTextList" placeholder="哈哈&#10;确实&#10;666&#10;笑死" style="display:none"></textarea>
           </div>
           <div class="form-row">
             <div class="form-label">Emoji 列表<div class="hint">每行一个或逗号分隔的 Unicode 字符</div></div>
-            <textarea class="ipt" id="cfg-fakeHumanEmojiList" placeholder="哈&#10;6&#10;草" style="min-height:60px"></textarea>
+            <div class="kv-editor-inline">
+              <div class="kv-editor-summary" id="sum-fakeHumanEmojiList">默认 Emoji：哈、6、草</div>
+              <button type="button" class="btn btn-s" onclick="openStructuredEditor('fakeHumanEmojiList')"><span class="material-symbols-outlined">mood</span>编辑 Emoji</button>
+            </div>
+            <textarea class="ipt" id="cfg-fakeHumanEmojiList" placeholder="哈&#10;6&#10;草" style="display:none"></textarea>
           </div>
           <div class="form-row">
             <div class="form-label">AI 人设（一句插话）<div class="hint">回复模式为 AI 或混合时，用于生成短句的系统提示</div></div>
-            <textarea class="ipt" id="cfg-fakeHumanSystemPrompt" style="min-height:70px" placeholder="你是一个在群聊里偶尔插话的真人，回复一两句非常短的话..."></textarea>
+            <div class="kv-editor-inline">
+              <div class="kv-editor-summary" id="sum-fakeHumanSystemPrompt">未设置 AI 插话人设</div>
+              <button type="button" class="btn btn-s" onclick="openStructuredEditor('fakeHumanSystemPrompt')"><span class="material-symbols-outlined">edit_note</span>编辑人设</button>
+            </div>
+            <textarea class="ipt" id="cfg-fakeHumanSystemPrompt" style="display:none" placeholder="你是一个在群聊里偶尔插话的真人，回复一两句非常短的话..."></textarea>
           </div>
           <div class="form-row">
             <div class="form-label">AI 回复最大字数</div>
@@ -3232,19 +3978,25 @@
             </select>
           </div>
         </div>
-        <div class="section">
-          <div class="section-title">开启群聊（卡片选择）</div>
-          <p style="font-size:12px;color:var(--text3);margin-bottom:10px">点击卡片切换启用/关闭伪人。留空=与「群组」页一致；有选择则仅对已勾选的群生效。</p>
-          <input type="text" class="ipt" id="fakehuman-groups-search" placeholder="搜索群号或群名..." style="margin-bottom:12px;max-width:280px" oninput="filterFakeHumanGroupsGrid()" />
-          <div id="fakehuman-groups-grid" class="groups-grid"></div>
-          <p id="fakehuman-groups-empty" style="display:none;font-size:13px;color:var(--text3);padding:24px">暂无群聊或获取失败</p>
+        <div class="fakehuman-groups-panel">
+          <div class="fakehuman-groups-head">
+            <span>开启群聊（卡片选择）</span>
+          </div>
+          <div class="fakehuman-groups-body">
+            <p class="fakehuman-groups-help">点击卡片切换启用/关闭伪人。留空=与「群组」页一致；有选择则仅对已勾选的群生效。</p>
+            <div class="fakehuman-groups-toolbar">
+              <input type="text" class="ipt" id="fakehuman-groups-search" placeholder="搜索群号或群名..." oninput="filterFakeHumanGroupsGrid()" />
+            </div>
+            <div id="fakehuman-groups-grid" class="groups-grid"></div>
+            <p id="fakehuman-groups-empty" style="display:none;font-size:13px;color:var(--text3);padding:16px 0">暂无群聊或获取失败</p>
+          </div>
         </div>
-        <div class="page-footer-actions" style="padding:0 18px 16px">
-          <button type="button" class="icon-btn" title="刷新群列表" onclick="loadFakeHumanGroups()"><span class="material-symbols-outlined">refresh</span></button>
-        </div>
-        <div class="page-footer-actions">
-          <button type="button" class="icon-btn lg primary" title="保存伪人配置" onclick="saveFakeHumanConfig()"><span class="material-symbols-outlined">save</span></button>
-          <span class="save-hint">保存伪人模式设置</span>
+        <div class="fakehuman-actions-bar">
+          <span class="groups-actions-hint">刷新群列表后，保存以应用伪人群开关与规则配置</span>
+          <div class="fakehuman-actions-btns">
+            <button type="button" class="btn btn-s" onclick="loadFakeHumanGroups()"><span class="material-symbols-outlined">refresh</span>刷新群列表</button>
+            <button type="button" class="btn btn-p" onclick="saveFakeHumanConfig()"><span class="material-symbols-outlined">save</span>保存伪人配置</button>
+          </div>
         </div>
       </div>
 
@@ -3332,7 +4084,7 @@
           </div>
         </div>
         <div class="token-refresh-bar">
-          <button class="btn btn-s" onclick="loadTokenStats()">刷新统计</button>
+          <button type="button" class="icon-btn" title="刷新统计" onclick="loadTokenStats()"><span class="material-symbols-outlined">refresh</span></button>
         </div>
         <div class="section token-table-section">
           <div class="section-title">按会话汇总</div>
@@ -3357,7 +4109,7 @@
       <div id="pg-logs" class="page">
         <div class="page-header">
           <h2 class="page-title">运行日志</h2>
-          <p class="page-desc">NapCat 风格实时日志流，支持级别/类型筛选与自动滚动。</p>
+          <p class="page-desc">实时日志流，支持级别/类型筛选与自动滚动。</p>
         </div>
         <div class="logs-stat-grid" id="logsStatGrid">
           <div class="logs-stat-card"><div class="ls-label">显示条数</div><div class="ls-value" id="logsStatShown">0</div></div>
@@ -3406,10 +4158,72 @@
         </div>
       </div>
 
+      <div id="pg-about" class="page">
+        <h2 class="page-title">关于我们</h2>
+        <p class="page-desc">开发者联系方式与项目主页，感谢支持。</p>
+        <div class="about-hero">
+          <h3>NapCat Chat Bot</h3>
+          <p>黑白极简风的 NapCat 聊天插件，持续维护中。你的反馈和 Star 都是继续更新的动力 (づ｡◕‿‿◕｡)づ</p>
+        </div>
+        <div class="about-links">
+          <div class="about-link-card">
+            <div>
+              <div class="about-link-label">QQ</div>
+              <div class="about-link-value">3042444341</div>
+            </div>
+            <span class="material-symbols-outlined" style="font-size:18px;opacity:.7">person</span>
+          </div>
+          <div class="about-link-card">
+            <div>
+              <div class="about-link-label">邮箱</div>
+              <div class="about-link-value"><a href="mailto:KanielNoam7@gmail.com">KanielNoam7@gmail.com</a></div>
+            </div>
+            <span class="material-symbols-outlined" style="font-size:18px;opacity:.7">mail</span>
+          </div>
+          <div class="about-link-card">
+            <div>
+              <div class="about-link-label">Bilibili</div>
+              <div class="about-link-value"><a href="https://space.bilibili.com/565134548" target="_blank" rel="noopener">https://space.bilibili.com/565134548</a></div>
+            </div>
+            <span class="material-symbols-outlined" style="font-size:18px;opacity:.7">movie</span>
+          </div>
+          <div class="about-link-card">
+            <div>
+              <div class="about-link-label">GitHub</div>
+              <div class="about-link-value"><a href="https://github.com/SUSRDev/napcat-ai-chatbot" target="_blank" rel="noopener">https://github.com/SUSRDev/napcat-ai-chatbot</a></div>
+            </div>
+            <span class="material-symbols-outlined" style="font-size:18px;opacity:.7">code</span>
+          </div>
+          <div class="about-link-card">
+            <div>
+              <div class="about-link-label">小请求</div>
+              <div class="about-link-value">喜欢的话，求一个 Star 呀！(｡ì _ í｡)</div>
+            </div>
+            <span class="material-symbols-outlined" style="font-size:18px;opacity:.7">star</span>
+          </div>
+        </div>
+      </div>
+
       <div id="pg-messages" class="page">
         <div class="page-header">
           <h2 class="page-title">消息模板</h2>
           <p class="page-desc">自定义机器人回复文案，支持 <code>{变量}</code> 占位符。画图指令与管理员指令共用此模板系统。</p>
+        </div>
+        <div class="section">
+          <div class="section-title">变量说明与示例</div>
+          <div class="var-help-grid">
+            <div class="var-help-item"><div class="var-help-main"><code>{user_id}</code><span>用户 QQ 号</span></div><div class="var-help-example"><span>示例</span><code>3042444341</code></div></div>
+            <div class="var-help-item"><div class="var-help-main"><code>{seconds}</code><span>秒数或剩余时间</span></div><div class="var-help-example"><span>示例</span><code>15</code></div></div>
+            <div class="var-help-item"><div class="var-help-main"><code>{position}</code><span>当前排队序号</span></div><div class="var-help-example"><span>示例</span><code>2</code></div></div>
+            <div class="var-help-item"><div class="var-help-main"><code>{queue_len}</code><span>队列总长度</span></div><div class="var-help-example"><span>示例</span><code>8</code></div></div>
+            <div class="var-help-item"><div class="var-help-main"><code>{prompt}</code><span>用户输入的画图提示词</span></div><div class="var-help-example"><span>示例</span><code>赛博朋克少女，霓虹夜景</code></div></div>
+            <div class="var-help-item"><div class="var-help-main"><code>{images}</code><span>返回的图片信息</span></div><div class="var-help-example"><span>示例</span><code>2 张图片链接</code></div></div>
+            <div class="var-help-item"><div class="var-help-main"><code>{error}</code><span>错误原因文本</span></div><div class="var-help-example"><span>示例</span><code>请求超时</code></div></div>
+            <div class="var-help-item"><div class="var-help-main"><code>{task_id}</code><span>画图任务 ID</span></div><div class="var-help-example"><span>示例</span><code>rh_9f2a77c1</code></div></div>
+            <div class="var-help-item"><div class="var-help-main"><code>{today_count}</code><span>今日累计任务数</span></div><div class="var-help-example"><span>示例</span><code>27</code></div></div>
+            <div class="var-help-item"><div class="var-help-main"><code>{commands}</code><span>帮助命令集合</span></div><div class="var-help-example"><span>示例</span><code>/draw-help /draw-queue</code></div></div>
+            <div class="var-help-item"><div class="var-help-main"><code>{removed}</code><span>取消数量或取消项</span></div><div class="var-help-example"><span>示例</span><code>1</code></div></div>
+          </div>
         </div>
         <div class="section">
           <div class="section-title">对话与权限</div>
@@ -3464,12 +4278,12 @@
             <input type="text" class="ipt" id="cfg-drawAdminCommands" placeholder="draw-cancel, draw-promote, draw-clear, draw-stats" />
           </div>
           <div class="admin-cmd-grid" style="margin-top:10px">
-            <div class="admin-cmd-card"><span class="cmd-chip">/draw-help</span>画图帮助</div>
-            <div class="admin-cmd-card"><span class="cmd-chip">/draw-queue</span>查看队列</div>
-            <div class="admin-cmd-card"><span class="cmd-chip">#draw-cancel [序号]</span>取消任务</div>
-            <div class="admin-cmd-card"><span class="cmd-chip">#draw-promote [序号]</span>提前任务</div>
-            <div class="admin-cmd-card"><span class="cmd-chip">#draw-clear</span>清空队列</div>
-            <div class="admin-cmd-card"><span class="cmd-chip">#draw-stats</span>画图统计</div>
+            <div class="admin-cmd-card"><div class="admin-cmd-main"><span class="material-symbols-outlined">help</span><span class="cmd-chip">/draw-help</span></div><div class="admin-cmd-desc">画图帮助</div></div>
+            <div class="admin-cmd-card"><div class="admin-cmd-main"><span class="material-symbols-outlined">queue</span><span class="cmd-chip">/draw-queue</span></div><div class="admin-cmd-desc">查看队列</div></div>
+            <div class="admin-cmd-card"><div class="admin-cmd-main"><span class="material-symbols-outlined">cancel</span><span class="cmd-chip">#draw-cancel [序号]</span></div><div class="admin-cmd-desc">取消任务</div></div>
+            <div class="admin-cmd-card"><div class="admin-cmd-main"><span class="material-symbols-outlined">arrow_upward</span><span class="cmd-chip">#draw-promote [序号]</span></div><div class="admin-cmd-desc">提前任务</div></div>
+            <div class="admin-cmd-card"><div class="admin-cmd-main"><span class="material-symbols-outlined">delete_sweep</span><span class="cmd-chip">#draw-clear</span></div><div class="admin-cmd-desc">清空队列</div></div>
+            <div class="admin-cmd-card"><div class="admin-cmd-main"><span class="material-symbols-outlined">analytics</span><span class="cmd-chip">#draw-stats</span></div><div class="admin-cmd-desc">画图统计</div></div>
         </div>
         </div>
         <div class="page-footer-actions">
@@ -3521,7 +4335,8 @@
     const userResolveState = {
       whitelist: { results: [], idx: -1, pick: null },
       blacklist: { results: [], idx: -1, pick: null },
-      perm: { results: [], idx: -1, pick: null }
+      perm: { results: [], idx: -1, pick: null },
+      admin: { results: [], idx: -1, pick: null }
     };
     const userResolveDebounce = {};
     let groupsWlBl = {};
@@ -4441,6 +5256,7 @@
       if (adminTgl) adminTgl.classList.toggle('on', config.adminCommandsEnabled === true);
       const adminUsersEl = document.getElementById('cfg-adminUsers');
       if (adminUsersEl) adminUsersEl.value = (config.adminUsers || []).join(', ');
+      renderAdminUsersList();
       const adminPrefixEl = document.getElementById('cfg-adminCommandPrefix');
       if (adminPrefixEl) adminPrefixEl.value = config.adminCommandPrefix ?? '#';
       const adminCmdsEl = document.getElementById('cfg-adminCommands');
@@ -4546,6 +5362,7 @@
       document.getElementById('tgl-fakeHumanParseImage').classList.toggle('on', config.fakeHumanParseImage !== false);
       const vModelEl = document.getElementById('cfg-fakeHumanVisionModel');
       if (vModelEl) vModelEl.value = config.fakeHumanVisionModel || '';
+      refreshStructuredSummaries();
       if (typeof allFakeHumanGroups !== 'undefined') {
         const enabled = config.fakeHumanEnableGroups || [];
         allFakeHumanGroups.forEach((gr) => { gr.enabled = enabled.includes(String(gr.group_id)); });
@@ -4769,6 +5586,224 @@
       return out;
     }
 
+    let structuredEditorState = { type: '', items: [] };
+    const STRUCTURED_EDITOR_META = {
+      groupIsolationOverrides: {
+        title: '按群覆盖隔离',
+        desc: '按群号指定隔离模式，不会写格式也没关系，直接添加卡片即可。',
+        valueType: 'isolation'
+      },
+      cooldownByUser: {
+        title: '按用户冷却覆盖',
+        desc: '为指定 QQ 配置独立冷却秒数，覆盖全局冷却。',
+        valueType: 'seconds'
+      },
+      cooldownByGroup: {
+        title: '按群冷却覆盖',
+        desc: '为指定群配置独立冷却秒数，覆盖全局冷却。',
+        valueType: 'seconds'
+      },
+      fakeHumanGroupChance: {
+        title: '按群概率覆盖',
+        desc: '按群设置伪人触发概率，使用百分比滑条更直观。',
+        valueType: 'chance'
+      },
+      fakeHumanTextList: {
+        title: '随机短句列表',
+        desc: '每条短句作为一张卡片，插话时随机使用。',
+        valueType: 'line'
+      },
+      fakeHumanEmojiList: {
+        title: 'Emoji 列表',
+        desc: '每个 Emoji/文本一张卡片，支持快速增删。',
+        valueType: 'line'
+      },
+      fakeHumanSystemPrompt: {
+        title: 'AI 人设（一句插话）',
+        desc: '设置伪人 AI 的一句话风格提示。',
+        valueType: 'text'
+      }
+    };
+
+    function parseStructuredItems(type, raw) {
+      if (type === 'fakeHumanTextList') return String(raw || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean).map((v) => ({ value: v }));
+      if (type === 'fakeHumanEmojiList') return String(raw || '').split(/[\r\n,，]+/).map((s) => s.trim()).filter(Boolean).map((v) => ({ value: v }));
+      if (type === 'fakeHumanSystemPrompt') return [{ value: String(raw || '') }];
+      const kv = parseKeyValueLines(raw || '');
+      return Object.keys(kv).map((k) => ({ key: k, value: kv[k] }));
+    }
+
+    function serializeStructuredItems(type, items) {
+      if (type === 'fakeHumanTextList' || type === 'fakeHumanEmojiList') return (items || []).map((x) => String(x.value || '').trim()).filter(Boolean).join('\n');
+      if (type === 'fakeHumanSystemPrompt') return String((items && items[0] && items[0].value) || '').trim();
+      return (items || []).map((x) => {
+        const k = String(x.key || '').trim();
+        const v = String(x.value || '').trim();
+        return k && v ? (k + ':' + v) : '';
+      }).filter(Boolean).join('\n');
+    }
+
+    function formatStructuredSummary(type, raw) {
+      const items = parseStructuredItems(type, raw);
+      if (!items.length || !String(raw || '').trim()) {
+        const emptyMap = {
+          groupIsolationOverrides: '暂无覆盖规则（使用全局隔离模式）',
+          cooldownByUser: '暂无按用户冷却覆盖',
+          cooldownByGroup: '暂无按群冷却覆盖',
+          fakeHumanGroupChance: '暂无按群概率覆盖（使用全局概率）',
+          fakeHumanTextList: '默认短句：哈哈、确实、666',
+          fakeHumanEmojiList: '默认 Emoji：哈、6、草',
+          fakeHumanSystemPrompt: '未设置 AI 插话人设'
+        };
+        return emptyMap[type] || '暂无数据';
+      }
+      if (type === 'groupIsolationOverrides') return '已配置 ' + items.length + ' 条群隔离覆盖';
+      if (type === 'cooldownByUser') return '已配置 ' + items.length + ' 条用户冷却覆盖';
+      if (type === 'cooldownByGroup') return '已配置 ' + items.length + ' 条群冷却覆盖';
+      if (type === 'fakeHumanGroupChance') return '已配置 ' + items.length + ' 条群概率覆盖';
+      if (type === 'fakeHumanTextList') return '已配置 ' + items.length + ' 条随机短句';
+      if (type === 'fakeHumanEmojiList') return '已配置 ' + items.length + ' 个 Emoji/词条';
+      if (type === 'fakeHumanSystemPrompt') return '已配置 AI 插话人设（' + Math.min(String(raw || '').length, 120) + ' 字）';
+      return '已配置';
+    }
+
+    function refreshStructuredSummary(type) {
+      const input = document.getElementById('cfg-' + type);
+      const summary = document.getElementById('sum-' + type);
+      if (!input || !summary) return;
+      summary.textContent = formatStructuredSummary(type, input.value);
+    }
+
+    function refreshStructuredSummaries() {
+      Object.keys(STRUCTURED_EDITOR_META).forEach((type) => refreshStructuredSummary(type));
+    }
+
+    function openStructuredEditor(type) {
+      const meta = STRUCTURED_EDITOR_META[type];
+      const input = document.getElementById('cfg-' + type);
+      if (!meta || !input) return;
+      structuredEditorState.type = type;
+      structuredEditorState.items = parseStructuredItems(type, input.value);
+      if (!structuredEditorState.items.length && (type === 'fakeHumanTextList')) structuredEditorState.items = [{ value: '哈哈' }, { value: '确实' }, { value: '666' }];
+      if (!structuredEditorState.items.length && (type === 'fakeHumanEmojiList')) structuredEditorState.items = [{ value: '哈' }, { value: '6' }, { value: '草' }];
+      if (!structuredEditorState.items.length && (type === 'fakeHumanSystemPrompt')) structuredEditorState.items = [{ value: '' }];
+      const titleEl = document.getElementById('structured-editor-title');
+      const descEl = document.getElementById('structured-editor-desc');
+      if (titleEl) titleEl.textContent = meta.title;
+      if (descEl) descEl.textContent = meta.desc;
+      renderStructuredEditorBody();
+      document.getElementById('structured-editor-modal')?.classList.add('open');
+    }
+
+    function closeStructuredEditorModal(e) {
+      if (e && e.target && e.target.id && e.target.id !== 'structured-editor-modal') return;
+      document.getElementById('structured-editor-modal')?.classList.remove('open');
+    }
+
+    function renderStructuredEditorBody() {
+      const body = document.getElementById('structured-editor-body');
+      if (!body) return;
+      const type = structuredEditorState.type;
+      const meta = STRUCTURED_EDITOR_META[type];
+      if (!meta) return;
+      if (meta.valueType === 'text') {
+        const value = (structuredEditorState.items[0] && structuredEditorState.items[0].value) || '';
+        body.innerHTML = '<textarea id="structured-editor-text" class="ipt" style="min-height:220px;max-width:100%" placeholder="输入 AI 一句插话人设...">' + escapeHtml(value) + '</textarea>';
+        return;
+      }
+      const listRows = (structuredEditorState.items || []).map((item, idx) => renderStructuredRow(type, item, idx)).join('');
+      const addBar = renderStructuredAddBar(type);
+      body.innerHTML = '<div class="structured-modal-list" id="structured-modal-list">' + listRows + '</div>' + addBar;
+    }
+
+    function renderStructuredRow(type, item, idx) {
+      if (type === 'fakeHumanTextList' || type === 'fakeHumanEmojiList') {
+        return '<div class="structured-row single">' +
+          '<input class="ipt" type="text" value="' + escapeHtml(String(item.value || '')) + '" oninput="onStructuredRowValueChange(' + idx + ', this.value)" />' +
+          '<button type="button" class="icon-btn sm" title="删除" onclick="removeStructuredRow(' + idx + ')"><span class="material-symbols-outlined">delete</span></button>' +
+          '</div>';
+      }
+      const key = escapeHtml(String(item.key || ''));
+      if (STRUCTURED_EDITOR_META[type].valueType === 'isolation') {
+        const v = String(item.value || 'user_group');
+        return '<div class="structured-row">' +
+          '<input class="ipt" type="text" value="' + key + '" placeholder="群号" oninput="onStructuredRowKeyChange(' + idx + ', this.value)" />' +
+          '<select class="ipt" onchange="onStructuredRowValueChange(' + idx + ', this.value)">' +
+          '<option value="user_group"' + (v === 'user_group' ? ' selected' : '') + '>群+用户</option>' +
+          '<option value="group"' + (v === 'group' ? ' selected' : '') + '>群隔离</option>' +
+          '<option value="user"' + (v === 'user' ? ' selected' : '') + '>用户隔离</option>' +
+          '</select>' +
+          '<button type="button" class="icon-btn sm" title="删除" onclick="removeStructuredRow(' + idx + ')"><span class="material-symbols-outlined">delete</span></button>' +
+          '</div>';
+      }
+      if (STRUCTURED_EDITOR_META[type].valueType === 'chance') {
+        const chance = Math.max(0, Math.min(1, parseFloat(item.value || 0) || 0));
+        const pct = Math.round(chance * 100);
+        return '<div class="structured-row">' +
+          '<input class="ipt" type="text" value="' + key + '" placeholder="群号" oninput="onStructuredRowKeyChange(' + idx + ', this.value)" />' +
+          '<div style="display:flex;align-items:center;gap:8px"><input class="ipt" type="range" min="0" max="100" step="1" value="' + pct + '" oninput="onStructuredRowChanceChange(' + idx + ', this.value)" /><span style="font-size:12px;color:var(--text2);min-width:38px">' + pct + '%</span></div>' +
+          '<button type="button" class="icon-btn sm" title="' + pct + '%，删除" onclick="removeStructuredRow(' + idx + ')"><span class="material-symbols-outlined">delete</span></button>' +
+          '</div>';
+      }
+      const sec = Math.max(0, parseInt(item.value, 10) || 0);
+      return '<div class="structured-row">' +
+        '<input class="ipt" type="text" value="' + key + '" placeholder="' + (type === 'cooldownByUser' ? 'QQ号' : '群号') + '" oninput="onStructuredRowKeyChange(' + idx + ', this.value)" />' +
+        '<input class="ipt" type="number" min="0" max="3600" value="' + sec + '" oninput="onStructuredRowValueChange(' + idx + ', this.value)" />' +
+        '<button type="button" class="icon-btn sm" title="删除" onclick="removeStructuredRow(' + idx + ')"><span class="material-symbols-outlined">delete</span></button>' +
+        '</div>';
+    }
+
+    function renderStructuredAddBar(type) {
+      const hint = type === 'fakeHumanGroupChance' ? '新增一条群号与概率规则' : '新增一条规则';
+      return '<div class="structured-add-bar"><button type="button" class="btn btn-s" onclick="addStructuredRow()"><span class="material-symbols-outlined">add</span>' + hint + '</button></div>';
+    }
+
+    function addStructuredRow() {
+      const type = structuredEditorState.type;
+      if (!type) return;
+      if (type === 'fakeHumanTextList' || type === 'fakeHumanEmojiList') structuredEditorState.items.push({ value: '' });
+      else if (type === 'groupIsolationOverrides') structuredEditorState.items.push({ key: '', value: 'user_group' });
+      else if (type === 'fakeHumanGroupChance') structuredEditorState.items.push({ key: '', value: '0.1' });
+      else structuredEditorState.items.push({ key: '', value: '10' });
+      renderStructuredEditorBody();
+    }
+
+    function removeStructuredRow(idx) {
+      structuredEditorState.items.splice(idx, 1);
+      renderStructuredEditorBody();
+    }
+
+    function onStructuredRowKeyChange(idx, value) {
+      if (!structuredEditorState.items[idx]) return;
+      structuredEditorState.items[idx].key = String(value || '');
+    }
+
+    function onStructuredRowValueChange(idx, value) {
+      if (!structuredEditorState.items[idx]) return;
+      structuredEditorState.items[idx].value = String(value || '');
+    }
+
+    function onStructuredRowChanceChange(idx, value) {
+      if (!structuredEditorState.items[idx]) return;
+      const n = Math.max(0, Math.min(100, parseInt(value, 10) || 0));
+      structuredEditorState.items[idx].value = String((n / 100).toFixed(2).replace(/\.?0+$/, ''));
+      renderStructuredEditorBody();
+    }
+
+    function applyStructuredEditor() {
+      const type = structuredEditorState.type;
+      if (!type) return;
+      const input = document.getElementById('cfg-' + type);
+      if (!input) return;
+      if (type === 'fakeHumanSystemPrompt') {
+        const txt = document.getElementById('structured-editor-text');
+        structuredEditorState.items = [{ value: (txt && txt.value) || '' }];
+      }
+      input.value = serializeStructuredItems(type, structuredEditorState.items);
+      refreshStructuredSummary(type);
+      closeStructuredEditorModal();
+    }
+
     function selectIsolationMode(mode, silent) {
       document.querySelectorAll('.isolation-mode-card').forEach((el) => {
         el.classList.toggle('selected', el.dataset.mode === mode);
@@ -4785,8 +5820,9 @@
     async function saveAdminConfig() {
       const cfg = { ...config };
       cfg.adminCommandsEnabled = document.getElementById('tgl-adminCommandsEnabled')?.classList.contains('on') === true;
-      const usersStr = (document.getElementById('cfg-adminUsers')?.value || '').trim();
-      cfg.adminUsers = usersStr ? usersStr.split(/[,，\s]+/).map((s) => s.trim()).filter(Boolean) : [];
+      cfg.adminUsers = Array.from(new Set((config.adminUsers || []).map((s) => String(s).trim()).filter(Boolean)));
+      const hidden = document.getElementById('cfg-adminUsers');
+      if (hidden) hidden.value = cfg.adminUsers.join(', ');
       cfg.adminCommandPrefix = (document.getElementById('cfg-adminCommandPrefix')?.value || '#').trim() || '#';
       const cmdsStr = document.getElementById('cfg-adminCommands')?.value || '';
       cfg.adminCommands = cmdsStr.split(/[,，\s]+/).map((s) => s.trim()).filter(Boolean);
@@ -5544,6 +6580,61 @@
       renderUserLists();
     }
 
+    function getResolvePick(which, uid) {
+      const st = userResolveState[which];
+      if (st?.pick && String(st.pick.userId || '') === String(uid)) return st.pick;
+      const fromList = (st?.results || []).find((x) => String(x.userId || '') === String(uid));
+      if (fromList) return fromList;
+      const p = getUserProfile(uid);
+      return { userId: String(uid), nickname: p.nickname || '', avatar: p.avatar || '' };
+    }
+
+    function openUserConfirmModal(profile, title, detailText) {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('user-confirm-modal');
+        const head = document.getElementById('user-confirm-head');
+        const text = document.getElementById('user-confirm-text');
+        const ok = document.getElementById('user-confirm-ok');
+        if (!modal || !head || !text || !ok) {
+          resolve(true);
+          return;
+        }
+        const name = escapeHtml(profile.nickname || '未知用户');
+        const uid = escapeHtml(String(profile.userId || ''));
+        const avatar = profile.avatar ? escapeHtml(profile.avatar) : '';
+        head.innerHTML = (avatar
+          ? '<img src="' + avatar + '" alt="">'
+          : '<span class="avatar-ph" style="width:42px;height:42px;font-size:14px">' + escapeHtml((profile.nickname || '?').slice(0, 1)) + '</span>') +
+          '<div class="confirm-user-meta"><div style="font-weight:600;color:var(--text)">' + name + '</div><div>QQ：' + uid + '</div></div>';
+        text.innerHTML = '<div style="font-weight:600;color:var(--text);margin-bottom:6px">' + escapeHtml(title || '确认操作') + '</div>' +
+          '<div>' + escapeHtml(detailText || '') + '</div>';
+        const done = (val) => {
+          ok.onclick = null;
+          modal._cancelCb = null;
+          closeUserConfirmModal();
+          resolve(val);
+        };
+        ok.onclick = () => done(true);
+        modal.dataset.confirmOpen = '1';
+        modal.classList.add('open');
+        modal._cancelCb = () => done(false);
+      });
+    }
+
+    function closeUserConfirmModal(ev) {
+      const modal = document.getElementById('user-confirm-modal');
+      if (!modal) return;
+      if (ev && ev.target !== ev.currentTarget) return;
+      const wasOpen = modal.dataset.confirmOpen === '1';
+      modal.classList.remove('open');
+      modal.dataset.confirmOpen = '';
+      if (wasOpen && typeof modal._cancelCb === 'function') {
+        const cb = modal._cancelCb;
+        modal._cancelCb = null;
+        cb();
+      }
+    }
+
     async function addUserToList(which) {
       const input = document.getElementById('user-' + which + '-input');
       const raw = String(input && input.value || '').trim();
@@ -5555,6 +6646,23 @@
       }
       if (!uid) { toast('请输入有效 QQ 号或从搜索结果选择', 'error'); return; }
       uid = String(uid);
+      let pick = getResolvePick(which, uid);
+      if (!pick.nickname && !pick.avatar) {
+        try {
+          const res = await fetch(BASE + '/users/info?user_id=' + encodeURIComponent(uid));
+          const data = await res.json();
+          if (data.success && data.data) {
+            cacheUserProfile(data.data);
+            pick = { ...pick, ...data.data };
+          }
+        } catch (_) {}
+      }
+      const allow = await openUserConfirmModal(
+        pick,
+        which === 'whitelist' ? '添加到白名单' : '添加到黑名单',
+        which === 'whitelist' ? '确认允许该用户使用机器人功能吗？' : '确认屏蔽该用户使用机器人功能吗？'
+      );
+      if (!allow) return;
       if (which === 'whitelist') {
         if (!config.whitelistUsers) config.whitelistUsers = [];
         if (config.whitelistUsers.includes(uid)) { toast('已在白名单中', 'info'); return; }
@@ -5575,6 +6683,135 @@
       userResolveState[which].pick = null;
       hideUserDropdown(which);
       await renderUserLists();
+    }
+
+    function hideAdminUserDropdown() {
+      const dd = document.getElementById('admin-user-dropdown');
+      if (dd) dd.style.display = 'none';
+      userResolveState.admin.idx = -1;
+    }
+
+    function renderAdminUserDropdown() {
+      const st = userResolveState.admin;
+      const dd = document.getElementById('admin-user-dropdown');
+      if (!dd) return;
+      if (!st.results.length) { dd.style.display = 'none'; return; }
+      dd.innerHTML = st.results.map((u, i) => {
+        const nick = escapeHtml(u.nickname || '未知');
+        const sub = escapeHtml(u.userId);
+        const av = u.avatar
+          ? '<img src="' + escapeHtml(u.avatar) + '" alt="">'
+          : '<span class="avatar-ph">' + escapeHtml((u.nickname || '?').slice(0, 1)) + '</span>';
+        return '<div class="resolve-item' + (i === st.idx ? ' active' : '') + '" onclick="pickAdminUserResolve(' + i + ')">' + av + '<div><div style="font-weight:600">' + nick + '</div><div style="font-size:11px;color:var(--text3)">' + sub + '</div></div></div>';
+      }).join('');
+      dd.style.display = 'block';
+    }
+
+    function onAdminUserResolveInput() {
+      const inp = document.getElementById('admin-user-input');
+      const q = (inp && inp.value || '').trim();
+      userResolveState.admin.pick = null;
+      clearTimeout(userResolveDebounce.admin);
+      if (!q) { hideAdminUserDropdown(); return; }
+      userResolveDebounce.admin = setTimeout(async () => {
+        try {
+          const res = await fetch(BASE + '/users/resolve?q=' + encodeURIComponent(q));
+          const data = await res.json();
+          userResolveState.admin.results = data.data || [];
+          userResolveState.admin.idx = userResolveState.admin.results.length ? 0 : -1;
+          renderAdminUserDropdown();
+        } catch {
+          hideAdminUserDropdown();
+        }
+      }, 280);
+    }
+
+    function onAdminUserResolveKeydown(ev) {
+      const st = userResolveState.admin;
+      if (ev.key === 'ArrowDown') {
+        ev.preventDefault();
+        if (st.results.length) { st.idx = Math.min(st.idx + 1, st.results.length - 1); renderAdminUserDropdown(); }
+      } else if (ev.key === 'ArrowUp') {
+        ev.preventDefault();
+        if (st.results.length) { st.idx = Math.max(st.idx - 1, 0); renderAdminUserDropdown(); }
+      } else if (ev.key === 'Enter') {
+        ev.preventDefault();
+        if (st.idx >= 0 && st.results[st.idx]) pickAdminUserResolve(st.idx);
+        else addAdminUser();
+      } else if (ev.key === 'Escape') hideAdminUserDropdown();
+    }
+
+    function pickAdminUserResolve(idx) {
+      const u = userResolveState.admin.results[idx];
+      if (!u) return;
+      userResolveState.admin.pick = u;
+      cacheUserProfile(u);
+      const inp = document.getElementById('admin-user-input');
+      if (inp) inp.value = u.nickname ? (u.nickname + ' (' + u.userId + ')') : u.userId;
+      hideAdminUserDropdown();
+    }
+
+    function renderAdminUsersList() {
+      const box = document.getElementById('admin-users-list');
+      const hidden = document.getElementById('cfg-adminUsers');
+      const ids = Array.from(new Set((config.adminUsers || []).map((s) => String(s).trim()).filter(Boolean)));
+      if (hidden) hidden.value = ids.join(', ');
+      if (!box) return;
+      if (!ids.length) {
+        box.innerHTML = '<span style="font-size:12px;color:var(--text3)">暂无管理员</span>';
+        return;
+      }
+      box.innerHTML = ids.map((uid) => {
+        const p = getUserProfile(uid);
+        const nick = p.nickname || uid;
+        return '<span class="admin-user-chip">' + escapeHtml(nick) + ' (' + escapeHtml(uid) + ')' +
+          '<button type="button" title="移除" onclick="removeAdminUser(\'' + escapeHtml(uid) + '\')"><span class="material-symbols-outlined" style="font-size:14px">close</span></button></span>';
+      }).join('');
+    }
+
+    async function addAdminUser() {
+      const inp = document.getElementById('admin-user-input');
+      const raw = (inp && inp.value || '').trim();
+      if (!raw) return;
+      let uid = userResolveState.admin.pick && userResolveState.admin.pick.userId;
+      if (!uid) {
+        const m = raw.match(/(\d{5,12})/);
+        uid = m ? m[1] : raw.replace(/\D/g, '');
+      }
+      if (!uid) { toast('请输入有效 QQ 号或从搜索结果选择', 'error'); return; }
+      uid = String(uid);
+      let pick = getResolvePick('admin', uid);
+      if (!pick.nickname && !pick.avatar) {
+        try {
+          const res = await fetch(BASE + '/users/info?user_id=' + encodeURIComponent(uid));
+          const data = await res.json();
+          if (data.success && data.data) {
+            cacheUserProfile(data.data);
+            pick = { ...pick, ...data.data };
+          }
+        } catch (_) {}
+      }
+      const allow = await openUserConfirmModal(pick, '添加管理员', '确认将该用户添加为管理员吗？');
+      if (!allow) return;
+      if (!config.adminUsers) config.adminUsers = [];
+      if (config.adminUsers.includes(uid)) { toast('已在管理员列表中', 'info'); return; }
+      config.adminUsers.push(uid);
+      if (!getUserProfile(uid).nickname) {
+        try {
+          const res = await fetch(BASE + '/users/info?user_id=' + encodeURIComponent(uid));
+          const data = await res.json();
+          if (data.success && data.data) cacheUserProfile(data.data);
+        } catch (_) {}
+      }
+      if (inp) inp.value = '';
+      userResolveState.admin.pick = null;
+      hideAdminUserDropdown();
+      renderAdminUsersList();
+    }
+
+    function removeAdminUser(uid) {
+      config.adminUsers = (config.adminUsers || []).filter((x) => String(x) !== String(uid));
+      renderAdminUsersList();
     }
 
     async function refreshUserListProfiles() {
@@ -6280,7 +7517,11 @@
     document.getElementById('cfg-webSearchProvider').addEventListener('change', showSearchProviderRows);
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeReactionEmojiModal();
+      if (e.key === 'Escape') {
+        closeReactionEmojiModal();
+        closeUserConfirmModal();
+        closeStructuredEditorModal();
+      }
     });
 
     document.addEventListener('click', (e) => {
@@ -6288,6 +7529,7 @@
         hideUserDropdown('whitelist');
         hideUserDropdown('blacklist');
         hidePermUserDropdown();
+        hideAdminUserDropdown();
       }
     });
 
