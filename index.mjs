@@ -658,7 +658,7 @@ async function analyzeImageWithKimi(imageUrls, userQuestion, model) {
   }, 'image');
   const res = await fetch(apiUrl, {
     method: 'POST',
-    headers: kimiCodeRequestHeaders({ 'Content-Type': 'application/json' }),
+    headers: kimiCodeRequestHeaders(pluginState.config, { 'Content-Type': 'application/json' }),
     body: JSON.stringify({
       model: useModel,
       messages: [
