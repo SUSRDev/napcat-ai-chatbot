@@ -1,5 +1,60 @@
 # 更新日志
 
+## [2.5.4] — 2026-06-25
+
+### 新增
+
+- **辅助 AI 请求统一封装**：新增 `buildAuxiliaryChatBody` 函数，搜索词生成、戳一戳决策、表情选择、伪人回复等所有辅助 AI 调用共用同一请求体构建逻辑，行为与主对话保持一致。
+- **热重载调度机制**：新增 `schedulePluginReload` 延迟调度函数，更新完成后自动热重载插件，使新版 `index.mjs` 及路由立即生效，无需手动重启 NapCat。
+
+### 改进
+
+- **搜索词清洗增强**：`buildSearchFallbackQuery` 新增剥离 CQ 码、去除结尾疑问助词（"是谁"、"是什么"等）的逻辑；AI 与清洗均失败时回退原始用户消息，避免以空 `query` 发起无效搜索。
+- **错误日志可读性**：辅助 AI 接口返回非 200 时记录响应体摘要，并对 400/403 附加可读提示，方便排查 Kimi Code 等接口的兼容性问题。
+
+### 修复
+
+- **辅助 AI 调用 400 错误**：未开启「高级采样」时不再向接口传递 `temperature` 参数，修复 Kimi Code 等严格校验参数的接口报 400 的问题；该修复覆盖搜索词、戳一戳、表情、伪人共五处调用点。
+
+---
+
+## [2.5.3] — 2026-06-25
+
+### 新增
+
+- **官方 HMR 开发流程**：新增 `vite.config.mjs` + `pnpm run dev` / `pnpm run push`，配合 NapCat 端 `napcat-plugin-debug` 实现保存即热重载（与官方文档一致）。
+- **热重载增强**：`lib/plugin-reload.mjs` 统一 `PluginManager.reloadPlugin` → `loadDirectoryPlugin` → WebSocket `napcat-plugin-debug` 三级回退；新增 `GET /update/hmr-status` 检测调试服务。
+
+### 修复
+
+- **热重载 ID 解析**：从 `getLoadedPlugins` 按插件目录匹配真实 `pluginId`，不再因 `getPluginInfo` 未命中而跳过 `reloadPlugin`。
+- **plugin_cleanup**：卸载时清理待执行重载定时器、表情捕获、伪人状态、对话元数据，避免热重载后重复注册或泄漏。
+
+### 改进
+
+- 仪表盘更新完成后仍自动热重载；远程开发可通过 `NAPCAT_DEBUG_WS` + SSH 隧道使用 debug 服务重载。
+
+---
+
+## [2.5.2] — 2026-06-25
+
+### 修复
+
+- **AI 生成搜索词 400**：Kimi Code 等接口在未开启「高级采样」时拒绝 `temperature` 参数；辅助 AI 调用（搜索词、戳一戳、表情、伪人）已与主对话对齐，默认不再附带 temperature。User-Agent `KimiCLI/1.3` 原本已正确附加，403 才是缺 Agent 头的表现。
+
+---
+
+### 修复
+
+- **更新后热重载**：安装更新完成后自动调用 `PluginManager.reloadPlugin` 热重载后端，使 `index.mjs` 等新路由（如 `/changelog`、智能搜索）立即生效，无需手动重启 NapCat；仪表盘约 3 秒后自动刷新。
+- **手动热重载接口**：新增 `POST /update/reload`，可在更新异常时手动触发重载。
+
+### 改进
+
+- `plugin_cleanup` 卸载时清理自动更新定时器，避免热重载后重复注册。
+
+---
+
 ## [2.5.0] — 2026-06-25
 
 ### 新增
@@ -16,6 +71,8 @@
 
 - **搜索词回退逻辑**：AI 未生成搜索词时，改为直接使用用户原话，不再混入「固定搜索词」中配置的人设关键词。
 - **固定搜索词作用范围**：`webSearchQuery` 现在仅在「固定关键词」模式下生效，AI 模式与多路联合搜索不再受其干扰。
+- **空搜索词**：AI 与清洗均失败时回退原始用户消息，避免 `query: ""` 仍发起搜索。
+- **运行日志滚动方向**：「向下更新」改为旧日志在上、新日志在下（终端样式）；「向上更新」为新日志置顶。
 
 ---
 

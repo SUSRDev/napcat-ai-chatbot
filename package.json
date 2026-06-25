@@ -1,7 +1,7 @@
 {
   "name": "napcat-plugin-chat-bot",
   "plugin": "聊天机器人",
-  "version": "2.5.0",
+  "version": "2.5.4",
   "main": "index.mjs",
   "icon": "icon.png",
   "description": "多轮对话、画图多 API、表情回应、RunningHub 迁移、仪表盘图表",
@@ -9,5 +9,14 @@
   "napcat": {
     "minVersion": "4.14.0",
     "homepage": "https://github.com/SUSRDev/napcat-ai-chatbot"
+  },
+  "scripts": {
+    "build": "vite build",
+    "push": "vite build",
+    "dev": "vite build --watch"
+  },
+  "devDependencies": {
+    "napcat-plugin-debug-cli": "^1.0.0",
+    "vite": "^6.0.0"
   }
 }

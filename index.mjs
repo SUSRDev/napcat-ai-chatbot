@@ -37,6 +37,11 @@ import {
   smartSearchMulti,
   detectSearchRegion
 } from './lib/smart-search.mjs';
+import {
+  tryReloadPluginAll,
+  pingDebugService,
+  collectPluginReloadIds
+} from './lib/plugin-reload.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -350,6 +355,7 @@ let pluginState = {
   actions: null,
   adapterName: '',
   pluginManager: null,
+  pluginId: 'napcat-plugin-chat-bot',
   runtimeCtx: null,
   updateInfo: null,
   updateRunning: false,
@@ -360,6 +366,7 @@ let pluginState = {
 };
 let drawBotEngine = null;
 let reactionCaptureSession = null;
+let pendingReloadTimer = null;
 
 const REACTION_CAPTURE_COUNTDOWN_MS = 5000;
 const REACTION_CAPTURE_WINDOW_MS = 45000;
@@ -720,6 +727,28 @@ function chatHeadersFromApiConfig(extra = {}) {
   const cfg = pluginState.config;
   const { apiUrl, apiKey, provider } = getApiConfig();
   return chatHeadersForEndpoint({ apiUrl, apiKey, provider }, cfg, extra);
+}
+
+/** 辅助 AI 请求体：与主对话一致，未开高级采样时不带 temperature（Kimi Code 等会 400） */
+function buildAuxiliaryChatBody(cfg, { model, messages, max_tokens, temperature }) {
+  const body = {
+    model: model || 'deepseek-ai/DeepSeek-V3',
+    messages,
+    stream: false,
+    max_tokens: Math.max(1, Number(max_tokens) || 80)
+  };
+  if (cfg.advancedSamplingEnabled === true && temperature != null) {
+    body.temperature = Math.max(0, Math.min(2, Number(temperature)));
+  }
+  return body;
+}
+
+async function readApiErrorBody(res) {
+  try {
+    return await res.text();
+  } catch {
+    return '';
+  }
 }
 
 function touchConversationMeta(key, patch = {}) {
@@ -1598,10 +1627,13 @@ function shouldSkipWebSearchByHeuristic(text) {
 }
 
 function buildSearchFallbackQuery(userText) {
-  let t = String(userText || '').trim().replace(/@[^\s\u2005]+/g, '').replace(/\s+/g, ' ');
+  const raw = String(userText || '').trim().replace(/\[CQ:[^\]]+\]/g, '').replace(/\s+/g, ' ').trim();
+  if (!raw) return '';
+  let t = raw.replace(/@[^\s\u2005]+/g, '').replace(/\s+/g, ' ').trim();
   t = t.replace(/[？?吗嘛呢吧啊呀]+$/g, '').trim();
   t = t.replace(/^(请问|问一下|想知道|帮我查|搜一下|查查|帮我搜|查询)/g, '').trim();
-  return t.slice(0, 120);
+  t = t.replace(/(是谁|是什么|有哪些|叫什么|在哪|怎么样|多少|几个)$/g, '').trim();
+  return (t || raw).slice(0, 120);
 }
 
 function parseAiSearchOutput(raw) {
@@ -1612,6 +1644,7 @@ function parseAiSearchOutput(raw) {
 
 /** 使用 AI 判断是否需要搜索，并生成一条搜索关键词 */
 async function aiGenerateSearchQuery(userMessage, historySummary) {
+  const cfg = pluginState.config;
   const { apiUrl, apiKey, model } = getApiConfig();
   if (!apiKey) return { skip: false, query: null };
   const systemPrompt = '你是搜索意图助手。根据用户问题判断是否需要联网搜索外部资料。\n\n只输出一行，不要解释：\n- 寒暄、感谢、纯闲聊、主观题、明显无需查资料 → 输出 SKIP\n- 需要查新闻、游戏角色/攻略/设定、百科事实、专业名词、人物事件、产品版本、实时信息等 → 输出一条简短中文或英文搜索关键词（不超过15个词，不要引号）';
@@ -1621,19 +1654,23 @@ async function aiGenerateSearchQuery(userMessage, historySummary) {
     const res = await fetch(apiUrl, {
       method: 'POST',
       headers: chatHeadersFromApiConfig({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({
-        model: model || 'deepseek-ai/DeepSeek-V3',
+      body: JSON.stringify(buildAuxiliaryChatBody(cfg, {
+        model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        stream: false,
-        temperature: 0.2,
-        max_tokens: 80
-      })
+        max_tokens: 80,
+        temperature: 0.2
+      }))
     });
     if (!res.ok) {
-      log('warn', 'AI 生成搜索词 API 失败', { status: res.status }, 'search');
+      const errBody = await readApiErrorBody(res);
+      log('warn', 'AI 生成搜索词 API 失败', {
+        status: res.status,
+        hint: res.status === 403 ? '需 KimiCLI User-Agent（已自动附加）' : (res.status === 400 ? '可能因未开高级采样却传了 temperature，已修复' : ''),
+        body: errBody.slice(0, 200)
+      }, 'search');
       return { skip: false, query: null };
     }
     const data = await res.json();
@@ -1646,6 +1683,7 @@ async function aiGenerateSearchQuery(userMessage, historySummary) {
 
 /** 使用 AI 生成最多 3 条搜索关键词（用于三路联合搜索） */
 async function aiGenerateSearchQueries(userMessage, historySummary) {
+  const cfg = pluginState.config;
   const { apiUrl, apiKey, model } = getApiConfig();
   if (!apiKey) return { skip: false, queries: [] };
   const systemPrompt = '你是搜索意图助手。根据用户问题判断是否需要联网搜索。\n\n若属于寒暄、感谢、纯闲聊、无需查资料，只输出一行：SKIP\n\n否则输出 1～3 条简短搜索关键词（每条不超过15个词），每行一条，不要编号、不要引号、不要解释。游戏、百科、新闻、实时信息类问题应输出关键词。';
@@ -1655,16 +1693,15 @@ async function aiGenerateSearchQueries(userMessage, historySummary) {
     const res = await fetch(apiUrl, {
       method: 'POST',
       headers: chatHeadersFromApiConfig({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({
-        model: model || 'deepseek-ai/DeepSeek-V3',
+      body: JSON.stringify(buildAuxiliaryChatBody(cfg, {
+        model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        stream: false,
-        temperature: 0.2,
-        max_tokens: 120
-      })
+        max_tokens: 120,
+        temperature: 0.2
+      }))
     });
     if (!res.ok) return { skip: false, queries: [] };
     const data = await res.json();
@@ -2463,16 +2500,15 @@ async function aiDecidePoke(userText, replyText) {
     const res = await fetch(apiUrl, {
       method: 'POST',
       headers: chatHeadersFromApiConfig({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({
-        model: model || 'deepseek-ai/DeepSeek-V3',
+      body: JSON.stringify(buildAuxiliaryChatBody(cfg, {
+        model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        stream: false,
-        temperature: 0.3,
-        max_tokens: 5
-      })
+        max_tokens: 5,
+        temperature: 0.3
+      }))
     });
     if (!res.ok) return Math.random() < 0.5;
     const data = await res.json();
@@ -2499,16 +2535,15 @@ async function aiPickStickerIndex(userText, replyText, totalCount) {
     const res = await fetch(apiUrl, {
       method: 'POST',
       headers: chatHeadersFromApiConfig({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({
-        model: model || 'deepseek-ai/DeepSeek-V3',
+      body: JSON.stringify(buildAuxiliaryChatBody(cfg, {
+        model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        stream: false,
-        temperature: 0.9,
-        max_tokens: 10
-      })
+        max_tokens: 10,
+        temperature: 0.9
+      }))
     });
     if (!res.ok) return Math.floor(Math.random() * totalCount);
     const data = await res.json();
@@ -2736,16 +2771,15 @@ async function aiChooseFakeHumanAction(recentContext) {
     const res = await fetch(apiUrl, {
       method: 'POST',
       headers: chatHeadersFromApiConfig({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({
-        model: model || 'deepseek-ai/DeepSeek-V3',
+      body: JSON.stringify(buildAuxiliaryChatBody(cfg, {
+        model,
         messages: [
           { role: 'system', content: '根据最近群聊内容，选一种互动方式。只输出一个数字：1=发一段文字/表情回复，2=只@对方，3=只戳一戳对方。不要其他文字。' },
           { role: 'user', content: '最近群消息：\n' + (recentContext || '').slice(0, 600) + '\n\n输出 1 或 2 或 3：' }
         ],
-        stream: false,
-        temperature: 0.6,
-        max_tokens: 5
-      })
+        max_tokens: 5,
+        temperature: 0.6
+      }))
     });
     if (!res.ok) return 1;
     const data = await res.json();
@@ -2881,16 +2915,15 @@ async function tryFakeHumanReply(ctx, event, groupId, userId, plainText) {
         const res = await fetch(apiUrl, {
           method: 'POST',
           headers: chatHeadersFromApiConfig({ 'Content-Type': 'application/json' }),
-          body: JSON.stringify({
+          body: JSON.stringify(buildAuxiliaryChatBody(cfg, {
             model: visionModel,
             messages: [
               { role: 'system', content: sysPrompt + '\n回复长度不超过' + maxLen + '字，不要换行。' },
               userMsg
             ],
-            stream: false,
-            temperature: 0.8,
-            max_tokens: 50
-          })
+            max_tokens: 50,
+            temperature: 0.8
+          }))
         });
         if (res.ok) {
           const data = await res.json();
@@ -3272,6 +3305,50 @@ async function resolveMirrorForDownload(ctx, githubUrl, progressEmit) {
   return resolved;
 }
 
+function collectPluginReloadIdsLocal(ctx) {
+  return collectPluginReloadIds(ctx, __dirname);
+}
+
+/** 尝试热重载本插件（更新后使 index.mjs 等新后端代码生效） */
+async function tryReloadPlugin(ctx) {
+  const pm = pluginState.pluginManager || ctx?.pluginManager;
+  const debugOpts = {
+    wsUrl: pluginState.config?.updateDebugWsUrl || process.env.NAPCAT_DEBUG_WS,
+    token: pluginState.config?.updateDebugToken || process.env.NAPCAT_DEBUG_TOKEN,
+    allowDebugWs: pluginState.config?.updateReloadViaDebug !== false
+  };
+  return tryReloadPluginAll(pm, ctx || pluginState.runtimeCtx, __dirname, debugOpts);
+}
+
+/** 延迟调度热重载，避免在更新任务栈内卸载当前插件导致进度无法上报 */
+function schedulePluginReload(ctx, { delayMs = 2000, reason = 'update' } = {}) {
+  const runtimeCtx = ctx || pluginState.runtimeCtx;
+  const pm = pluginState.pluginManager || runtimeCtx?.pluginManager;
+  const pluginIds = collectPluginReloadIdsLocal(runtimeCtx);
+  if (pendingReloadTimer) {
+    clearTimeout(pendingReloadTimer);
+    pendingReloadTimer = null;
+  }
+  if (!pm?.reloadPlugin && pluginState.config?.updateReloadViaDebug === false) {
+    log('warn', '热重载不可用，请安装 napcat-plugin-debug 或手动重启 NapCat', { reason }, 'system');
+    return false;
+  }
+  pendingReloadTimer = setTimeout(() => {
+    pendingReloadTimer = null;
+    tryReloadPlugin(runtimeCtx).then((r) => {
+      if (r.ok) {
+        log('info', '插件热重载成功', { method: r.method, pluginId: r.pluginId }, 'system');
+      } else {
+        log('warn', '插件热重载失败，可安装 napcat-plugin-debug 或手动重载插件', { reason: r.reason, tried: r.tried }, 'system');
+      }
+    }).catch((e) => {
+      log('warn', '插件热重载异常', { error: e?.message || String(e) }, 'system');
+    });
+  }, Math.max(500, Number(delayMs) || 2000));
+  log('info', '已调度插件热重载', { reason, delayMs, pluginIds, viaDebug: pluginState.config?.updateReloadViaDebug !== false }, 'system');
+  return true;
+}
+
 async function runPluginUpdateApply(ctx, releaseInfo, onProgress) {
   if (pluginState.updateRunning) throw new Error('更新正在进行中');
   const release = releaseInfo || pluginState.updateInfo?.release;
@@ -3302,7 +3379,13 @@ async function runPluginUpdateApply(ctx, releaseInfo, onProgress) {
     const result = await applyReleaseUpdate(__dirname, release, pluginState.logger, emit, {
       resolveDownloadUrl: (url, progressEmit) => resolveMirrorForDownload(ctx, url, progressEmit)
     });
-    emit({ phase: 'reload', message: '文件已写入，请刷新页面或重启 NapCat 生效', percent: 98 });
+    const reloadScheduled = schedulePluginReload(ctx, { delayMs: 1500, reason: 'post-update' });
+    emit({
+      phase: 'reload',
+      message: reloadScheduled ? '文件已写入，即将自动热重载后端…' : '文件已写入，请手动重启 NapCat 使后端生效',
+      percent: 96,
+      reloadScheduled
+    });
     pluginState.config.autoUpdateLastResult = `已更新至 v${result.version}`;
     pluginState.updateInfo = {
       ...(pluginState.updateInfo || {}),
@@ -3314,10 +3397,13 @@ async function runPluginUpdateApply(ctx, releaseInfo, onProgress) {
     saveConfig(ctx);
     emit({
       phase: 'complete',
-      message: `更新完成，当前版本 v${result.version}`,
+      message: reloadScheduled
+        ? `已更新至 v${result.version}，正在热重载…`
+        : `已更新至 v${result.version}，请重启 NapCat`,
       percent: 100,
       success: true,
-      version: result.version
+      version: result.version,
+      reloadScheduled
     });
     return result;
   } catch (e) {
@@ -3382,6 +3468,7 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
     pluginState.actions = ctx.actions || c.actions;
     pluginState.adapterName = ctx.adapterName || c.adapterName;
     pluginState.pluginManager = ctx.pluginManager || c.pluginManager;
+    pluginState.pluginId = String(ctx.fileId || c.fileId || ctx.pluginName || c.pluginName || path.basename(__dirname) || 'napcat-plugin-chat-bot');
     pluginState.runtimeCtx = ctx;
     loadConfig(ctx);
 
@@ -4128,6 +4215,39 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         }
       });
 
+      router.postNoAuth('/update/reload', async (_, res) => {
+        try {
+          const result = await tryReloadPlugin(ctx);
+          if (result.ok) {
+            log('info', '手动触发热重载成功', result, 'system');
+            res.json({ success: true, ...result, message: '插件已热重载' });
+          } else {
+            res.json({ success: false, ...result, error: '热重载失败。可安装 napcat-plugin-debug，或在 NapCat 插件页手动重载。' });
+          }
+        } catch (e) {
+          res.json({ success: false, error: e?.message || String(e) });
+        }
+      });
+
+      router.getNoAuth('/update/hmr-status', async (_, res) => {
+        const pm = pluginState.pluginManager;
+        const debug = await pingDebugService({
+          wsUrl: pluginState.config?.updateDebugWsUrl || process.env.NAPCAT_DEBUG_WS,
+          token: pluginState.config?.updateDebugToken || process.env.NAPCAT_DEBUG_TOKEN
+        });
+        let loaded = [];
+        try {
+          if (pm?.getLoadedPlugins) loaded = pm.getLoadedPlugins().map((p) => p?.id || p?.name).filter(Boolean);
+        } catch (_) {}
+        res.json({
+          success: true,
+          pluginId: pluginState.pluginId,
+          pluginManager: !!(pm?.reloadPlugin),
+          debugService: debug,
+          loadedPlugins: loaded.slice(0, 20)
+        });
+      });
+
       router.getNoAuth('/changelog', async (_, res) => {
         try {
           const cfg = pluginState.config || {};
@@ -4418,6 +4538,10 @@ const plugin_onmessage = async (ctx, event) => {
           qList = fixed ? [fixed] : (fallback ? [fallback] : []);
         } else if (!qList.length) {
           qList = fallback ? [fallback] : [];
+          if (!qList.length && userText) {
+            const raw = String(userText).trim().replace(/\[CQ:[^\]]+\]/g, '').slice(0, 120);
+            if (raw) qList = [raw];
+          }
           if (qList.length) log('info', 'AI 未生成搜索词，使用用户原话', { query: qList[0].slice(0, 60) }, 'search');
         }
         if (qList.length === 1) {
@@ -4451,6 +4575,10 @@ const plugin_onmessage = async (ctx, event) => {
           query = buildSearchFallbackQuery(userText);
           if (query) log('info', 'AI 未生成搜索词，使用用户原话', { query: query.slice(0, 60) }, 'search');
         }
+      }
+      if (!query && userText) {
+        query = String(userText).trim().replace(/\[CQ:[^\]]+\]/g, '').slice(0, 120);
+        if (query) log('warn', '搜索词清洗后为空，已回退原始用户消息', { query: query.slice(0, 60) }, 'search');
       }
       if (query) {
         searchQueries = [query];
@@ -4567,8 +4695,24 @@ const plugin_set_config = async (ctx, config) => {
   }
 };
 const plugin_cleanup = async () => {
+  if (pendingReloadTimer) {
+    clearTimeout(pendingReloadTimer);
+    pendingReloadTimer = null;
+  }
+  clearReactionCaptureTimers(reactionCaptureSession);
+  reactionCaptureSession = null;
   conversationHistory.clear();
+  conversationMeta.clear();
   cooldownUntil.clear();
+  recentGroupMessages.clear();
+  fakeHumanLastTime.clear();
+  fakeHumanTalkingTo.clear();
+  if (pluginState.autoUpdateTimer) {
+    clearInterval(pluginState.autoUpdateTimer);
+    pluginState.autoUpdateTimer = null;
+  }
+  pluginState.updateRunning = false;
+  pluginState.mirrorBenchmarkRunning = false;
   drawBotEngine?.cleanup?.();
   pluginState.logger?.info?.('[chat-bot] 插件已卸载');
 };
