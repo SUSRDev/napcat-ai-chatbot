@@ -2980,7 +2980,7 @@
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span>NapCat 插件 · v1.7</span>
+          <span>NapCat 插件 · v1.8</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -4895,11 +4895,6 @@
       syncKimiVisionRow();
     }
 
-    function toggleChatParseImage(el) {
-      toggle(el, 'chatParseImage');
-      syncKimiVisionRow();
-    }
-
     const FAILOVER_PROVIDER_OPTIONS = [
       ['siliconflow', 'SiliconFlow'],
       ['deepseek', 'DeepSeek'],
@@ -6790,8 +6785,6 @@
         setTimeout(() => card.classList.remove('pulse'), 560);
       }
     }
-
-    let reactionCapturePollTimer = null;
 
     function stopReactionCapturePoll() {
       if (reactionCapturePollTimer) {

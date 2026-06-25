@@ -1,7 +1,7 @@
 {
   "name": "napcat-plugin-chat-bot",
   "plugin": "聊天机器人",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "main": "index.mjs",
   "description": "多轮对话、画图多 API、表情回应、RunningHub 迁移、仪表盘图表",
   "type": "module",
