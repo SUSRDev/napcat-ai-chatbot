@@ -2780,6 +2780,11 @@
     #reaction-capture-modal .resolve-dropdown {
       z-index: 500;
     }
+    .resolve-dropdown.resolve-dropdown-portal {
+      position: fixed;
+      z-index: 10060;
+      right: auto;
+    }
     #structured-editor-modal.has-open-dropdown,
     #reaction-capture-modal.has-open-dropdown {
       z-index: 10050;
@@ -3044,7 +3049,7 @@
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span>NapCat 插件 · v1.9</span>
+          <span>NapCat 插件 · v2.0</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -6193,7 +6198,20 @@
       document.getElementById('structured-editor-modal')?.classList.remove('open');
     }
 
+    function cleanupResolveDropdownPortals() {
+      Object.keys(resolveAc.portals).forEach(function (id) {
+        const dd = document.getElementById('resolve-dd-' + id);
+        if (dd) unmountResolveDropdownPortal(dd, id);
+      });
+      document.querySelectorAll('.resolve-dropdown.resolve-dropdown-portal').forEach(function (dd) {
+        const id = (dd.id || '').replace(/^resolve-dd-/, '');
+        unmountResolveDropdownPortal(dd, id || undefined);
+      });
+    }
+
     function renderStructuredEditorBody() {
+      hideAllResolveAcDropdowns();
+      cleanupResolveDropdownPortals();
       const body = document.getElementById('structured-editor-body');
       if (!body) return;
       const type = structuredEditorState.type;
@@ -7249,6 +7267,13 @@
       return '';
     }
 
+    function avatarUrlForGroup(g) {
+      const gid = String((g && g.groupId) || '');
+      if (g && g.avatar) return g.avatar;
+      if (/^\d{5,12}$/.test(gid)) return 'https://p.qlogo.cn/gh/' + gid + '/' + gid + '/100';
+      return '';
+    }
+
     function avatarImgHtml(avatarUrl, nickname) {
       const nick = escapeHtml((nickname || '?').slice(0, 1));
       if (avatarUrl) {
@@ -7291,11 +7316,14 @@
 
     function enrichGroupResult(g) {
       if (!g) return g;
-      return {
+      const profile = {
         groupId: String(g.groupId || g.group_id || ''),
         groupName: g.groupName || g.group_name || g.name || '',
-        memberCount: g.memberCount || g.member_count || 0
+        memberCount: g.memberCount || g.member_count || 0,
+        avatar: g.avatar || ''
       };
+      if (!profile.avatar) profile.avatar = avatarUrlForGroup(profile);
+      return profile;
     }
 
     function parseUserResolveKey(raw) {
@@ -7316,16 +7344,85 @@
       return m ? m[1] : s.replace(/\s*\([^)]*\)\s*$/, '').trim() || s;
     }
 
-    const resolveAc = { timers: {}, states: {} };
+    const resolveAc = { timers: {}, states: {}, portals: {} };
 
     function resolveAcInputId(inputEl) {
       return inputEl && (inputEl.id || inputEl.dataset.resolveId || '');
+    }
+
+    function ensureResolveDropdownPositionListeners() {
+      if (resolveAc._positionBound) return;
+      resolveAc._positionBound = true;
+      const reposition = function () {
+        Object.keys(resolveAc.states).forEach(function (id) {
+          const dd = document.getElementById('resolve-dd-' + id);
+          const inp = document.getElementById(id);
+          if (dd && inp && dd.style.display !== 'none' && dd.classList.contains('resolve-dropdown-portal')) {
+            positionResolveDropdownPortal(dd, inp);
+          }
+        });
+      };
+      window.addEventListener('resize', reposition);
+      window.addEventListener('scroll', reposition, true);
+    }
+
+    function positionResolveDropdownPortal(dd, inputEl) {
+      if (!dd || !inputEl) return;
+      const rect = inputEl.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const maxH = Math.min(280, vh * 0.5);
+      dd.style.left = rect.left + 'px';
+      dd.style.width = Math.max(rect.width, 220) + 'px';
+      const spaceBelow = vh - rect.bottom - 8;
+      const spaceAbove = rect.top - 8;
+      if (spaceBelow < 120 && spaceAbove > spaceBelow) {
+        dd.style.top = 'auto';
+        dd.style.bottom = (vh - rect.top + 4) + 'px';
+        dd.style.maxHeight = Math.min(maxH, spaceAbove) + 'px';
+      } else {
+        dd.style.top = (rect.bottom + 4) + 'px';
+        dd.style.bottom = 'auto';
+        dd.style.maxHeight = Math.min(maxH, spaceBelow) + 'px';
+      }
+    }
+
+    function mountResolveDropdownPortal(dd, inputEl) {
+      const inputId = resolveAcInputId(inputEl);
+      if (!inputId || !dd || !inputEl) return;
+      const inModal = inputEl.closest('.modal-overlay');
+      if (!inModal) {
+        unmountResolveDropdownPortal(dd, inputId);
+        return;
+      }
+      ensureResolveDropdownPositionListeners();
+      if (!resolveAc.portals[inputId]) {
+        resolveAc.portals[inputId] = { origin: dd.parentElement, inputEl };
+      }
+      if (dd.parentElement !== document.body) document.body.appendChild(dd);
+      dd.classList.add('resolve-dropdown-portal');
+      positionResolveDropdownPortal(dd, inputEl);
+    }
+
+    function unmountResolveDropdownPortal(dd, inputId) {
+      if (!dd) return;
+      const anchor = inputId ? resolveAc.portals[inputId] : null;
+      if (anchor && anchor.origin && dd.parentElement === document.body) anchor.origin.appendChild(dd);
+      if (inputId) delete resolveAc.portals[inputId];
+      dd.classList.remove('resolve-dropdown-portal');
+      dd.style.position = '';
+      dd.style.left = '';
+      dd.style.top = '';
+      dd.style.bottom = '';
+      dd.style.width = '';
+      dd.style.right = '';
+      dd.style.maxHeight = '';
     }
 
     function hideResolveAcDropdown(inputId) {
       if (!inputId) return;
       const dd = document.getElementById('resolve-dd-' + inputId);
       if (dd) {
+        unmountResolveDropdownPortal(dd, inputId);
         syncResolveDropdownState(dd, false);
         dd.style.display = 'none';
       }
@@ -7351,7 +7448,8 @@
           const g = enrichGroupResult(item);
           const name = escapeHtml(g.groupName || '未知群');
           const sub = escapeHtml(g.groupId + (g.memberCount ? ' · ' + g.memberCount + ' 人' : ''));
-          return '<div class="resolve-item' + (i === st.idx ? ' active' : '') + '" data-resolve-pick="' + i + '"><span class="avatar-ph" style="width:32px;height:32px;border-radius:8px">#</span><div><div>' + name + '</div><div>' + sub + '</div></div></div>';
+          const av = avatarImgHtml(g.avatar, g.groupName || g.groupId);
+          return '<div class="resolve-item' + (i === st.idx ? ' active' : '') + '" data-resolve-pick="' + i + '">' + av + '<div><div>' + name + '</div><div>' + sub + '</div></div></div>';
         }
         const u = enrichUserResult(item);
         const nick = escapeHtml(u.nickname || '未知');
@@ -7363,6 +7461,7 @@
         el.onclick = function () { pickResolveAc(inputEl, parseInt(el.getAttribute('data-resolve-pick'), 10)); };
       });
       dd.style.display = 'block';
+      mountResolveDropdownPortal(dd, inputEl);
       syncResolveDropdownState(dd, true);
     }
 

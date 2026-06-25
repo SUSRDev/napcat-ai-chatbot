@@ -1827,7 +1827,16 @@ function normalizeGroupItem(raw) {
   const groupId = String(raw?.group_id ?? raw?.groupId ?? '').trim();
   const groupName = String(raw?.group_name ?? raw?.name ?? '').trim();
   const memberCount = Number(raw?.member_count ?? raw?.memberCount ?? 0) || 0;
-  return { groupId, groupName, memberCount };
+  let avatar = String(raw?.avatar ?? raw?.group_avatar ?? raw?.face_url ?? raw?.faceUrl ?? '').trim();
+  if (!avatar && groupId) avatar = buildGroupAvatarUrl(groupId);
+  return { groupId, groupName, memberCount, avatar };
+}
+
+function buildGroupAvatarUrl(groupId, size = 100) {
+  const gid = String(groupId || '').trim();
+  if (!/^\d{5,12}$/.test(gid)) return '';
+  const s = Math.max(40, Math.min(640, Number(size) || 100));
+  return `https://p.qlogo.cn/gh/${gid}/${gid}/${s}`;
 }
 
 function buildQqAvatarUrl(userId, size = 100) {
@@ -1869,14 +1878,17 @@ async function fetchGroupProfile(groupId) {
   try {
     const res = await callAction('get_group_info', { group_id: gid });
     const data = res?.data ?? res ?? {};
+    let avatar = String(data.group_avatar ?? data.avatar ?? data.face_url ?? data.faceUrl ?? '').trim();
+    if (!avatar) avatar = buildGroupAvatarUrl(gid);
     return {
       groupId: gid,
       groupName: String(data.group_name ?? data.name ?? '').trim(),
-      memberCount: Number(data.member_count ?? data.memberCount ?? 0) || 0
+      memberCount: Number(data.member_count ?? data.memberCount ?? 0) || 0,
+      avatar
     };
   } catch (e) {
     log('debug', '获取群信息失败', { groupId: gid, err: e.message }, 'config');
-    return { groupId: gid, groupName: '', memberCount: 0 };
+    return { groupId: gid, groupName: '', memberCount: 0, avatar: buildGroupAvatarUrl(gid) };
   }
 }
 
@@ -1950,6 +1962,7 @@ function touchGroupProfileCache(cfg, profile) {
   cfg.groupProfileCache[String(profile.groupId)] = {
     groupName: profile.groupName || '',
     memberCount: profile.memberCount || 0,
+    avatar: profile.avatar || buildGroupAvatarUrl(profile.groupId),
     updatedAt: Date.now()
   };
 }
@@ -3722,7 +3735,7 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         router.page({
           path: 'dashboard',
           title: '聊天机器人',
-          icon: '',
+          icon: 'smart_toy',
           htmlFile: 'webui/dashboard.html',
           description: '多轮对话、人设、冷却、群组与黑名单'
         });
