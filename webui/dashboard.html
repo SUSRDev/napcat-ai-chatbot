@@ -2492,6 +2492,22 @@
     .param-grid .param-label { font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 8px; }
     .param-grid .param-hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
     .param-grid .ipt { max-width: 100%; }
+    .advanced-sampling-panel {
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height 0.32s var(--ease), opacity 0.25s var(--ease);
+    }
+    .advanced-sampling-panel.open {
+      max-height: 320px;
+      opacity: 1;
+    }
+    .advanced-sampling-note {
+      padding: 0 18px 12px;
+      font-size: 12px;
+      color: var(--text3);
+      line-height: 1.6;
+    }
     .vision-config-grid {
       display: grid; grid-template-columns: 1fr 1fr; gap: 0;
     }
@@ -2594,16 +2610,16 @@
     }
     .sticker-status { font-size: 12px; color: var(--text3); margin-left: auto; transition: color 0.2s; }
     .sticker-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-      gap: 12px; padding: 16px 18px; max-height: 460px; overflow-y: auto;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+      gap: 12px; padding: 16px 18px; max-height: 520px; overflow-y: auto;
       scroll-behavior: smooth;
     }
     .sticker-card {
       position: relative; border: 1px solid var(--border); border-radius: 14px;
-      background: var(--bg2); padding: 10px; cursor: pointer;
+      background: var(--bg2); padding: 8px 6px 10px; cursor: pointer;
       transition: border-color 0.22s var(--ease), transform 0.22s var(--ease), box-shadow 0.22s var(--ease);
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      min-height: 112px; animation: cardPopIn 0.38s var(--ease) backwards;
+      min-height: 132px; animation: cardPopIn 0.38s var(--ease) backwards;
       overflow: hidden;
     }
     .sticker-card:hover {
@@ -2640,13 +2656,13 @@
     .sticker-card.fixed-pick .sticker-pin-badge { opacity: 1; transform: scale(1); }
     .sticker-pin-badge .material-symbols-outlined { font-size: 13px; }
     .sticker-card img {
-      width: 64px; height: 64px; object-fit: contain; border-radius: 8px;
+      width: 92px; height: 92px; object-fit: contain; border-radius: 8px;
       background: color-mix(in srgb, var(--bg) 80%, transparent);
       transition: transform 0.25s var(--ease);
     }
-    .sticker-card:hover img { transform: scale(1.06); }
+    .sticker-card:hover img { transform: scale(1.05); }
     .sticker-card .sticker-placeholder {
-      width: 64px; height: 64px; border-radius: 8px; background: var(--card);
+      width: 92px; height: 92px; border-radius: 8px; background: var(--card);
       border: 1px dashed var(--border); display: flex; align-items: center; justify-content: center;
       font-size: 11px; color: var(--text3);
     }
@@ -2740,6 +2756,34 @@
       display: flex; gap: 8px; align-items: center; margin-top: 10px;
     }
     .reaction-capture-remark-row .ipt { flex: 1; min-width: 0; }
+    .app-confirm-foot {
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .app-confirm-choices {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .app-confirm-choices.open { display: flex; }
+    #structured-editor-modal .structured-resolve-box,
+    #reaction-capture-modal .resolve-box {
+      position: relative;
+      z-index: 2;
+      max-width: none;
+      flex: 1;
+      min-width: 0;
+    }
+    #structured-editor-modal .resolve-dropdown,
+    #reaction-capture-modal .resolve-dropdown {
+      z-index: 500;
+    }
+    #structured-editor-modal.has-open-dropdown,
+    #reaction-capture-modal.has-open-dropdown {
+      z-index: 10050;
+    }
     .reaction-emoji-actions .icon-btn.thinking-on {
       color: var(--accent2); border-color: color-mix(in srgb, var(--accent2) 50%, var(--border));
       background: color-mix(in srgb, var(--accent2) 14%, transparent);
@@ -2909,8 +2953,11 @@
           <select class="ipt" id="reaction-capture-group" style="max-width:100%"></select>
         </div>
         <div class="form-row" style="margin-bottom:12px">
-          <div class="form-label">用户 QQ<div class="hint">被 @ 并在群里发表情的账号</div></div>
-          <input type="text" class="ipt" id="reaction-capture-user" placeholder="3042444341" style="max-width:100%" inputmode="numeric" />
+          <div class="form-label">用户 QQ<div class="hint">被 @ 并在群里发表情的账号，支持 QQ 号或昵称搜索</div></div>
+          <div class="resolve-box" style="max-width:100%">
+            <input type="text" class="ipt resolve-autocomplete-input" id="reaction-capture-user" placeholder="QQ 号或昵称搜索" style="width:100%" autocomplete="off" data-resolve-scope="user" />
+            <div class="resolve-dropdown" id="resolve-dd-reaction-capture-user" style="display:none"></div>
+          </div>
         </div>
         <div id="reaction-capture-status" class="reaction-capture-status" style="display:none"></div>
       </div>
@@ -2918,6 +2965,23 @@
         <button type="button" class="icon-btn sm" id="reaction-capture-cancel-btn" title="取消截取" onclick="cancelReactionCapture()" style="display:none"><span class="material-symbols-outlined">stop</span></button>
         <button type="button" class="icon-btn sm primary" id="reaction-capture-confirm-btn" title="确认备注并收录" onclick="confirmReactionCaptureRemark()" style="display:none"><span class="material-symbols-outlined">edit</span></button>
         <button type="button" class="icon-btn sm primary" id="reaction-capture-start-btn" title="开始截取" onclick="startReactionCapture()"><span class="material-symbols-outlined">play_arrow</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="app-confirm-modal" onclick="closeAppConfirmModal(event, false)">
+    <div class="modal-panel" role="alertdialog" aria-labelledby="app-confirm-title" onclick="event.stopPropagation()" style="max-width:420px">
+      <div class="modal-head">
+        <h3 id="app-confirm-title">请确认</h3>
+        <button type="button" class="icon-btn sm" title="关闭" onclick="closeAppConfirmModal(null, false)"><span class="material-symbols-outlined">close</span></button>
+      </div>
+      <div class="modal-body">
+        <p id="app-confirm-text" style="font-size:13px;color:var(--text2);line-height:1.7;margin:0"></p>
+      </div>
+      <div class="modal-foot app-confirm-foot">
+        <button type="button" class="btn btn-d" id="app-confirm-cancel">取消</button>
+        <div class="app-confirm-choices" id="app-confirm-choices"></div>
+        <button type="button" class="btn btn-p" id="app-confirm-ok">确定</button>
       </div>
     </div>
   </div>
@@ -2980,7 +3044,7 @@
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span>NapCat 插件 · v1.8</span>
+          <span>NapCat 插件 · v1.9</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -3280,24 +3344,30 @@
 
         <div class="section" style="padding:0;overflow:hidden">
           <div class="section-title" style="margin:0">生成参数</div>
-          <div class="param-grid">
-            <div class="param-cell">
-              <div class="param-label">温度</div>
-              <input type="number" class="ipt" id="cfg-temperature" min="0" max="2" step="0.1" value="0.6" />
-              <div class="param-hint">0.5–0.7</div>
-            </div>
-            <div class="param-cell">
-              <div class="param-label">Top-P</div>
-              <input type="number" class="ipt" id="cfg-top_p" min="0" max="1" step="0.05" value="0.95" />
-              <div class="param-hint">核采样</div>
-            </div>
-            <div class="param-cell">
-              <div class="param-label">Top-K</div>
-              <input type="number" class="ipt" id="cfg-top_k" min="1" max="100" value="20" />
-            </div>
-            <div class="param-cell">
-              <div class="param-label">Freq Penalty</div>
-              <input type="number" class="ipt" id="cfg-frequency_penalty" min="-2" max="2" step="0.1" value="0" />
+          <div class="form-row" style="padding:14px 18px;border-bottom:1px solid var(--border)">
+            <div class="form-label">高级采样参数<div class="hint">temperature / top_p / top_k / penalty；默认不发送，由模型使用内置默认值（如 Kimi Code 仅允许 temperature=1）</div></div>
+            <div class="tgl" id="tgl-advancedSamplingEnabled" onclick="toggleAdvancedSampling(this)"></div>
+          </div>
+          <div class="advanced-sampling-panel" id="advanced-sampling-panel">
+            <div class="param-grid">
+              <div class="param-cell">
+                <div class="param-label">温度 (temperature)</div>
+                <input type="number" class="ipt" id="cfg-temperature" min="0" max="2" step="0.1" value="0.6" />
+                <div class="param-hint">创造性，0.5–0.7 常用</div>
+              </div>
+              <div class="param-cell">
+                <div class="param-label">Top-P</div>
+                <input type="number" class="ipt" id="cfg-top_p" min="0" max="1" step="0.05" value="0.95" />
+                <div class="param-hint">核采样</div>
+              </div>
+              <div class="param-cell">
+                <div class="param-label">Top-K</div>
+                <input type="number" class="ipt" id="cfg-top_k" min="1" max="100" value="20" />
+              </div>
+              <div class="param-cell">
+                <div class="param-label">Freq Penalty</div>
+                <input type="number" class="ipt" id="cfg-frequency_penalty" min="-2" max="2" step="0.1" value="0" />
+              </div>
             </div>
           </div>
           <div class="form-row">
@@ -3934,11 +4004,15 @@
                 <h4>用户隔离</h4>
                 <p>同一用户跨群共享记忆，私聊与群聊仍分开</p>
               </div>
+              <div class="isolation-mode-card" data-mode="none" onclick="selectIsolationMode('none')">
+                <h4>不隔离</h4>
+                <p>所有群聊共享一份全局对话记忆，私聊仍按用户独立</p>
+              </div>
             </div>
           </div>
           <input type="hidden" id="cfg-conversationIsolationMode" value="user_group" />
           <div class="form-row">
-            <div class="form-label">按群覆盖隔离<div class="hint">每行 群号:模式，模式为 user_group / group / user。例：123456:group</div></div>
+            <div class="form-label">按群覆盖隔离<div class="hint">每行 群号:模式，模式为 user_group / group / user / none。例：123456:group</div></div>
             <div class="kv-editor-inline">
               <div class="kv-editor-summary" id="sum-groupIsolationOverrides">暂无覆盖规则（使用全局隔离模式）</div>
               <button type="button" class="btn btn-s" onclick="openStructuredEditor('groupIsolationOverrides')"><span class="material-symbols-outlined">tune</span>编辑规则</button>
@@ -4800,6 +4874,67 @@
       }, 3000);
     }
 
+    let appConfirmResolver = null;
+
+    function closeAppConfirmModal(ev, result) {
+      if (ev && ev.target !== ev.currentTarget && result !== null && result !== false && typeof result !== 'string') return;
+      const modal = document.getElementById('app-confirm-modal');
+      if (modal) modal.classList.remove('open');
+      const resolver = appConfirmResolver;
+      appConfirmResolver = null;
+      if (resolver) resolver(result);
+    }
+
+    function showAppConfirm(options) {
+      const opts = options || {};
+      return new Promise(function (resolve) {
+        appConfirmResolver = resolve;
+        const modal = document.getElementById('app-confirm-modal');
+        const titleEl = document.getElementById('app-confirm-title');
+        const textEl = document.getElementById('app-confirm-text');
+        const okBtn = document.getElementById('app-confirm-ok');
+        const cancelBtn = document.getElementById('app-confirm-cancel');
+        const choiceWrap = document.getElementById('app-confirm-choices');
+        if (!modal || !titleEl || !textEl || !okBtn || !cancelBtn || !choiceWrap) {
+          resolve(false);
+          return;
+        }
+        titleEl.textContent = opts.title || '请确认';
+        textEl.textContent = opts.message || '';
+        cancelBtn.textContent = opts.cancelText || '取消';
+        cancelBtn.style.display = opts.hideCancel ? 'none' : '';
+        const choices = Array.isArray(opts.choices) ? opts.choices : null;
+        if (choices && choices.length) {
+          okBtn.style.display = 'none';
+          choiceWrap.classList.add('open');
+          choiceWrap.innerHTML = choices.map(function (c) {
+            const cls = c.danger ? 'btn btn-d' : (c.primary ? 'btn btn-p' : 'btn btn-s');
+            return '<button type="button" class="' + cls + '" data-choice-id="' + escapeHtml(String(c.id)) + '">' + escapeHtml(c.label || c.id) + '</button>';
+          }).join('');
+          choiceWrap.querySelectorAll('button[data-choice-id]').forEach(function (btn) {
+            btn.onclick = function () { closeAppConfirmModal(null, btn.getAttribute('data-choice-id')); };
+          });
+        } else {
+          choiceWrap.classList.remove('open');
+          choiceWrap.innerHTML = '';
+          okBtn.style.display = '';
+          okBtn.textContent = opts.confirmText || '确定';
+          okBtn.className = 'btn ' + (opts.danger ? 'btn-d' : 'btn-p');
+          okBtn.onclick = function () { closeAppConfirmModal(null, true); };
+        }
+        cancelBtn.onclick = function () { closeAppConfirmModal(null, choices ? null : false); };
+        modal.classList.add('open');
+        setTimeout(function () {
+          if (choices && choices.length) {
+            const primary = choiceWrap.querySelector('.btn-p') || choiceWrap.querySelector('button');
+            if (primary) primary.focus();
+          } else {
+            okBtn.focus();
+          }
+        }, 40);
+      });
+    }
+
     function cycleTheme() {
       const body = document.body;
       const order = ['dark', 'light', 'system'];
@@ -4844,6 +4979,17 @@
       });
     }
 
+    function syncAdvancedSamplingPanel() {
+      const on = document.getElementById('tgl-advancedSamplingEnabled')?.classList.contains('on') === true;
+      const panel = document.getElementById('advanced-sampling-panel');
+      if (panel) panel.classList.toggle('open', on);
+    }
+
+    function toggleAdvancedSampling(el) {
+      toggle(el, 'advancedSamplingEnabled');
+      syncAdvancedSamplingPanel();
+    }
+
     function toggle(el, key) {
       const on = !el.classList.contains('on');
       el.classList.toggle('on', on);
@@ -4872,6 +5018,7 @@
         syncKimiVisionRow();
       }
       if (key === 'adminCommandsEnabled') config.adminCommandsEnabled = on;
+      if (key === 'advancedSamplingEnabled') config.advancedSamplingEnabled = on;
     }
 
     const PROVIDER_META = {
@@ -5565,6 +5712,9 @@
       document.getElementById('cfg-top_p').value = config.top_p ?? 0.95;
       document.getElementById('cfg-top_k').value = config.top_k ?? 20;
       document.getElementById('cfg-frequency_penalty').value = config.frequency_penalty ?? 0;
+      const advSamTgl = document.getElementById('tgl-advancedSamplingEnabled');
+      if (advSamTgl) advSamTgl.classList.toggle('on', config.advancedSamplingEnabled === true);
+      syncAdvancedSamplingPanel();
       document.getElementById('cfg-systemPrompt').value = config.systemPrompt || '';
       document.getElementById('cfg-replyPrefix').value = config.replyPrefix ?? '[CQ:at,qq={user_id}] ';
       document.getElementById('tgl-pokeAfterReply').classList.toggle('on', config.pokeAfterReply === true);
@@ -5874,7 +6024,7 @@
     }
 
     async function clearAllLogs() {
-      if (!confirm('确定清空全部运行日志？')) return;
+      if (!(await showAppConfirm({ title: '清空日志', message: '确定清空全部运行日志？', confirmText: '清空', danger: true }))) return;
       try {
         const res = await fetch(BASE + '/logs/clear', { method: 'POST' });
         const d = await res.json();
@@ -5912,7 +6062,7 @@
       filterConvList();
     }
 
-    const ISOLATION_LABELS = { user_group: '群+用户', group: '群隔离', user: '用户隔离', private: '私聊', unknown: '未知' };
+    const ISOLATION_LABELS = { user_group: '群+用户', group: '群隔离', user: '用户隔离', none: '不隔离', private: '私聊', unknown: '未知' };
 
     function parseKeyValueLines(text) {
       const out = {};
@@ -6039,6 +6189,7 @@
 
     function closeStructuredEditorModal(e) {
       if (e && e.target && e.target.id && e.target.id !== 'structured-editor-modal') return;
+      hideAllResolveAcDropdowns();
       document.getElementById('structured-editor-modal')?.classList.remove('open');
     }
 
@@ -6065,15 +6216,15 @@
           '<button type="button" class="icon-btn sm" title="删除" onclick="removeStructuredRow(' + idx + ')"><span class="material-symbols-outlined">delete</span></button>' +
           '</div>';
       }
-      const key = escapeHtml(String(item.key || ''));
       if (STRUCTURED_EDITOR_META[type].valueType === 'isolation') {
         const v = String(item.value || 'user_group');
         return '<div class="structured-row">' +
-          '<input class="ipt" type="text" value="' + key + '" placeholder="群号" oninput="onStructuredRowKeyChange(' + idx + ', this.value)" />' +
+          renderStructuredKeyField(type, item, idx) +
           '<select class="ipt" onchange="onStructuredRowValueChange(' + idx + ', this.value)">' +
           '<option value="user_group"' + (v === 'user_group' ? ' selected' : '') + '>群+用户</option>' +
           '<option value="group"' + (v === 'group' ? ' selected' : '') + '>群隔离</option>' +
           '<option value="user"' + (v === 'user' ? ' selected' : '') + '>用户隔离</option>' +
+          '<option value="none"' + (v === 'none' ? ' selected' : '') + '>不隔离</option>' +
           '</select>' +
           '<button type="button" class="icon-btn sm" title="删除" onclick="removeStructuredRow(' + idx + ')"><span class="material-symbols-outlined">delete</span></button>' +
           '</div>';
@@ -6082,14 +6233,14 @@
         const chance = Math.max(0, Math.min(1, parseFloat(item.value || 0) || 0));
         const pct = Math.round(chance * 100);
         return '<div class="structured-row">' +
-          '<input class="ipt" type="text" value="' + key + '" placeholder="群号" oninput="onStructuredRowKeyChange(' + idx + ', this.value)" />' +
+          renderStructuredKeyField(type, item, idx) +
           '<div style="display:flex;align-items:center;gap:8px"><input class="ipt" type="range" min="0" max="100" step="1" value="' + pct + '" oninput="onStructuredRowChanceChange(' + idx + ', this.value)" /><span style="font-size:12px;color:var(--text2);min-width:38px">' + pct + '%</span></div>' +
           '<button type="button" class="icon-btn sm" title="' + pct + '%，删除" onclick="removeStructuredRow(' + idx + ')"><span class="material-symbols-outlined">delete</span></button>' +
           '</div>';
       }
       const sec = Math.max(0, parseInt(item.value, 10) || 0);
       return '<div class="structured-row">' +
-        '<input class="ipt" type="text" value="' + key + '" placeholder="' + (type === 'cooldownByUser' ? 'QQ号' : '群号') + '" oninput="onStructuredRowKeyChange(' + idx + ', this.value)" />' +
+        renderStructuredKeyField(type, item, idx) +
         '<input class="ipt" type="number" min="0" max="3600" value="' + sec + '" oninput="onStructuredRowValueChange(' + idx + ', this.value)" />' +
         '<button type="button" class="icon-btn sm" title="删除" onclick="removeStructuredRow(' + idx + ')"><span class="material-symbols-outlined">delete</span></button>' +
         '</div>';
@@ -6140,6 +6291,8 @@
       if (type === 'fakeHumanSystemPrompt') {
         const txt = document.getElementById('structured-editor-text');
         structuredEditorState.items = [{ value: (txt && txt.value) || '' }];
+      } else {
+        normalizeStructuredEditorKeys(type);
       }
       input.value = serializeStructuredItems(type, structuredEditorState.items);
       refreshStructuredSummary(type);
@@ -6367,15 +6520,15 @@
       clearOneConversation(activeConvKey);
     }
 
-    function clearOneConversation(key) {
-      if (!confirm('确定清空该会话历史？')) return;
+    async function clearOneConversation(key) {
+      if (!(await showAppConfirm({ title: '清空会话', message: '确定清空该会话历史？', confirmText: '清空', danger: true }))) return;
       fetch(BASE + '/history/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key }) })
         .then((r) => r.json())
         .then((d) => { if (d.success) { toast('已清空', 'success'); activeConvKey = null; loadConversations(); closeConvDetail(); } else toast('失败', 'error'); })
         .catch(() => toast('请求失败', 'error'));
     }
-    function clearAllConversations() {
-      if (!confirm('确定清空全部对话历史？')) return;
+    async function clearAllConversations() {
+      if (!(await showAppConfirm({ title: '清空全部对话', message: '确定清空全部对话历史？此操作不可撤销。', confirmText: '全部清空', danger: true }))) return;
       fetch(BASE + '/history/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
         .then((r) => r.json())
         .then((d) => { if (d.success) { toast('已清空全部', 'success'); activeConvKey = null; loadConversations(); closeConvDetail(); } else toast('失败', 'error'); })
@@ -6735,7 +6888,7 @@
     }
 
     async function deleteReactionEmoji(id) {
-      if (!confirm('确定从表情库删除此表情？')) return;
+      if (!(await showAppConfirm({ title: '删除表情', message: '确定从表情库删除此表情？', confirmText: '删除', danger: true }))) return;
       try {
         const res = await fetch(BASE + '/reactions/catalog/delete', {
           method: 'POST',
@@ -6970,9 +7123,9 @@
 
     async function startReactionCapture() {
       const groupId = document.getElementById('reaction-capture-group')?.value?.trim();
-      const userId = document.getElementById('reaction-capture-user')?.value?.trim();
+      const userId = parseUserResolveKey(document.getElementById('reaction-capture-user')?.value?.trim());
       if (!groupId) { toast('请选择群', 'error'); return; }
-      if (!userId || !/^\d+$/.test(userId)) { toast('请填写有效的用户 QQ', 'error'); return; }
+      if (!userId || !/^\d+$/.test(userId)) { toast('请填写有效的用户 QQ 或从搜索结果选择', 'error'); return; }
       stopReactionCapturePoll();
       try {
         const res = await fetch(BASE + '/reactions/capture/start', {
@@ -7136,6 +7289,184 @@
       return profile;
     }
 
+    function enrichGroupResult(g) {
+      if (!g) return g;
+      return {
+        groupId: String(g.groupId || g.group_id || ''),
+        groupName: g.groupName || g.group_name || g.name || '',
+        memberCount: g.memberCount || g.member_count || 0
+      };
+    }
+
+    function parseUserResolveKey(raw) {
+      const s = String(raw || '').trim();
+      const paren = s.match(/\((\d{5,12})\)\s*$/);
+      if (paren) return paren[1];
+      if (/^\d{5,12}$/.test(s)) return s;
+      const m = s.match(/(\d{5,12})/);
+      return m ? m[1] : s;
+    }
+
+    function parseGroupResolveKey(raw) {
+      const s = String(raw || '').trim();
+      const paren = s.match(/\((\d{5,12})\)\s*$/);
+      if (paren) return paren[1];
+      if (/^\d+$/.test(s)) return s;
+      const m = s.match(/(\d{5,12})/);
+      return m ? m[1] : s.replace(/\s*\([^)]*\)\s*$/, '').trim() || s;
+    }
+
+    const resolveAc = { timers: {}, states: {} };
+
+    function resolveAcInputId(inputEl) {
+      return inputEl && (inputEl.id || inputEl.dataset.resolveId || '');
+    }
+
+    function hideResolveAcDropdown(inputId) {
+      if (!inputId) return;
+      const dd = document.getElementById('resolve-dd-' + inputId);
+      if (dd) {
+        syncResolveDropdownState(dd, false);
+        dd.style.display = 'none';
+      }
+      delete resolveAc.states[inputId];
+    }
+
+    function hideAllResolveAcDropdowns() {
+      Object.keys(resolveAc.states).forEach(function (id) { hideResolveAcDropdown(id); });
+    }
+
+    function renderResolveAcDropdown(inputEl) {
+      const inputId = resolveAcInputId(inputEl);
+      const st = resolveAc.states[inputId];
+      const dd = document.getElementById('resolve-dd-' + inputId);
+      if (!dd || !st) return;
+      const scope = inputEl.dataset.resolveScope || st.scope || 'user';
+      if (!st.results.length) {
+        hideResolveAcDropdown(inputId);
+        return;
+      }
+      dd.innerHTML = st.results.map(function (item, i) {
+        if (scope === 'group') {
+          const g = enrichGroupResult(item);
+          const name = escapeHtml(g.groupName || '未知群');
+          const sub = escapeHtml(g.groupId + (g.memberCount ? ' · ' + g.memberCount + ' 人' : ''));
+          return '<div class="resolve-item' + (i === st.idx ? ' active' : '') + '" data-resolve-pick="' + i + '"><span class="avatar-ph" style="width:32px;height:32px;border-radius:8px">#</span><div><div>' + name + '</div><div>' + sub + '</div></div></div>';
+        }
+        const u = enrichUserResult(item);
+        const nick = escapeHtml(u.nickname || '未知');
+        const sub = u.fromConversation && u.groupName ? escapeHtml('来自会话 · ' + u.groupName) : escapeHtml(u.userId);
+        const av = avatarImgHtml(u.avatar, u.nickname);
+        return '<div class="resolve-item' + (i === st.idx ? ' active' : '') + '" data-resolve-pick="' + i + '">' + av + '<div><div>' + nick + '</div><div>' + sub + '</div></div></div>';
+      }).join('');
+      dd.querySelectorAll('[data-resolve-pick]').forEach(function (el) {
+        el.onclick = function () { pickResolveAc(inputEl, parseInt(el.getAttribute('data-resolve-pick'), 10)); };
+      });
+      dd.style.display = 'block';
+      syncResolveDropdownState(dd, true);
+    }
+
+    function onResolveAcInput(inputEl) {
+      const inputId = resolveAcInputId(inputEl);
+      const scope = inputEl.dataset.resolveScope || 'user';
+      const q = (inputEl.value || '').trim();
+      clearTimeout(resolveAc.timers[inputId]);
+      if (!q) {
+        hideResolveAcDropdown(inputId);
+        return;
+      }
+      resolveAc.timers[inputId] = setTimeout(async function () {
+        try {
+          const url = scope === 'group'
+            ? BASE + '/groups/resolve?q=' + encodeURIComponent(q)
+            : BASE + '/users/resolve?q=' + encodeURIComponent(q);
+          const res = await fetch(url);
+          const data = await res.json();
+          const list = (data.data || []).map(scope === 'group' ? enrichGroupResult : enrichUserResult);
+          resolveAc.states[inputId] = { results: list, idx: list.length ? 0 : -1, scope };
+          renderResolveAcDropdown(inputEl);
+        } catch (_) {
+          hideResolveAcDropdown(inputId);
+        }
+      }, 280);
+    }
+
+    function onResolveAcKeydown(ev, inputEl) {
+      const inputId = resolveAcInputId(inputEl);
+      const st = resolveAc.states[inputId];
+      if (!st) return;
+      if (ev.key === 'ArrowDown') {
+        ev.preventDefault();
+        if (st.results.length) {
+          st.idx = Math.min(st.idx + 1, st.results.length - 1);
+          renderResolveAcDropdown(inputEl);
+        }
+      } else if (ev.key === 'ArrowUp') {
+        ev.preventDefault();
+        if (st.results.length) {
+          st.idx = Math.max(st.idx - 1, 0);
+          renderResolveAcDropdown(inputEl);
+        }
+      } else if (ev.key === 'Enter') {
+        ev.preventDefault();
+        if (st.idx >= 0 && st.results[st.idx]) pickResolveAc(inputEl, st.idx);
+      } else if (ev.key === 'Escape') {
+        hideResolveAcDropdown(inputId);
+      }
+    }
+
+    function pickResolveAc(inputEl, resultIdx) {
+      const inputId = resolveAcInputId(inputEl);
+      const st = resolveAc.states[inputId];
+      if (!st || !st.results[resultIdx]) return;
+      const scope = inputEl.dataset.resolveScope || st.scope || 'user';
+      const item = st.results[resultIdx];
+      let rawId = '';
+      let display = '';
+      if (scope === 'group') {
+        const g = enrichGroupResult(item);
+        rawId = g.groupId;
+        display = g.groupName ? (g.groupName + ' (' + rawId + ')') : rawId;
+      } else {
+        const u = enrichUserResult(item);
+        rawId = u.userId;
+        display = u.nickname ? (u.nickname + ' (' + rawId + ')') : rawId;
+        cacheUserProfile(u);
+      }
+      if (inputEl.dataset.structRow != null) {
+        const rowIdx = parseInt(inputEl.dataset.structRow, 10);
+        if (structuredEditorState.items[rowIdx]) structuredEditorState.items[rowIdx].key = rawId;
+      }
+      inputEl.value = display;
+      hideResolveAcDropdown(inputId);
+    }
+
+    function structuredKeyResolveScope(type) {
+      if (type === 'cooldownByUser') return 'user';
+      if (type === 'cooldownByGroup' || type === 'groupIsolationOverrides' || type === 'fakeHumanGroupChance') return 'group';
+      return null;
+    }
+
+    function renderStructuredKeyField(type, item, idx) {
+      const scope = structuredKeyResolveScope(type);
+      const key = escapeHtml(String(item.key || ''));
+      if (!scope) {
+        return '<input class="ipt" type="text" value="' + key + '" placeholder="键" oninput="onStructuredRowKeyChange(' + idx + ', this.value)" />';
+      }
+      const inputId = 'struct-key-' + idx;
+      const ph = scope === 'user' ? 'QQ 号或昵称' : '群号或群名';
+      return '<div class="resolve-box structured-resolve-box">' +
+        '<input class="ipt resolve-autocomplete-input" type="text" id="' + inputId + '" data-resolve-scope="' + scope + '" data-struct-row="' + idx + '" value="' + key + '" placeholder="' + ph + '" autocomplete="off" oninput="onStructuredRowKeyChange(' + idx + ', this.value)" />' +
+        '<div class="resolve-dropdown" id="resolve-dd-' + inputId + '" style="display:none"></div></div>';
+    }
+
+    function normalizeStructuredEditorKeys(type) {
+      (structuredEditorState.items || []).forEach(function (item) {
+        if (type === 'cooldownByUser') item.key = parseUserResolveKey(item.key);
+        else if (type === 'cooldownByGroup' || type === 'groupIsolationOverrides' || type === 'fakeHumanGroupChance') item.key = parseGroupResolveKey(item.key);
+      });
+    }
+
     function normalizeUserProfileShape(u) {
       return {
         userId: String(u.userId || u.user_id || ''),
@@ -7203,9 +7534,9 @@
     function syncResolveDropdownState(dd, open) {
       if (!dd) return;
       const box = dd.closest('.resolve-box');
-      const section = box?.closest('.section');
+      const host = box?.closest('.section, .modal-overlay');
       if (box) box.classList.toggle('is-open', !!open);
-      if (section) section.classList.toggle('has-open-dropdown', !!open);
+      if (host) host.classList.toggle('has-open-dropdown', !!open);
     }
 
     function hideUserDropdown(which) {
@@ -7686,6 +8017,7 @@
         .map(function (s) { return s.trim(); })
         .filter(Boolean);
       collectFailoverSettings(cfg);
+      cfg.advancedSamplingEnabled = document.getElementById('tgl-advancedSamplingEnabled')?.classList.contains('on') === true;
       cfg.temperature = parseFloat(document.getElementById('cfg-temperature').value) || 0.6;
       cfg.top_p = parseFloat(document.getElementById('cfg-top_p').value);
       if (isNaN(cfg.top_p) || cfg.top_p < 0 || cfg.top_p > 1) cfg.top_p = 0.95;
@@ -8216,7 +8548,16 @@
           toast('无效的配置文件', 'error');
           return;
         }
-        const replace = confirm('是否完整替换当前配置？\n\n确定 = 完整替换\n取消 = 合并导入（推荐，保留未包含项）');
+        const mode = await showAppConfirm({
+          title: '导入配置',
+          message: '请选择导入方式：',
+          choices: [
+            { id: 'merge', label: '合并导入（推荐）', primary: true },
+            { id: 'replace', label: '完整替换', danger: true }
+          ]
+        });
+        if (!mode) return;
+        const replace = mode === 'replace';
         const res = await fetch(BASE + '/config/import', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -8244,10 +8585,23 @@
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
+        closeAppConfirmModal(null, false);
+        hideAllResolveAcDropdowns();
         closeReactionEmojiModal();
+        closeReactionCaptureModal();
         closeUserConfirmModal();
         closeStructuredEditorModal();
       }
+    });
+
+    document.addEventListener('input', function (e) {
+      const inp = e.target && e.target.classList && e.target.classList.contains('resolve-autocomplete-input') ? e.target : null;
+      if (inp) onResolveAcInput(inp);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      const inp = e.target && e.target.classList && e.target.classList.contains('resolve-autocomplete-input') ? e.target : null;
+      if (inp) onResolveAcKeydown(e, inp);
     });
 
     document.addEventListener('click', (e) => {
@@ -8256,6 +8610,7 @@
         hideUserDropdown('blacklist');
         hidePermUserDropdown();
         hideAdminUserDropdown();
+        hideAllResolveAcDropdowns();
       }
     });
 

@@ -139,6 +139,7 @@ const DEFAULT_CONFIG = {
   botDisplayName: '助手',
   maxHistoryMessages: 12,
   maxTokens: 8192,
+  advancedSamplingEnabled: false,
   top_p: 0.95,
   top_k: 20,
   frequency_penalty: 0,
@@ -854,7 +855,7 @@ async function analyzeImageWithKimi(imageUrls, userQuestion, model) {
   return '';
 }
 
-const ISOLATION_MODES = ['user_group', 'group', 'user'];
+const ISOLATION_MODES = ['user_group', 'group', 'user', 'none'];
 
 function normalizeIsolationMode(mode) {
   const m = String(mode || 'user_group').toLowerCase();
@@ -874,6 +875,7 @@ function getConversationKey(groupId, userId, cfg = pluginState.config) {
   if (!groupId) return `p:${u}`;
   const g = String(groupId);
   const mode = getEffectiveIsolationMode(g, cfg);
+  if (mode === 'none') return 'global';
   if (mode === 'group') return `g:${g}`;
   if (mode === 'user') return `u:${u}`;
   return `g:${g}:u:${u}`;
@@ -881,6 +883,7 @@ function getConversationKey(groupId, userId, cfg = pluginState.config) {
 
 function parseConversationKey(key) {
   const k = String(key || '');
+  if (k === 'global') return { groupId: null, userId: null, isolationMode: 'none' };
   if (k.startsWith('g:') && k.includes(':u:')) {
     const parts = k.split(':');
     if (parts.length >= 4) return { groupId: parts[1], userId: parts[3], isolationMode: 'user_group' };
@@ -1679,13 +1682,15 @@ async function chatCompletionOnEndpoint(messages, options, endpoint, settings) {
       model: useModel,
       messages,
       stream: false,
-      temperature: options.temperature ?? temperature,
-      max_tokens: options.max_tokens ?? maxTokens,
-      top_p: options.top_p ?? topP,
-      top_k: options.top_k ?? topK,
-      frequency_penalty: options.frequency_penalty ?? freqPenalty,
-      presence_penalty: options.presence_penalty ?? presPenalty
+      max_tokens: options.max_tokens ?? maxTokens
     };
+    if (cfg.advancedSamplingEnabled === true) {
+      body.temperature = options.temperature ?? temperature;
+      body.top_p = options.top_p ?? topP;
+      body.top_k = options.top_k ?? topK;
+      body.frequency_penalty = options.frequency_penalty ?? freqPenalty;
+      body.presence_penalty = options.presence_penalty ?? presPenalty;
+    }
     if (stop && stop.length) body.stop = stop;
     if (enableThinking && provider === 'siliconflow') {
       body.extra_body = body.extra_body || {};
@@ -1697,7 +1702,8 @@ async function chatCompletionOnEndpoint(messages, options, endpoint, settings) {
       model: useModel,
       provider,
       messagesCount: messages.length,
-      max_tokens: maxTokens
+      max_tokens: maxTokens,
+      advancedSampling: cfg.advancedSamplingEnabled === true
     }, 'api');
 
     let res;
@@ -3208,6 +3214,7 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         if (body.botDisplayName !== undefined) cfg.botDisplayName = str('botDisplayName', '助手');
         if (body.maxHistoryMessages !== undefined) cfg.maxHistoryMessages = num('maxHistoryMessages', 12, 1, 50);
         if (body.maxTokens !== undefined) cfg.maxTokens = num('maxTokens', 8192, 100, 32768);
+        if (body.advancedSamplingEnabled !== undefined) cfg.advancedSamplingEnabled = bool('advancedSamplingEnabled', false);
         if (body.top_p !== undefined) cfg.top_p = num('top_p', 0.95, 0, 1);
         if (body.top_k !== undefined) cfg.top_k = Math.max(1, Math.min(100, parseInt(body.top_k, 10) || 20));
         if (body.frequency_penalty !== undefined) cfg.frequency_penalty = num('frequency_penalty', 0, -2, 2);
