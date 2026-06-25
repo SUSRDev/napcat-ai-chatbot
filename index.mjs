@@ -14,6 +14,7 @@ import {
   checkForUpdate as checkPluginUpdate,
   applyReleaseUpdate,
   readLocalVersion,
+  compareSemver,
   UPDATE_REPO,
   UPDATE_REPO_URL
 } from './lib/self-update.mjs';
@@ -3227,6 +3228,39 @@ async function fetchRemoteChangelog(cfg = {}) {
   }
 }
 
+function parseLatestChangelogVersion(md) {
+  const m = String(md || '').match(/^##\s+\[([^\]]+)\]/m);
+  return m ? m[1].trim() : '';
+}
+
+function readLocalChangelogFile() {
+  const file = path.join(__dirname, 'CHANGELOG.md');
+  if (!fs.existsSync(file)) return '';
+  try {
+    return fs.readFileSync(file, 'utf-8');
+  } catch {
+    return '';
+  }
+}
+
+async function resolveChangelogContent(cfg = {}) {
+  const localContent = readLocalChangelogFile();
+  const localTop = parseLatestChangelogVersion(localContent);
+  try {
+    const remote = await fetchRemoteChangelog(cfg);
+    const remoteTop = parseLatestChangelogVersion(remote.content);
+    if (localContent && compareSemver(localTop, remoteTop) >= 0) {
+      return { content: localContent, source: 'local', remoteTop, localTop };
+    }
+    return { content: remote.content, source: remote.source, remoteTop, localTop };
+  } catch (remoteErr) {
+    if (localContent) {
+      return { content: localContent, source: 'local', error: remoteErr?.message || String(remoteErr) };
+    }
+    throw remoteErr;
+  }
+}
+
 async function runPluginUpdateCheck(ctx, { persist = true, autoApply = false } = {}) {
   if (pluginState.updateRunning) {
     return { success: false, error: '更新正在进行中', info: pluginState.updateInfo };
@@ -4250,31 +4284,12 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
 
       router.getNoAuth('/changelog', async (_, res) => {
         try {
-          const cfg = pluginState.config || {};
-          let content = '';
-          let source = 'github';
-          try {
-            const remote = await fetchRemoteChangelog(cfg);
-            content = remote.content;
-            source = remote.source;
-          } catch (remoteErr) {
-            log('warn', '远程 CHANGELOG 加载失败，尝试本地', { error: remoteErr?.message || String(remoteErr) }, 'system');
-            const file = path.join(__dirname, 'CHANGELOG.md');
-            if (!fs.existsSync(file)) {
-              res.json({
-                success: false,
-                error: `GitHub 加载失败: ${remoteErr?.message || remoteErr}；本地 CHANGELOG.md 也不存在`
-              });
-              return;
-            }
-            content = fs.readFileSync(file, 'utf-8');
-            source = 'local';
-          }
+          const resolved = await resolveChangelogContent(pluginState.config || {});
           res.json({
             success: true,
-            content,
+            content: resolved.content,
             version: readLocalVersion(__dirname),
-            source
+            source: resolved.source
           });
         } catch (e) {
           res.json({ success: false, error: e?.message || String(e) });

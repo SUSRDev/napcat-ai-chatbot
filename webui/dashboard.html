@@ -3583,7 +3583,7 @@
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span id="sidebar-version">NapCat 插件 · v2.5.4</span>
+          <span id="sidebar-version">NapCat 插件 · v2.5.5</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -6153,12 +6153,28 @@
       throw new Error(lastErr);
     }
 
+    function parseLatestChangelogVersion(md) {
+      const m = String(md || '').match(/^##\s+\[([^\]]+)\]/m);
+      return m ? m[1].trim() : '';
+    }
+
+    function compareChangelogVer(a, b) {
+      const pa = (a || '').split('.').map((n) => parseInt(n, 10) || 0);
+      const pb = (b || '').split('.').map((n) => parseInt(n, 10) || 0);
+      for (let i = 0; i < 3; i++) {
+        const d = (pa[i] || 0) - (pb[i] || 0);
+        if (d) return d;
+      }
+      return 0;
+    }
+
     async function fetchChangelogPayload() {
+      let apiData = null;
       try {
         const res = await fetch(BASE + '/changelog');
         if (res.ok) {
-          const data = await res.json();
-          if (data.success && data.content) return data;
+          apiData = await res.json();
+          if (apiData.success && apiData.content) return apiData;
         }
       } catch (_) {}
       const remote = await fetchChangelogFromGithub();
@@ -6174,6 +6190,10 @@
           const d = await st.json();
           if (d.currentVersion) version = d.currentVersion;
         } catch (_) {}
+      }
+      const remoteTop = parseLatestChangelogVersion(remote.content);
+      if (version && compareChangelogVer(version, remoteTop) > 0 && apiData?.content) {
+        return { success: true, content: apiData.content, source: apiData.source || 'local', version };
       }
       return { success: true, content: remote.content, source: remote.source, version };
     }
