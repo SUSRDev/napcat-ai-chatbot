@@ -16,6 +16,19 @@ import {
   readLocalVersion,
   UPDATE_REPO_URL
 } from './lib/self-update.mjs';
+import {
+  listMirrors,
+  getMirrorById,
+  getDefaultMirrorTestUrl,
+  getMirrorConfig,
+  resolveUpdateDownloadUrl,
+  resolveMirrorId,
+  isMirrorBenchmarkFresh,
+  testMirrorLatency,
+  benchmarkMirrors,
+  mergeBenchmarkResults,
+  MIRROR_DIRECT_ID
+} from './lib/github-mirrors.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -271,7 +284,12 @@ const DEFAULT_CONFIG = {
   autoUpdateEnabled: true,
   autoUpdateIntervalHours: 24,
   autoUpdateLastCheckAt: 0,
-  autoUpdateLastResult: ''
+  autoUpdateLastResult: '',
+  updateMirrorMode: 'auto',
+  updateMirrorId: MIRROR_DIRECT_ID,
+  updateMirrorBenchmark: {},
+  updateMirrorBestId: '',
+  updateMirrorBestTestedAt: 0
 };
 
 const conversationHistory = new Map();
@@ -325,7 +343,9 @@ let pluginState = {
   updateInfo: null,
   updateRunning: false,
   updateProgress: null,
-  autoUpdateTimer: null
+  updateProgressLog: [],
+  autoUpdateTimer: null,
+  mirrorBenchmarkRunning: false
 };
 let drawBotEngine = null;
 let reactionCaptureSession = null;
@@ -3124,31 +3144,81 @@ async function runPluginUpdateCheck(ctx, { persist = true, autoApply = false } =
   }
 }
 
+async function resolveMirrorForDownload(ctx, githubUrl, progressEmit) {
+  const cfg = pluginState.config;
+  const mirrorCfg = getMirrorConfig(cfg);
+  if (mirrorCfg.mode === 'manual') {
+    const resolved = resolveUpdateDownloadUrl(githubUrl, cfg);
+    progressEmit?.({
+      phase: 'mirror',
+      message: `使用指定镜像：${resolved.mirrorName}`,
+      percent: 8
+    });
+    return resolved;
+  }
+  if (isMirrorBenchmarkFresh(cfg)) {
+    const resolved = resolveUpdateDownloadUrl(githubUrl, cfg);
+    progressEmit?.({
+      phase: 'mirror',
+      message: `使用最快镜像：${resolved.mirrorName}`,
+      percent: 8
+    });
+    return resolved;
+  }
+  progressEmit?.({ phase: 'mirror', message: '正在测速选择最快镜像源…', percent: 4 });
+  const testUrl = githubUrl || getDefaultMirrorTestUrl();
+  const { results, bestId, best } = await benchmarkMirrors(testUrl, null, {
+    concurrency: 6,
+    onProgress: (p) => progressEmit?.({
+      phase: 'mirror',
+      message: `镜像测速 ${p.completed}/${p.total}…`,
+      percent: 4 + Math.round((p.completed / Math.max(p.total, 1)) * 6)
+    })
+  });
+  cfg.updateMirrorBenchmark = mergeBenchmarkResults(cfg.updateMirrorBenchmark, results);
+  cfg.updateMirrorBestId = bestId;
+  cfg.updateMirrorBestTestedAt = Date.now();
+  saveConfig(ctx);
+  const resolved = resolveUpdateDownloadUrl(githubUrl, cfg, results);
+  progressEmit?.({
+    phase: 'mirror',
+    message: `已选择 ${resolved.mirrorName}${best?.ok ? `（${best.latencyMs}ms）` : ''}`,
+    percent: 10
+  });
+  return resolved;
+}
+
 async function runPluginUpdateApply(ctx, releaseInfo, onProgress) {
   if (pluginState.updateRunning) throw new Error('更新正在进行中');
   const release = releaseInfo || pluginState.updateInfo?.release;
   if (!release?.downloadUrl) throw new Error('请先检查更新');
   pluginState.updateRunning = true;
+  pluginState.updateProgressLog = [];
   const emit = (payload) => {
-    pluginState.updateProgress = payload;
-    onProgress?.(payload);
+    const item = {
+      phase: payload?.phase || 'progress',
+      message: String(payload?.message || ''),
+      percent: Math.max(0, Math.min(100, Math.round(Number(payload?.percent) || 0))),
+      success: payload?.success,
+      version: payload?.version,
+      error: payload?.error,
+      at: Date.now()
+    };
+    pluginState.updateProgress = item;
+    const last = pluginState.updateProgressLog[pluginState.updateProgressLog.length - 1];
+    if (!last || last.message !== item.message || last.percent !== item.percent) {
+      pluginState.updateProgressLog.push(item);
+      if (pluginState.updateProgressLog.length > 100) pluginState.updateProgressLog.shift();
+    }
+    onProgress?.(item);
   };
   try {
     log('info', '开始下载并安装插件更新', { version: release.version, asset: release.assetName }, 'system');
     emit({ phase: 'start', message: `开始更新至 v${release.version}…`, percent: 2 });
-    const result = await applyReleaseUpdate(__dirname, release, pluginState.logger, emit);
-    emit({ phase: 'reload', message: '正在重载插件…', percent: 97 });
-    const pluginId = path.basename(__dirname);
-    if (pluginState.pluginManager?.reloadPlugin) {
-      try {
-        await pluginState.pluginManager.reloadPlugin(pluginId);
-        log('info', '插件已热重载', { pluginId }, 'system');
-        emit({ phase: 'reload', message: '插件热重载完成', percent: 99 });
-      } catch (e) {
-        log('warn', '插件热重载失败，请手动重启 NapCat', { error: e?.message || e }, 'system');
-        emit({ phase: 'reload', message: '热重载失败，请手动重启 NapCat', percent: 99 });
-      }
-    }
+    const result = await applyReleaseUpdate(__dirname, release, pluginState.logger, emit, {
+      resolveDownloadUrl: (url, progressEmit) => resolveMirrorForDownload(ctx, url, progressEmit)
+    });
+    emit({ phase: 'reload', message: '文件已写入，请刷新页面或重启 NapCat 生效', percent: 98 });
     pluginState.config.autoUpdateLastResult = `已更新至 v${result.version}`;
     pluginState.updateInfo = {
       ...(pluginState.updateInfo || {}),
@@ -3516,6 +3586,13 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         if (body.autoUpdateIntervalHours !== undefined) cfg.autoUpdateIntervalHours = num('autoUpdateIntervalHours', 24, 1, 168);
         if (body.autoUpdateLastCheckAt !== undefined) cfg.autoUpdateLastCheckAt = num('autoUpdateLastCheckAt', 0, 0, Number.MAX_SAFE_INTEGER);
         if (body.autoUpdateLastResult !== undefined) cfg.autoUpdateLastResult = str('autoUpdateLastResult', '');
+        if (body.updateMirrorMode !== undefined) cfg.updateMirrorMode = String(body.updateMirrorMode) === 'manual' ? 'manual' : 'auto';
+        if (body.updateMirrorId !== undefined) cfg.updateMirrorId = String(body.updateMirrorId || MIRROR_DIRECT_ID);
+        if (body.updateMirrorBenchmark !== undefined && body.updateMirrorBenchmark && typeof body.updateMirrorBenchmark === 'object') {
+          cfg.updateMirrorBenchmark = body.updateMirrorBenchmark;
+        }
+        if (body.updateMirrorBestId !== undefined) cfg.updateMirrorBestId = String(body.updateMirrorBestId || '');
+        if (body.updateMirrorBestTestedAt !== undefined) cfg.updateMirrorBestTestedAt = num('updateMirrorBestTestedAt', 0, 0, Number.MAX_SAFE_INTEGER);
         if (body.fakeHumanParseImage !== undefined) cfg.fakeHumanParseImage = Boolean(body.fakeHumanParseImage);
         if (body.fakeHumanVisionModel !== undefined) cfg.fakeHumanVisionModel = String(body.fakeHumanVisionModel || '').trim();
         saveConfig(ctx);
@@ -3837,8 +3914,84 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
           updating: pluginState.updateRunning,
           autoUpdateEnabled: !!pluginState.config.autoUpdateEnabled,
           autoUpdateIntervalHours: pluginState.config.autoUpdateIntervalHours ?? 24,
-          lastResult: pluginState.config.autoUpdateLastResult || ''
+          lastResult: pluginState.config.autoUpdateLastResult || '',
+          updateMirrorMode: pluginState.config.updateMirrorMode === 'manual' ? 'manual' : 'auto',
+          updateMirrorId: pluginState.config.updateMirrorId || MIRROR_DIRECT_ID,
+          updateMirrorBestId: pluginState.config.updateMirrorBestId || '',
+          updateMirrorBestTestedAt: pluginState.config.updateMirrorBestTestedAt || 0
         });
+      });
+
+      router.getNoAuth('/update/mirrors', (_, res) => {
+        const cfg = pluginState.config;
+        const mirrorCfg = getMirrorConfig(cfg);
+        const activeId = resolveMirrorId(cfg);
+        res.json({
+          success: true,
+          mirrors: listMirrors(),
+          mode: mirrorCfg.mode,
+          mirrorId: mirrorCfg.mirrorId,
+          activeId,
+          activeName: getMirrorById(activeId)?.name || activeId,
+          benchmark: mirrorCfg.benchmark,
+          bestId: mirrorCfg.bestId,
+          bestTestedAt: mirrorCfg.bestTestedAt,
+          testing: pluginState.mirrorBenchmarkRunning
+        });
+      });
+
+      router.postNoAuth('/update/mirrors/test', async (req, res) => {
+        const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(String).filter(Boolean) : [];
+        if (!ids.length) return res.json({ success: false, error: '缺少 ids' });
+        const testUrl = pluginState.updateInfo?.release?.downloadUrl || getDefaultMirrorTestUrl();
+        try {
+          const results = await Promise.all(ids.map((id) => testMirrorLatency(id, testUrl, 10000)));
+          res.json({ success: true, results, testUrl });
+        } catch (e) {
+          res.json({ success: false, error: e?.message || String(e) });
+        }
+      });
+
+      router.postNoAuth('/update/mirrors/benchmark', async (req, res) => {
+        if (pluginState.mirrorBenchmarkRunning) {
+          return res.json({ success: false, error: '测速正在进行中' });
+        }
+        pluginState.mirrorBenchmarkRunning = true;
+        const testUrl = pluginState.updateInfo?.release?.downloadUrl || getDefaultMirrorTestUrl();
+        const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(String).filter(Boolean) : null;
+        try {
+          const { results, bestId, best } = await benchmarkMirrors(testUrl, ids, { concurrency: 6 });
+          const cfg = pluginState.config;
+          cfg.updateMirrorBenchmark = mergeBenchmarkResults(cfg.updateMirrorBenchmark, results);
+          cfg.updateMirrorBestId = bestId;
+          cfg.updateMirrorBestTestedAt = Date.now();
+          saveConfig(ctx);
+          res.json({
+            success: true,
+            results,
+            bestId,
+            best,
+            testUrl
+          });
+        } catch (e) {
+          res.json({ success: false, error: e?.message || String(e) });
+        } finally {
+          pluginState.mirrorBenchmarkRunning = false;
+        }
+      });
+
+      router.postNoAuth('/update/mirrors/save', (req, res) => {
+        const body = req.body || {};
+        const cfg = pluginState.config;
+        if (body.mode !== undefined) cfg.updateMirrorMode = body.mode === 'manual' ? 'manual' : 'auto';
+        if (body.mirrorId !== undefined) cfg.updateMirrorId = String(body.mirrorId || MIRROR_DIRECT_ID);
+        if (body.benchmark !== undefined && body.benchmark && typeof body.benchmark === 'object') {
+          cfg.updateMirrorBenchmark = body.benchmark;
+        }
+        if (body.bestId !== undefined) cfg.updateMirrorBestId = String(body.bestId || '');
+        if (body.bestTestedAt !== undefined) cfg.updateMirrorBestTestedAt = Number(body.bestTestedAt) || 0;
+        saveConfig(ctx);
+        res.json({ success: true });
       });
 
       router.postNoAuth('/update/check', async (_, res) => {
@@ -3854,46 +4007,34 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         res.json({
           success: true,
           updating: pluginState.updateRunning,
-          progress: pluginState.updateProgress
+          progress: pluginState.updateProgress,
+          logs: pluginState.updateProgressLog || []
         });
       });
 
       router.postNoAuth('/update/apply', async (req, res) => {
-        const wantsStream = String(req.headers?.accept || '').includes('text/event-stream')
-          || String(req.query?.stream || '') === '1';
-        if (wantsStream) {
-          res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
-          res.setHeader('Cache-Control', 'no-cache, no-transform');
-          res.setHeader('Connection', 'keep-alive');
-          if (typeof res.flushHeaders === 'function') res.flushHeaders();
+        if (pluginState.updateRunning) {
+          return res.json({ success: false, error: '更新正在进行中' });
         }
-        const sendSse = (payload) => {
-          pluginState.updateProgress = payload;
-          if (wantsStream) res.write(`data: ${JSON.stringify(payload)}\n\n`);
-        };
         try {
           if (!pluginState.updateInfo?.hasUpdate && !pluginState.updateInfo?.release) {
-            sendSse({ phase: 'check', message: '正在检查更新…', percent: 1 });
             await runPluginUpdateCheck(ctx, { persist: false, autoApply: false });
           }
           if (!pluginState.updateInfo?.hasUpdate) {
-            const errPayload = { phase: 'error', message: '当前已是最新版本', percent: 0, success: false };
-            sendSse(errPayload);
-            if (wantsStream) return res.end();
-            return res.json({ success: false, error: errPayload.message });
+            return res.json({ success: false, error: '当前已是最新版本' });
           }
-          const result = await runPluginUpdateApply(ctx, pluginState.updateInfo.release, sendSse);
-          if (wantsStream) return res.end();
-          return res.json({
-            success: true,
-            version: result.version,
-            message: '更新完成，若界面未刷新请重启 NapCat'
+          const release = pluginState.updateInfo.release;
+          pluginState.updateProgressLog = [];
+          pluginState.updateProgress = { phase: 'prepare', message: '任务已启动…', percent: 0, at: Date.now() };
+          res.json({ success: true, started: true, version: release.version });
+          const runtimeCtx = ctx;
+          setImmediate(() => {
+            runPluginUpdateApply(runtimeCtx, release).catch((e) => {
+              log('error', '后台更新失败', { error: e?.message || String(e) }, 'system');
+            });
           });
         } catch (e) {
-          const msg = e?.message || String(e);
-          sendSse({ phase: 'error', message: msg, percent: 0, success: false, error: msg });
-          if (wantsStream) return res.end();
-          return res.json({ success: false, error: msg });
+          res.json({ success: false, error: e?.message || String(e) });
         }
       });
 
