@@ -324,6 +324,7 @@ let pluginState = {
   runtimeCtx: null,
   updateInfo: null,
   updateRunning: false,
+  updateProgress: null,
   autoUpdateTimer: null
 };
 let drawBotEngine = null;
@@ -3123,21 +3124,29 @@ async function runPluginUpdateCheck(ctx, { persist = true, autoApply = false } =
   }
 }
 
-async function runPluginUpdateApply(ctx, releaseInfo) {
+async function runPluginUpdateApply(ctx, releaseInfo, onProgress) {
   if (pluginState.updateRunning) throw new Error('更新正在进行中');
   const release = releaseInfo || pluginState.updateInfo?.release;
   if (!release?.downloadUrl) throw new Error('请先检查更新');
   pluginState.updateRunning = true;
+  const emit = (payload) => {
+    pluginState.updateProgress = payload;
+    onProgress?.(payload);
+  };
   try {
     log('info', '开始下载并安装插件更新', { version: release.version, asset: release.assetName }, 'system');
-    const result = await applyReleaseUpdate(__dirname, release, pluginState.logger);
+    emit({ phase: 'start', message: `开始更新至 v${release.version}…`, percent: 2 });
+    const result = await applyReleaseUpdate(__dirname, release, pluginState.logger, emit);
+    emit({ phase: 'reload', message: '正在重载插件…', percent: 97 });
     const pluginId = path.basename(__dirname);
     if (pluginState.pluginManager?.reloadPlugin) {
       try {
         await pluginState.pluginManager.reloadPlugin(pluginId);
         log('info', '插件已热重载', { pluginId }, 'system');
+        emit({ phase: 'reload', message: '插件热重载完成', percent: 99 });
       } catch (e) {
         log('warn', '插件热重载失败，请手动重启 NapCat', { error: e?.message || e }, 'system');
+        emit({ phase: 'reload', message: '热重载失败，请手动重启 NapCat', percent: 99 });
       }
     }
     pluginState.config.autoUpdateLastResult = `已更新至 v${result.version}`;
@@ -3149,7 +3158,18 @@ async function runPluginUpdateApply(ctx, releaseInfo) {
       checkedAt: Date.now()
     };
     saveConfig(ctx);
+    emit({
+      phase: 'complete',
+      message: `更新完成，当前版本 v${result.version}`,
+      percent: 100,
+      success: true,
+      version: result.version
+    });
     return result;
+  } catch (e) {
+    const msg = e?.message || String(e);
+    emit({ phase: 'error', message: msg, percent: 0, success: false, error: msg });
+    throw e;
   } finally {
     pluginState.updateRunning = false;
   }
@@ -3830,18 +3850,50 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         }
       });
 
-      router.postNoAuth('/update/apply', async (_, res) => {
+      router.getNoAuth('/update/progress', (_, res) => {
+        res.json({
+          success: true,
+          updating: pluginState.updateRunning,
+          progress: pluginState.updateProgress
+        });
+      });
+
+      router.postNoAuth('/update/apply', async (req, res) => {
+        const wantsStream = String(req.headers?.accept || '').includes('text/event-stream')
+          || String(req.query?.stream || '') === '1';
+        if (wantsStream) {
+          res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+          res.setHeader('Cache-Control', 'no-cache, no-transform');
+          res.setHeader('Connection', 'keep-alive');
+          if (typeof res.flushHeaders === 'function') res.flushHeaders();
+        }
+        const sendSse = (payload) => {
+          pluginState.updateProgress = payload;
+          if (wantsStream) res.write(`data: ${JSON.stringify(payload)}\n\n`);
+        };
         try {
           if (!pluginState.updateInfo?.hasUpdate && !pluginState.updateInfo?.release) {
+            sendSse({ phase: 'check', message: '正在检查更新…', percent: 1 });
             await runPluginUpdateCheck(ctx, { persist: false, autoApply: false });
           }
           if (!pluginState.updateInfo?.hasUpdate) {
-            return res.json({ success: false, error: '当前已是最新版本' });
+            const errPayload = { phase: 'error', message: '当前已是最新版本', percent: 0, success: false };
+            sendSse(errPayload);
+            if (wantsStream) return res.end();
+            return res.json({ success: false, error: errPayload.message });
           }
-          const result = await runPluginUpdateApply(ctx, pluginState.updateInfo.release);
-          res.json({ success: true, version: result.version, message: '更新完成，若界面未刷新请重启 NapCat' });
+          const result = await runPluginUpdateApply(ctx, pluginState.updateInfo.release, sendSse);
+          if (wantsStream) return res.end();
+          return res.json({
+            success: true,
+            version: result.version,
+            message: '更新完成，若界面未刷新请重启 NapCat'
+          });
         } catch (e) {
-          res.json({ success: false, error: e.message });
+          const msg = e?.message || String(e);
+          sendSse({ phase: 'error', message: msg, percent: 0, success: false, error: msg });
+          if (wantsStream) return res.end();
+          return res.json({ success: false, error: msg });
         }
       });
 

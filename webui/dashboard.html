@@ -1980,6 +1980,35 @@
     .update-badge.latest { color: var(--text3); }
     .update-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
     .update-hint-text { font-size: 12px; color: var(--text3); margin-top: 10px; line-height: 1.55; }
+    .update-progress-modal .modal-panel { max-width: 460px; }
+    .update-progress-body { display: flex; flex-direction: column; gap: 12px; }
+    .update-progress-bar-wrap {
+      height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--border) 80%, var(--bg));
+      overflow: hidden;
+    }
+    .update-progress-bar {
+      height: 100%; width: 0; border-radius: 999px; background: var(--text);
+      transition: width 0.28s var(--ease);
+    }
+    .update-progress-meta {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    }
+    .update-progress-pct {
+      font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text);
+      min-width: 42px; text-align: right;
+    }
+    .update-progress-step {
+      font-size: 13px; color: var(--text); line-height: 1.55; flex: 1; min-width: 0;
+      word-break: break-word;
+    }
+    .update-progress-log {
+      max-height: 140px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px;
+      background: var(--bg2); padding: 8px 10px; font-size: 11px; line-height: 1.55; color: var(--text2);
+    }
+    .update-progress-log .log-line { padding: 2px 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
+    .update-progress-log .log-line:last-child { border-bottom: none; color: var(--text); }
+    .update-progress-modal.is-error .update-progress-bar { background: #ef4444; }
+    .update-progress-modal.is-success .update-progress-bar { background: var(--text); }
     .theme-toggle .theme-icon { margin-right: 4px; font-size: 13px; }
 
     /* 概览页 */
@@ -3108,6 +3137,27 @@
     </div>
   </div>
 
+  <div class="modal-overlay update-progress-modal" id="update-progress-modal">
+    <div class="modal-panel" role="dialog" aria-labelledby="update-progress-title" onclick="event.stopPropagation()">
+      <div class="modal-head">
+        <h3 id="update-progress-title">正在更新</h3>
+      </div>
+      <div class="modal-body update-progress-body">
+        <div class="update-progress-bar-wrap">
+          <div class="update-progress-bar" id="update-progress-bar"></div>
+        </div>
+        <div class="update-progress-meta">
+          <div class="update-progress-step" id="update-progress-step">准备中…</div>
+          <div class="update-progress-pct" id="update-progress-pct">0%</div>
+        </div>
+        <div class="update-progress-log" id="update-progress-log"></div>
+      </div>
+      <div class="modal-foot" id="update-progress-foot" style="display:none">
+        <button type="button" class="btn btn-p" id="update-progress-close-btn" onclick="closeUpdateProgressModal()">完成</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="user-confirm-modal" onclick="closeUserConfirmModal(event)">
     <div class="modal-panel" role="dialog" aria-labelledby="user-confirm-title" onclick="event.stopPropagation()">
       <div class="modal-head">
@@ -3166,7 +3216,7 @@
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span>NapCat 插件 · v2.2</span>
+          <span>NapCat 插件 · v2.3</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -8243,23 +8293,127 @@
       }
     }
 
+    const UPDATE_PHASE_LABELS = {
+      check: '检查更新',
+      prepare: '准备',
+      download: '下载',
+      extract: '解压',
+      verify: '校验',
+      install: '安装',
+      cleanup: '清理',
+      reload: '重载',
+      start: '开始',
+      complete: '完成',
+      error: '失败'
+    };
+
+    function openUpdateProgressModal() {
+      const modal = document.getElementById('update-progress-modal');
+      if (!modal) return;
+      modal.classList.remove('is-error', 'is-success');
+      modal.classList.add('open');
+      const foot = document.getElementById('update-progress-foot');
+      if (foot) foot.style.display = 'none';
+      const log = document.getElementById('update-progress-log');
+      if (log) log.innerHTML = '';
+      setUpdateProgressUi({ phase: 'prepare', message: '准备开始更新…', percent: 0 }, false);
+    }
+
+    function closeUpdateProgressModal() {
+      document.getElementById('update-progress-modal')?.classList.remove('open', 'is-error', 'is-success');
+    }
+
+    function appendUpdateProgressLog(payload) {
+      const log = document.getElementById('update-progress-log');
+      if (!log || !payload?.message) return;
+      const label = UPDATE_PHASE_LABELS[payload.phase] || payload.phase || '进度';
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      line.textContent = '[' + label + '] ' + payload.message;
+      log.appendChild(line);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function setUpdateProgressUi(payload, resetLog) {
+      const pct = Math.max(0, Math.min(100, Number(payload?.percent) || 0));
+      const bar = document.getElementById('update-progress-bar');
+      const pctEl = document.getElementById('update-progress-pct');
+      const stepEl = document.getElementById('update-progress-step');
+      const titleEl = document.getElementById('update-progress-title');
+      const modal = document.getElementById('update-progress-modal');
+      if (bar) bar.style.width = pct + '%';
+      if (pctEl) pctEl.textContent = pct + '%';
+      if (stepEl) stepEl.textContent = payload?.message || '处理中…';
+      if (titleEl) {
+        if (payload?.phase === 'error') titleEl.textContent = '更新失败';
+        else if (payload?.phase === 'complete') titleEl.textContent = '更新完成';
+        else titleEl.textContent = '正在更新';
+      }
+      if (modal) {
+        modal.classList.toggle('is-error', payload?.phase === 'error');
+        modal.classList.toggle('is-success', payload?.phase === 'complete');
+      }
+      if (!resetLog) appendUpdateProgressLog(payload);
+    }
+
+    async function consumeUpdateSseResponse(res, onEvent) {
+      if (!res.body || typeof res.body.getReader !== 'function') {
+        const data = await res.json();
+        onEvent(data.success === false
+          ? { phase: 'error', message: data.error || '更新失败', percent: 0, success: false }
+          : { phase: 'complete', message: data.message || '更新完成', percent: 100, success: true, version: data.version });
+        return data;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let lastPayload = null;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const blocks = buffer.split('\n\n');
+        buffer = blocks.pop() || '';
+        blocks.forEach(function (block) {
+          const line = block.split('\n').find(function (l) { return l.startsWith('data: '); });
+          if (!line) return;
+          try {
+            const payload = JSON.parse(line.slice(6));
+            lastPayload = payload;
+            onEvent(payload);
+          } catch (_) {}
+        });
+      }
+      return lastPayload;
+    }
+
     async function applyPluginUpdate() {
       const ok = await showAppConfirm('安装更新', '将从 GitHub 下载最新 Release 并覆盖插件文件（保留 config.json）。完成后建议重启 NapCat。');
       if (!ok) return;
       const applyBtn = document.getElementById('btn-apply-update');
       if (applyBtn) applyBtn.disabled = true;
-      toast('正在下载并安装更新…', 'info');
+      openUpdateProgressModal();
       try {
-        const res = await fetch(BASE + '/update/apply', { method: 'POST' });
-        const data = await res.json();
-        if (data.success) {
-          toast(data.message || ('已更新至 v' + data.version), 'success');
+        const res = await fetch(BASE + '/update/apply?stream=1', {
+          method: 'POST',
+          headers: { Accept: 'text/event-stream' }
+        });
+        const last = await consumeUpdateSseResponse(res, function (payload) {
+          setUpdateProgressUi(payload, false);
+        });
+        const foot = document.getElementById('update-progress-foot');
+        if (foot) foot.style.display = 'flex';
+        if (last && (last.phase === 'complete' || last.success)) {
+          toast(last.message || ('已更新至 v' + (last.version || '')), 'success');
           await loadConfig();
-        } else {
-          toast(data.error || '更新失败', 'error');
+        } else if (last && last.phase === 'error') {
+          toast(last.message || '更新失败', 'error');
         }
         await refreshUpdateStatus();
       } catch (e) {
+        setUpdateProgressUi({ phase: 'error', message: '更新请求失败，请检查网络', percent: 0 }, false);
+        const foot = document.getElementById('update-progress-foot');
+        if (foot) foot.style.display = 'flex';
         toast('更新失败', 'error');
       } finally {
         if (applyBtn) applyBtn.disabled = false;
