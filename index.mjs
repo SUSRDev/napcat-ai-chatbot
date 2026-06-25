@@ -936,10 +936,22 @@ function getHistory(key) {
   return arr.slice(-max);
 }
 
-function pushHistory(key, role, content) {
+function pushHistory(key, role, content, extra = {}) {
   if (!conversationHistory.has(key)) conversationHistory.set(key, []);
   const arr = conversationHistory.get(key);
-  arr.push({ role, content: String(content).slice(0, 4000) });
+  const entry = { role, content: String(content).slice(0, 4000) };
+  if (extra.tools && Array.isArray(extra.tools) && extra.tools.length) {
+    entry.tools = extra.tools.map((t) => {
+      const tool = { type: String(t.type || '') };
+      if (t.queries) tool.queries = t.queries.map((q) => String(q).slice(0, 200));
+      else if (t.query) tool.query = String(t.query).slice(0, 200);
+      if (t.prompt) tool.prompt = String(t.prompt).slice(0, 500);
+      if (t.url) tool.url = String(t.url).slice(0, 2000);
+      if (t.result) tool.result = String(t.result).slice(0, 6000);
+      return tool;
+    });
+  }
+  arr.push(entry);
   const max = Math.min(MAX_HISTORY, Math.max(4, (pluginState.config?.maxHistoryMessages ?? 12) * 2 + 4));
   if (arr.length > max) conversationHistory.set(key, arr.slice(-max));
   const meta = conversationMeta.get(key) || { lastActivity: 0, messageCount: 0 };
@@ -4213,6 +4225,10 @@ const plugin_onmessage = async (ctx, event) => {
   }
   setCooldown(groupId, userId);
 
+  const key = getConversationKey(groupId, userId);
+  const userName = event.sender?.nickname || event.sender?.nick || event.sender?.card || '';
+  const groupName = event.group_name || event.group_name || '';
+
   const imageGen = isImageGenTrigger(plainText, userText, cfg);
   if (imageGen) {
     if (!canUseFeature(userId, 'imageGen')) {
@@ -4223,12 +4239,15 @@ const plugin_onmessage = async (ctx, event) => {
     }
     const prompt = (imageGen.prompt || '').trim() || '一只可爱的猫';
     log('info', '图像生成请求', { prompt: prompt.slice(0, 80), groupId: groupId || 'private', userId });
+    touchConversationMeta(key, { userId, userName, groupId: groupId || null, groupName });
     const url = await createImage(prompt);
     if (url) {
       const imgMsg = '[CQ:image,url=' + url + ']';
       const prefix = isGroup ? formatReply(cfg.replyPrefix || '', { user_id: userId }) : '';
       if (isGroup) await sendGroup(ctx, groupId, prefix + imgMsg);
       else await sendPrivate(ctx, userId, imgMsg);
+      pushHistory(key, 'user', historyLabelForUser(userText || prompt, false));
+      pushHistory(key, 'assistant', '[图片]', { tools: [{ type: 'image_gen', prompt, url }] });
       log('info', '图像已发送', { groupId: groupId || 'private', userId });
     } else {
       const errMsg = resolveTemplate(cfg, 'imageGenFailed', { user_id: userId });
@@ -4245,9 +4264,6 @@ const plugin_onmessage = async (ctx, event) => {
     return;
   }
 
-  const key = getConversationKey(groupId, userId);
-  const userName = event.sender?.nickname || event.sender?.nick || event.sender?.card || '';
-  const groupName = event.group_name || event.group_name || '';
   touchConversationMeta(key, { userId, userName, groupId: groupId || null, groupName });
 
   log('info', '处理对话请求', { key, groupId: groupId || 'private', userId, userName, isGroup, userTextLength: userText.length, userTextPreview: userText.slice(0, 120), hasImages }, 'chat');
@@ -4261,6 +4277,8 @@ const plugin_onmessage = async (ctx, event) => {
 
   let imageUrls = [];
   let imageAnalysis = '';
+  let searchQueries = [];
+  let searchResult = '';
   if (cfg.chatParseImage !== false && hasImages) {
     imageUrls = await resolveEventImages(ctx, event, 1, { forVision: true, requireBase64: true });
     if (imageUrls.length) {
@@ -4291,7 +4309,8 @@ const plugin_onmessage = async (ctx, event) => {
     const historySummary = history.slice(-4).map((h) => h.content).join(' ').slice(0, 300);
     const smartMode = (cfg.smartSearchQueryMode || 'ai').toLowerCase();
     const triple = !!cfg.webSearchTriple;
-    let searchResult = '';
+    searchResult = '';
+    searchQueries = [];
 
     if (shouldSkipWebSearchByHeuristic(userText)) {
       log('info', '跳过联网搜索', { reason: '寒暄或无需检索' }, 'search');
@@ -4319,6 +4338,7 @@ const plugin_onmessage = async (ctx, event) => {
           qList = [qList[0]];
         }
         if (qList.length) {
+          searchQueries = qList.slice();
           log('info', '三路联合搜索开始', { provider: cfg.webSearchProvider, queries: qList, count: qList.length }, 'search');
           const parts = [];
           for (let i = 0; i < qList.length; i++) {
@@ -4347,6 +4367,7 @@ const plugin_onmessage = async (ctx, event) => {
         }
       }
       if (query) {
+        searchQueries = [query];
         log('info', '联网搜索开始', { provider: cfg.webSearchProvider, query: query.slice(0, 100) }, 'search');
         searchResult = await webSearchMulti(query, cfg);
       }
@@ -4396,7 +4417,10 @@ const plugin_onmessage = async (ctx, event) => {
   log('info', fromRateLimit ? '限频/配额用尽，已使用友好提示回复' : '回复已生成', { replyLength: replyText.length }, 'chat');
 
   pushHistory(key, 'user', historyLabelForUser(userText, imageUrls.length > 0));
-  pushHistory(key, 'assistant', replyText);
+  const assistantTools = [];
+  if (searchResult) assistantTools.push({ type: 'web_search', queries: searchQueries, result: searchResult });
+  if (imageAnalysis) assistantTools.push({ type: 'image_vision', result: imageAnalysis });
+  pushHistory(key, 'assistant', replyText, assistantTools.length ? { tools: assistantTools } : {});
 
   const prefix = isGroup ? formatReply(cfg.replyPrefix || '', { user_id: userId }) : '';
   const needSpace = prefix && !/[\s\u3000]$/.test(prefix);

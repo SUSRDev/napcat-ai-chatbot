@@ -25,3 +25,6 @@ logs/
 *.zip
 .update-tmp/
 .update-backup/
+
+# 发布脚本本地配置（含 API Key）
+scripts/.release-local.json

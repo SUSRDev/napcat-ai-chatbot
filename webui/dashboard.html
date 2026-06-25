@@ -1706,6 +1706,31 @@
       border-color: var(--border);
       border-bottom-left-radius: 3px;
     }
+    .chat-tool-blocks { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+    .chat-tool-block {
+      border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+      background: color-mix(in srgb, var(--bg2) 92%, var(--bg));
+    }
+    .chat-tool-head {
+      display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+      font-size: 12px; cursor: pointer; user-select: none; color: var(--text2);
+    }
+    .chat-tool-head:hover { background: color-mix(in srgb, var(--border) 25%, transparent); }
+    .chat-tool-head .chat-tool-icon { font-size: 16px; color: var(--text); flex-shrink: 0; }
+    .chat-tool-label { font-weight: 600; color: var(--text); flex-shrink: 0; }
+    .chat-tool-query {
+      font-size: 11px; color: var(--text3); margin-left: auto;
+      max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .chat-tool-chevron { font-size: 18px; color: var(--text3); flex-shrink: 0; transition: transform 0.2s var(--ease); }
+    .chat-tool-block.open .chat-tool-chevron { transform: rotate(180deg); }
+    .chat-tool-body {
+      display: none; padding: 10px 12px; font-size: 12px; line-height: 1.65;
+      color: var(--text2); border-top: 1px solid var(--border);
+      max-height: 280px; overflow-y: auto; word-break: break-word; white-space: pre-wrap;
+    }
+    .chat-tool-block.open .chat-tool-body { display: block; }
+    .chat-tool-img { max-width: 100%; border-radius: 8px; margin-top: 6px; border: 1px solid var(--border); }
     .conv-detail-actions {
       background: var(--bg2);
       border-top-color: var(--border);
@@ -3483,7 +3508,7 @@
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span id="sidebar-version">NapCat 插件 · v2.4.4</span>
+          <span id="sidebar-version">NapCat 插件 · v2.4.5</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -7128,6 +7153,47 @@
       }
     }
 
+    function renderToolBlocks(tools) {
+      if (!tools || !tools.length) return '';
+      return '<div class="chat-tool-blocks">' + tools.map((tool) => {
+        const type = tool.type || '';
+        let icon = 'build';
+        let label = '调用工具';
+        let queryHint = '';
+        let bodyHtml = '';
+        if (type === 'web_search') {
+          icon = 'travel_explore';
+          label = '联网搜索';
+          const qs = Array.isArray(tool.queries) ? tool.queries : (tool.query ? [tool.query] : []);
+          queryHint = escapeHtml(qs.join(' · '));
+          bodyHtml = escapeHtml(tool.result || '（无搜索结果）').replace(/\n/g, '<br>');
+        } else if (type === 'image_gen') {
+          icon = 'image';
+          label = '图片生成';
+          queryHint = escapeHtml((tool.prompt || '').slice(0, 80));
+          bodyHtml = tool.url
+            ? '<img class="chat-tool-img" src="' + escapeHtml(tool.url) + '" alt="生成图片" loading="lazy" />'
+            : escapeHtml(tool.prompt || '');
+        } else if (type === 'image_vision') {
+          icon = 'visibility';
+          label = '图片理解';
+          bodyHtml = escapeHtml(tool.result || '（无分析结果）').replace(/\n/g, '<br>');
+        } else {
+          label = escapeHtml(type || '工具');
+          bodyHtml = escapeHtml(tool.result || tool.prompt || '').replace(/\n/g, '<br>');
+        }
+        return '<div class="chat-tool-block">' +
+          '<div class="chat-tool-head" onclick="this.parentElement.classList.toggle(\'open\')">' +
+            '<span class="material-symbols-outlined chat-tool-icon">' + icon + '</span>' +
+            '<span class="chat-tool-label">调用工具 · ' + label + '</span>' +
+            (queryHint ? '<span class="chat-tool-query">' + queryHint + '</span>' : '') +
+            '<span class="material-symbols-outlined chat-tool-chevron">expand_more</span>' +
+          '</div>' +
+          '<div class="chat-tool-body">' + bodyHtml + '</div>' +
+        '</div>';
+      }).join('') + '</div>';
+    }
+
     function renderChatBubbles(messages) {
       if (!messages || !messages.length) {
         return '<div class="conv-empty-state"><span>此会话暂无消息</span></div>';
@@ -7137,7 +7203,8 @@
         const role = m.role === 'user' ? 'user' : 'assistant';
         const label = role === 'user' ? '用户' : botName;
         const content = escapeHtml(m.content || '').replace(/\n/g, '<br>');
-        return '<div class="chat-bubble ' + role + '" style="animation-delay:' + (i * 0.04) + 's"><div class="chat-bubble-label">' + label + '</div>' + content + '</div>';
+        const toolsHtml = role === 'assistant' ? renderToolBlocks(m.tools) : '';
+        return '<div class="chat-bubble ' + role + '" style="animation-delay:' + (i * 0.04) + 's"><div class="chat-bubble-label">' + label + '</div>' + content + toolsHtml + '</div>';
       }).join('');
     }
 
