@@ -2905,6 +2905,94 @@
       margin: 0;
       max-width: none;
     }
+    .structured-row.chance-row {
+      grid-template-columns: minmax(0, 1fr) minmax(148px, 1.4fr) auto;
+    }
+    .chance-slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      padding: 4px 2px;
+    }
+    .pct-range {
+      -webkit-appearance: none;
+      appearance: none;
+      flex: 1;
+      min-width: 96px;
+      height: 20px;
+      border: none;
+      outline: none;
+      padding: 0;
+      margin: 0;
+      background: transparent;
+      cursor: pointer;
+      --pct: 50%;
+      --track: color-mix(in srgb, var(--border) 80%, var(--bg));
+      --fill: var(--text);
+    }
+    .pct-range:focus {
+      box-shadow: none;
+      transform: none;
+    }
+    .pct-range::-webkit-slider-runnable-track {
+      height: 4px;
+      border-radius: 999px;
+      background: linear-gradient(to right, var(--fill) 0%, var(--fill) var(--pct), var(--track) var(--pct), var(--track) 100%);
+    }
+    .pct-range::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 2px solid var(--text);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+      margin-top: -5px;
+      transition: transform 0.16s var(--ease), box-shadow 0.16s var(--ease);
+    }
+    .pct-range:hover::-webkit-slider-thumb {
+      transform: scale(1.12);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), 0 0 0 3px color-mix(in srgb, var(--text) 14%, transparent);
+    }
+    .pct-range:active::-webkit-slider-thumb {
+      transform: scale(1.16);
+    }
+    .pct-range::-moz-range-track {
+      height: 4px;
+      border-radius: 999px;
+      background: var(--track);
+      border: none;
+    }
+    .pct-range::-moz-range-progress {
+      height: 4px;
+      border-radius: 999px 0 0 999px;
+      background: var(--fill);
+    }
+    .pct-range::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 2px solid var(--text);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+      transition: transform 0.16s var(--ease);
+    }
+    .pct-range:hover::-moz-range-thumb { transform: scale(1.12); }
+    .pct-badge {
+      flex-shrink: 0;
+      min-width: 46px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      text-align: center;
+      color: var(--text);
+      background: color-mix(in srgb, var(--text) 6%, var(--bg));
+      border: 1px solid var(--border);
+      line-height: 1.2;
+    }
     .structured-add-bar {
       display: flex;
       gap: 8px;
@@ -3049,7 +3137,7 @@
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span>NapCat 插件 · v2.0</span>
+          <span>NapCat 插件 · v2.1</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -6069,18 +6157,25 @@
 
     const ISOLATION_LABELS = { user_group: '群+用户', group: '群隔离', user: '用户隔离', none: '不隔离', private: '私聊', unknown: '未知' };
 
-    function parseKeyValueLines(text) {
+    function parseKeyValueLines(text, keyParser) {
       const out = {};
       String(text || '').split(/\r?\n/).forEach((line) => {
         const t = line.trim();
         if (!t) return;
         const idx = t.indexOf(':');
         if (idx <= 0) return;
-        const k = t.slice(0, idx).trim();
+        let k = t.slice(0, idx).trim();
         const v = t.slice(idx + 1).trim();
+        if (keyParser) k = keyParser(k);
         if (k) out[k] = v;
       });
       return out;
+    }
+
+    function structuredKeyParser(type) {
+      if (type === 'cooldownByUser') return parseUserResolveKey;
+      if (type === 'cooldownByGroup' || type === 'groupIsolationOverrides' || type === 'fakeHumanGroupChance') return parseGroupResolveKey;
+      return null;
     }
 
     let structuredEditorState = { type: '', items: [] };
@@ -6126,15 +6221,17 @@
       if (type === 'fakeHumanTextList') return String(raw || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean).map((v) => ({ value: v }));
       if (type === 'fakeHumanEmojiList') return String(raw || '').split(/[\r\n,，]+/).map((s) => s.trim()).filter(Boolean).map((v) => ({ value: v }));
       if (type === 'fakeHumanSystemPrompt') return [{ value: String(raw || '') }];
-      const kv = parseKeyValueLines(raw || '');
+      const kv = parseKeyValueLines(raw || '', structuredKeyParser(type));
       return Object.keys(kv).map((k) => ({ key: k, value: kv[k] }));
     }
 
     function serializeStructuredItems(type, items) {
       if (type === 'fakeHumanTextList' || type === 'fakeHumanEmojiList') return (items || []).map((x) => String(x.value || '').trim()).filter(Boolean).join('\n');
       if (type === 'fakeHumanSystemPrompt') return String((items && items[0] && items[0].value) || '').trim();
+      const keyParser = structuredKeyParser(type);
       return (items || []).map((x) => {
-        const k = String(x.key || '').trim();
+        let k = String(x.key || '').trim();
+        if (keyParser) k = keyParser(k);
         const v = String(x.value || '').trim();
         return k && v ? (k + ':' + v) : '';
       }).filter(Boolean).join('\n');
@@ -6250,9 +6347,11 @@
       if (STRUCTURED_EDITOR_META[type].valueType === 'chance') {
         const chance = Math.max(0, Math.min(1, parseFloat(item.value || 0) || 0));
         const pct = Math.round(chance * 100);
-        return '<div class="structured-row">' +
+        return '<div class="structured-row chance-row">' +
           renderStructuredKeyField(type, item, idx) +
-          '<div style="display:flex;align-items:center;gap:8px"><input class="ipt" type="range" min="0" max="100" step="1" value="' + pct + '" oninput="onStructuredRowChanceChange(' + idx + ', this.value)" /><span style="font-size:12px;color:var(--text2);min-width:38px">' + pct + '%</span></div>' +
+          '<div class="chance-slider-wrap">' +
+          '<input class="pct-range" type="range" min="0" max="100" step="1" value="' + pct + '" style="--pct:' + pct + '%" oninput="onStructuredRowChanceChange(' + idx + ', this.value, this)" />' +
+          '<span class="pct-badge">' + pct + '%</span></div>' +
           '<button type="button" class="icon-btn sm" title="' + pct + '%，删除" onclick="removeStructuredRow(' + idx + ')"><span class="material-symbols-outlined">delete</span></button>' +
           '</div>';
       }
@@ -6286,7 +6385,10 @@
 
     function onStructuredRowKeyChange(idx, value) {
       if (!structuredEditorState.items[idx]) return;
-      structuredEditorState.items[idx].key = String(value || '');
+      let key = String(value || '');
+      const keyParser = structuredKeyParser(structuredEditorState.type);
+      if (keyParser) key = keyParser(key);
+      structuredEditorState.items[idx].key = key;
     }
 
     function onStructuredRowValueChange(idx, value) {
@@ -6294,10 +6396,20 @@
       structuredEditorState.items[idx].value = String(value || '');
     }
 
-    function onStructuredRowChanceChange(idx, value) {
+    function onStructuredRowChanceChange(idx, value, inputEl) {
       if (!structuredEditorState.items[idx]) return;
       const n = Math.max(0, Math.min(100, parseInt(value, 10) || 0));
       structuredEditorState.items[idx].value = String((n / 100).toFixed(2).replace(/\.?0+$/, ''));
+      if (inputEl) {
+        inputEl.style.setProperty('--pct', n + '%');
+        const wrap = inputEl.closest('.chance-slider-wrap');
+        const badge = wrap && wrap.querySelector('.pct-badge');
+        const row = inputEl.closest('.structured-row');
+        const delBtn = row && row.querySelector('.icon-btn.sm');
+        if (badge) badge.textContent = n + '%';
+        if (delBtn) delBtn.title = n + '%，删除';
+        return;
+      }
       renderStructuredEditorBody();
     }
 
@@ -6350,15 +6462,16 @@
       const cfg = { ...config };
       cfg.cooldownSeconds = Math.max(0, parseInt(document.getElementById('cfg-cooldownSeconds').value, 10) || 0);
       cfg.cooldownScope = document.getElementById('cfg-cooldownScope').value;
-      const cduRaw = parseKeyValueLines(document.getElementById('cfg-cooldownByUser')?.value);
+      const cduRaw = parseKeyValueLines(document.getElementById('cfg-cooldownByUser')?.value, parseUserResolveKey);
       cfg.cooldownByUser = {};
-      Object.keys(cduRaw).forEach((k) => { const n = parseInt(cduRaw[k], 10); if (!isNaN(n)) cfg.cooldownByUser[k] = Math.max(0, Math.min(3600, n)); });
-      const cdgRaw = parseKeyValueLines(document.getElementById('cfg-cooldownByGroup')?.value);
+      Object.keys(cduRaw).forEach((k) => { const n = parseInt(cduRaw[k], 10); if (!isNaN(n) && /^\d+$/.test(k)) cfg.cooldownByUser[k] = Math.max(0, Math.min(3600, n)); });
+      const cdgRaw = parseKeyValueLines(document.getElementById('cfg-cooldownByGroup')?.value, parseGroupResolveKey);
       cfg.cooldownByGroup = {};
-      Object.keys(cdgRaw).forEach((k) => { const n = parseInt(cdgRaw[k], 10); if (!isNaN(n)) cfg.cooldownByGroup[k] = Math.max(0, Math.min(3600, n)); });
+      Object.keys(cdgRaw).forEach((k) => { const n = parseInt(cdgRaw[k], 10); if (!isNaN(n) && /^\d+$/.test(k)) cfg.cooldownByGroup[k] = Math.max(0, Math.min(3600, n)); });
       cfg.conversationIsolationMode = document.getElementById('cfg-conversationIsolationMode')?.value || 'user_group';
-      const ovRaw = parseKeyValueLines(document.getElementById('cfg-groupIsolationOverrides')?.value);
-      cfg.groupIsolationOverrides = ovRaw;
+      const ovRaw = parseKeyValueLines(document.getElementById('cfg-groupIsolationOverrides')?.value, parseGroupResolveKey);
+      cfg.groupIsolationOverrides = {};
+      Object.keys(ovRaw).forEach((k) => { if (/^\d+$/.test(k)) cfg.groupIsolationOverrides[k] = ovRaw[k]; });
       cfg.botDisplayName = (document.getElementById('cfg-botDisplayName')?.value || '助手').trim() || '助手';
       cfg.maxHistoryMessages = Math.max(1, Math.min(50, parseInt(document.getElementById('cfg-maxHistoryMessages').value, 10) || 12));
       cfg.maxTokens = Math.max(100, Math.min(32768, parseInt(document.getElementById('cfg-maxTokens').value, 10) || 8192));
@@ -7337,8 +7450,8 @@
 
     function parseGroupResolveKey(raw) {
       const s = String(raw || '').trim();
-      const paren = s.match(/\((\d{5,12})\)\s*$/);
-      if (paren) return paren[1];
+      const parenAll = [...s.matchAll(/\((\d{5,12})\)/g)];
+      if (parenAll.length) return parenAll[parenAll.length - 1][1];
       if (/^\d+$/.test(s)) return s;
       const m = s.match(/(\d{5,12})/);
       return m ? m[1] : s.replace(/\s*\([^)]*\)\s*$/, '').trim() || s;
@@ -7535,8 +7648,10 @@
       if (inputEl.dataset.structRow != null) {
         const rowIdx = parseInt(inputEl.dataset.structRow, 10);
         if (structuredEditorState.items[rowIdx]) structuredEditorState.items[rowIdx].key = rawId;
+        inputEl.value = rawId;
+      } else {
+        inputEl.value = display;
       }
-      inputEl.value = display;
       hideResolveAcDropdown(inputId);
     }
 
@@ -8494,12 +8609,12 @@
     async function saveFakeHumanConfig() {
       const groupChanceRaw = (document.getElementById('cfg-fakeHumanGroupChance') && document.getElementById('cfg-fakeHumanGroupChance').value || '').trim();
       const groupChance = {};
-      groupChanceRaw.split(/\n/).forEach((line) => {
-        const parts = line.trim().split(/[\s:：]+/);
-        if (parts.length >= 2 && /^\d+$/.test(parts[0])) {
-          const p = parseFloat(parts[1]);
-          if (!isNaN(p)) groupChance[parts[0]] = Math.max(0, Math.min(1, p));
-        }
+      Object.entries(parseKeyValueLines(groupChanceRaw, parseGroupResolveKey)).forEach(function (entry) {
+        const gid = entry[0];
+        const val = entry[1];
+        if (!/^\d+$/.test(gid)) return;
+        const p = parseFloat(val);
+        if (!isNaN(p)) groupChance[gid] = Math.max(0, Math.min(1, p));
       });
       const textListRaw = (document.getElementById('cfg-fakeHumanTextList') && document.getElementById('cfg-fakeHumanTextList').value || '').trim();
       const textList = textListRaw.split(/\n/).map((s) => s.trim()).filter(Boolean);

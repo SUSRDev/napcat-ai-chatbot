@@ -1839,6 +1839,25 @@ function buildGroupAvatarUrl(groupId, size = 100) {
   return `https://p.qlogo.cn/gh/${gid}/${gid}/${s}`;
 }
 
+function extractNumericIdKey(raw) {
+  const s = String(raw || '').trim();
+  const parenAll = [...s.matchAll(/\((\d{5,12})\)/g)];
+  if (parenAll.length) return parenAll[parenAll.length - 1][1];
+  if (/^\d+$/.test(s)) return s;
+  const m = s.match(/(\d{5,12})/);
+  return m ? m[1] : '';
+}
+
+function normalizeNumericKeyedObject(obj) {
+  if (!obj || typeof obj !== 'object') return {};
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    const id = extractNumericIdKey(k);
+    if (id) out[id] = v;
+  }
+  return out;
+}
+
 function buildQqAvatarUrl(userId, size = 100) {
   const uid = String(userId || '').trim();
   if (!/^\d{5,12}$/.test(uid)) return '';
@@ -3207,16 +3226,16 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         if (body.cooldownSeconds !== undefined) cfg.cooldownSeconds = num('cooldownSeconds', 10, 0, 3600);
         if (body.cooldownScope !== undefined) cfg.cooldownScope = body.cooldownScope === 'group' ? 'group' : 'user';
         if (body.cooldownByUser !== undefined && typeof body.cooldownByUser === 'object' && body.cooldownByUser !== null) {
-          cfg.cooldownByUser = body.cooldownByUser;
+          cfg.cooldownByUser = normalizeNumericKeyedObject(body.cooldownByUser);
         }
         if (body.cooldownByGroup !== undefined && typeof body.cooldownByGroup === 'object' && body.cooldownByGroup !== null) {
-          cfg.cooldownByGroup = body.cooldownByGroup;
+          cfg.cooldownByGroup = normalizeNumericKeyedObject(body.cooldownByGroup);
         }
         if (body.conversationIsolationMode !== undefined) {
           cfg.conversationIsolationMode = normalizeIsolationMode(body.conversationIsolationMode);
         }
         if (body.groupIsolationOverrides !== undefined && typeof body.groupIsolationOverrides === 'object' && body.groupIsolationOverrides !== null) {
-          cfg.groupIsolationOverrides = body.groupIsolationOverrides;
+          cfg.groupIsolationOverrides = normalizeNumericKeyedObject(body.groupIsolationOverrides);
         }
         if (body.adminCommandsEnabled !== undefined) cfg.adminCommandsEnabled = Boolean(body.adminCommandsEnabled);
         if (body.adminUsers !== undefined) cfg.adminUsers = Array.isArray(body.adminUsers) ? body.adminUsers.map(String).filter(Boolean) : [];
@@ -3361,7 +3380,7 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         if (body.videoAllowUsers !== undefined) cfg.videoAllowUsers = Array.isArray(body.videoAllowUsers) ? body.videoAllowUsers.map(String).filter(Boolean) : [];
         if (body.fakeHumanEnabled !== undefined) cfg.fakeHumanEnabled = Boolean(body.fakeHumanEnabled);
         if (body.fakeHumanChance !== undefined) cfg.fakeHumanChance = Math.max(0, Math.min(1, parseFloat(body.fakeHumanChance) || 0.05));
-        if (body.fakeHumanGroupChance !== undefined) cfg.fakeHumanGroupChance = typeof body.fakeHumanGroupChance === 'object' && body.fakeHumanGroupChance !== null ? body.fakeHumanGroupChance : {};
+        if (body.fakeHumanGroupChance !== undefined) cfg.fakeHumanGroupChance = typeof body.fakeHumanGroupChance === 'object' && body.fakeHumanGroupChance !== null ? normalizeNumericKeyedObject(body.fakeHumanGroupChance) : {};
         if (body.fakeHumanMinInterval !== undefined) cfg.fakeHumanMinInterval = Math.max(0, parseInt(body.fakeHumanMinInterval, 10) || 90);
         if (body.fakeHumanReplyMode !== undefined) cfg.fakeHumanReplyMode = ['ai', 'random_text', 'emoji', 'sticker', 'mixed'].includes(String(body.fakeHumanReplyMode).toLowerCase()) ? String(body.fakeHumanReplyMode).toLowerCase() : 'mixed';
         if (body.fakeHumanTextList !== undefined) cfg.fakeHumanTextList = Array.isArray(body.fakeHumanTextList) ? body.fakeHumanTextList.map(String).filter(Boolean) : (cfg.fakeHumanTextList || []);
