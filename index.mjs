@@ -6,6 +6,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import { fileURLToPath } from 'url';
 import { generateImage, IMAGE_GEN_PRESETS } from './lib/image-gen.mjs';
 import { createDrawBot, DRAW_BOT_DEFAULTS, parseDrawMetaCommand } from './lib/draw-bot.mjs';
@@ -407,8 +408,34 @@ const DEFAULT_CONFIG = {
   agentShellEnabled: false,
   agentShellType: 'auto',
   agentShellTimeoutMs: 120000,
+  agentShellBlockPatterns: [],
+  agentToolWebSearchEnabled: true,
+  agentToolCurrentTimeEnabled: true,
+  agentToolMcpEnabled: true,
+  agentToolShellExecEnabled: true,
+  agentToolFileManagerEnabled: true,
+  agentToolRegistryEnabled: true,
+  agentToolExplorerEnabled: true,
+  agentToolBrowserSnapshotEnabled: true,
+  agentToolBrowserActEnabled: true,
+  agentDangerGuardEnabled: true,
+  agentDangerPasswordHash: '',
+  agentDangerPasswordSalt: '',
+  agentDangerRequireAdmin: true,
+  agentDangerRequireWebConfirm: true,
+  agentDangerConfirmDelaySec: 5,
+  agentDangerConfirmExpireSec: 20,
+  agentDangerOnSystemPower: true,
+  agentDangerOnShellDelete: true,
+  agentDangerOnFileDelete: true,
+  agentDangerOnRegistryWrite: true,
   agentBrowserEnabled: false,
-  agentBrowserUsePlaywright: true
+  agentBrowserUsePlaywright: true,
+  agentBrowserAdvancedEnabled: true,
+  agentBrowserUserAgent: '',
+  agentBrowserExtraHeaders: {},
+  agentBrowserCookies: [],
+  agentBrowserCookieSites: []
 };
 
 const conversationHistory = new Map();
@@ -417,7 +444,16 @@ const cooldownUntil = new Map();
 const fakeHumanLastTime = new Map();
 const recentGroupMessages = new Map();
 const fakeHumanTalkingTo = new Map();
-const tokenStats = { totalPrompt: 0, totalCompletion: 0, totalTokens: 0, byKey: new Map(), recent: [] };
+const tokenStats = {
+  totalPrompt: 0,
+  totalCompletion: 0,
+  totalTokens: 0,
+  byKey: new Map(),
+  bySource: new Map(),
+  byKeySource: new Map(),
+  toolCalls: { total: 0, agent: 0, search: 0, browser: 0, shell: 0, mcp: 0 },
+  recent: []
+};
 const logBuffer = [];
 const MAX_HISTORY = 50;
 const MAX_RECENT_STATS = 100;
@@ -471,6 +507,7 @@ let pluginState = {
 let drawBotEngine = null;
 let reactionCaptureSession = null;
 let pendingReloadTimer = null;
+const pendingRiskApprovals = new Map();
 
 const REACTION_CAPTURE_COUNTDOWN_MS = 5000;
 const REACTION_CAPTURE_WINDOW_MS = 45000;
@@ -526,8 +563,25 @@ function log(level, message, detail, type = 'system') {
   }
 }
 
-function recordTokenUsage(key, promptTokens, completionTokens, model) {
+function normalizeTokenSource(source) {
+  const s = String(source || 'chat').trim().toLowerCase();
+  if (['chat', 'agent', 'search', 'browser'].includes(s)) return s;
+  return 'chat';
+}
+
+function recordToolCall(type) {
+  const t = String(type || '').toLowerCase();
+  tokenStats.toolCalls.total += 1;
+  if (t === 'web_search' || t === 'search') tokenStats.toolCalls.search += 1;
+  else if (t === 'browser') tokenStats.toolCalls.browser += 1;
+  else if (t === 'shell') tokenStats.toolCalls.shell += 1;
+  else if (t === 'mcp') tokenStats.toolCalls.mcp += 1;
+  else tokenStats.toolCalls.agent += 1;
+}
+
+function recordTokenUsage(key, promptTokens, completionTokens, model, source = 'chat') {
   const total = (promptTokens || 0) + (completionTokens || 0);
+  const useSource = normalizeTokenSource(source);
   tokenStats.totalPrompt += promptTokens || 0;
   tokenStats.totalCompletion += completionTokens || 0;
   tokenStats.totalTokens += total;
@@ -538,7 +592,24 @@ function recordTokenUsage(key, promptTokens, completionTokens, model) {
     b.completion += completionTokens || 0;
     b.total += total;
   }
-  tokenStats.recent.push({ ts: Date.now(), key, prompt: promptTokens || 0, completion: completionTokens || 0, total, model });
+  if (!tokenStats.bySource.has(useSource)) tokenStats.bySource.set(useSource, { prompt: 0, completion: 0, total: 0, count: 0 });
+  const sourceBucket = tokenStats.bySource.get(useSource);
+  sourceBucket.prompt += promptTokens || 0;
+  sourceBucket.completion += completionTokens || 0;
+  sourceBucket.total += total;
+  sourceBucket.count += 1;
+
+  if (!tokenStats.byKeySource.has(useSource)) tokenStats.byKeySource.set(useSource, new Map());
+  if (key) {
+    const byKeyMap = tokenStats.byKeySource.get(useSource);
+    if (!byKeyMap.has(key)) byKeyMap.set(key, { prompt: 0, completion: 0, total: 0 });
+    const kb = byKeyMap.get(key);
+    kb.prompt += promptTokens || 0;
+    kb.completion += completionTokens || 0;
+    kb.total += total;
+  }
+
+  tokenStats.recent.push({ ts: Date.now(), key, prompt: promptTokens || 0, completion: completionTokens || 0, total, model, source: useSource });
   if (tokenStats.recent.length > MAX_RECENT_STATS) tokenStats.recent.shift();
 }
 
@@ -554,6 +625,12 @@ function loadConfig(ctx) {
     try {
       const raw = JSON.parse(fs.readFileSync(p, 'utf-8'));
       pluginState.config = { ...DEFAULT_CONFIG, ...raw };
+      if (pluginState.config.agentDangerPassword && !pluginState.config.agentDangerPasswordHash) {
+        const migrated = hashDangerPassword(String(pluginState.config.agentDangerPassword));
+        pluginState.config.agentDangerPasswordHash = migrated.hashHex;
+        pluginState.config.agentDangerPasswordSalt = migrated.saltHex;
+        pluginState.config.agentDangerPassword = '';
+      }
       if ((pluginState.config.apiProvider || '').toLowerCase() === 'xiaviercodex') {
         pluginState.config.apiProvider = 'custom';
         if (!pluginState.config.customApiUrl && pluginState.config.xiavierCodexApiUrl) {
@@ -1826,6 +1903,7 @@ async function webSearchMulti(query, cfg) {
   const provider = normalizeWebSearchProvider(cfg.webSearchProvider);
   const q = String(query || '').trim().slice(0, 500);
   if (!q) return '';
+  recordToolCall('search');
 
   const results = [];
   const runDuck = () => duckDuckGoSearch(q);
@@ -1971,7 +2049,7 @@ async function chatCompletionOnEndpoint(messages, options, endpoint, settings) {
     const tool_calls = msg.tool_calls || null;
     const usage = data?.usage;
     if (usage && (usage.prompt_tokens != null || usage.completion_tokens != null)) {
-      recordTokenUsage(options.usageKey, usage.prompt_tokens || 0, usage.completion_tokens || 0, useModel);
+      recordTokenUsage(options.usageKey, usage.prompt_tokens || 0, usage.completion_tokens || 0, useModel, options.usageSource);
       log('info', 'Token 使用', { prompt: usage.prompt_tokens, completion: usage.completion_tokens, total: usage.total_tokens, model: useModel, endpoint: endpoint.name }, 'token');
     }
     return { ok: true, content, tool_calls, usage, rawMessage: msg };
@@ -3195,6 +3273,61 @@ function isAdminUser(userId, cfg = pluginState.config) {
   return admins.length > 0 && admins.includes(String(userId));
 }
 
+function hashDangerPassword(password, saltHex) {
+  const salt = saltHex ? Buffer.from(String(saltHex), 'hex') : randomBytes(16);
+  const dk = scryptSync(String(password || ''), salt, 64);
+  return { hashHex: dk.toString('hex'), saltHex: salt.toString('hex') };
+}
+
+function verifyDangerPassword(cfg, plain) {
+  const hashHex = String(cfg?.agentDangerPasswordHash || '');
+  const saltHex = String(cfg?.agentDangerPasswordSalt || '');
+  if (!hashHex || !saltHex) return false;
+  try {
+    const got = Buffer.from(hashDangerPassword(plain, saltHex).hashHex, 'hex');
+    const exp = Buffer.from(hashHex, 'hex');
+    return got.length === exp.length && timingSafeEqual(got, exp);
+  } catch {
+    return false;
+  }
+}
+
+function normalizeRiskLevel(level) {
+  const v = String(level || '').toLowerCase();
+  if (v === 'critical' || v === 'high' || v === 'medium' || v === 'low') return v;
+  return 'high';
+}
+
+function createPendingRiskApproval(cfg, payload) {
+  const now = Date.now();
+  const waitSec = Math.max(0, Math.min(30, Number(cfg.agentDangerConfirmDelaySec) || 5));
+  const expireSec = Math.max(waitSec + 5, Math.min(180, Number(cfg.agentDangerConfirmExpireSec) || 20));
+  const id = `risk_${now}_${Math.random().toString(36).slice(2, 8)}`;
+  const item = {
+    id,
+    operationType: String(payload.operationType || 'unknown'),
+    riskLevel: normalizeRiskLevel(payload.riskLevel),
+    reason: String(payload.reason || ''),
+    preview: String(payload.preview || '').slice(0, 300),
+    userId: String(payload.userId || ''),
+    groupId: String(payload.groupId || ''),
+    source: String(payload.source || 'unknown'),
+    createdAt: now,
+    availableAt: now + waitSec * 1000,
+    expiresAt: now + expireSec * 1000,
+    approved: false
+  };
+  pendingRiskApprovals.set(id, item);
+  return item;
+}
+
+function cleanupPendingRiskApprovals() {
+  const now = Date.now();
+  for (const [id, item] of pendingRiskApprovals.entries()) {
+    if (item.expiresAt <= now) pendingRiskApprovals.delete(id);
+  }
+}
+
 async function tryHandleAdminCommand(ctx, plainText, groupId, userId, isGroup) {
   const cfg = pluginState.config;
   if (!cfg.adminCommandsEnabled || !isAdminUser(userId, cfg)) return false;
@@ -3670,7 +3803,11 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
 
     if (router) {
       router.getNoAuth('/config', (_, res) => {
-        res.json({ success: true, config: pluginState.config });
+        const safeCfg = { ...pluginState.config };
+        safeCfg.agentDangerPasswordHash = '';
+        safeCfg.agentDangerPasswordSalt = '';
+        safeCfg.agentDangerPasswordSet = Boolean(pluginState.config.agentDangerPasswordHash && pluginState.config.agentDangerPasswordSalt);
+        res.json({ success: true, config: safeCfg });
       });
 
       router.getNoAuth('/config/export', (_, res) => {
@@ -3978,8 +4115,32 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         if (body.agentShellEnabled !== undefined) cfg.agentShellEnabled = Boolean(body.agentShellEnabled);
         if (body.agentShellType !== undefined) cfg.agentShellType = String(body.agentShellType || 'auto');
         if (body.agentShellTimeoutMs !== undefined) cfg.agentShellTimeoutMs = num('agentShellTimeoutMs', 120000, 5000, 600000);
+        if (body.agentShellBlockPatterns !== undefined) cfg.agentShellBlockPatterns = Array.isArray(body.agentShellBlockPatterns) ? body.agentShellBlockPatterns.map(String).filter(Boolean) : [];
+        if (body.agentToolWebSearchEnabled !== undefined) cfg.agentToolWebSearchEnabled = Boolean(body.agentToolWebSearchEnabled);
+        if (body.agentToolCurrentTimeEnabled !== undefined) cfg.agentToolCurrentTimeEnabled = Boolean(body.agentToolCurrentTimeEnabled);
+        if (body.agentToolMcpEnabled !== undefined) cfg.agentToolMcpEnabled = Boolean(body.agentToolMcpEnabled);
+        if (body.agentToolShellExecEnabled !== undefined) cfg.agentToolShellExecEnabled = Boolean(body.agentToolShellExecEnabled);
+        if (body.agentToolFileManagerEnabled !== undefined) cfg.agentToolFileManagerEnabled = Boolean(body.agentToolFileManagerEnabled);
+        if (body.agentToolRegistryEnabled !== undefined) cfg.agentToolRegistryEnabled = Boolean(body.agentToolRegistryEnabled);
+        if (body.agentToolExplorerEnabled !== undefined) cfg.agentToolExplorerEnabled = Boolean(body.agentToolExplorerEnabled);
+        if (body.agentToolBrowserSnapshotEnabled !== undefined) cfg.agentToolBrowserSnapshotEnabled = Boolean(body.agentToolBrowserSnapshotEnabled);
+        if (body.agentToolBrowserActEnabled !== undefined) cfg.agentToolBrowserActEnabled = Boolean(body.agentToolBrowserActEnabled);
+        if (body.agentDangerGuardEnabled !== undefined) cfg.agentDangerGuardEnabled = Boolean(body.agentDangerGuardEnabled);
+        if (body.agentDangerRequireAdmin !== undefined) cfg.agentDangerRequireAdmin = Boolean(body.agentDangerRequireAdmin);
+        if (body.agentDangerRequireWebConfirm !== undefined) cfg.agentDangerRequireWebConfirm = Boolean(body.agentDangerRequireWebConfirm);
+        if (body.agentDangerConfirmDelaySec !== undefined) cfg.agentDangerConfirmDelaySec = num('agentDangerConfirmDelaySec', 5, 0, 30);
+        if (body.agentDangerConfirmExpireSec !== undefined) cfg.agentDangerConfirmExpireSec = num('agentDangerConfirmExpireSec', 20, 5, 180);
+        if (body.agentDangerOnSystemPower !== undefined) cfg.agentDangerOnSystemPower = Boolean(body.agentDangerOnSystemPower);
+        if (body.agentDangerOnShellDelete !== undefined) cfg.agentDangerOnShellDelete = Boolean(body.agentDangerOnShellDelete);
+        if (body.agentDangerOnFileDelete !== undefined) cfg.agentDangerOnFileDelete = Boolean(body.agentDangerOnFileDelete);
+        if (body.agentDangerOnRegistryWrite !== undefined) cfg.agentDangerOnRegistryWrite = Boolean(body.agentDangerOnRegistryWrite);
         if (body.agentBrowserEnabled !== undefined) cfg.agentBrowserEnabled = Boolean(body.agentBrowserEnabled);
         if (body.agentBrowserUsePlaywright !== undefined) cfg.agentBrowserUsePlaywright = Boolean(body.agentBrowserUsePlaywright);
+        if (body.agentBrowserAdvancedEnabled !== undefined) cfg.agentBrowserAdvancedEnabled = Boolean(body.agentBrowserAdvancedEnabled);
+        if (body.agentBrowserUserAgent !== undefined) cfg.agentBrowserUserAgent = String(body.agentBrowserUserAgent || '').trim();
+        if (body.agentBrowserExtraHeaders !== undefined) cfg.agentBrowserExtraHeaders = body.agentBrowserExtraHeaders && typeof body.agentBrowserExtraHeaders === 'object' && !Array.isArray(body.agentBrowserExtraHeaders) ? body.agentBrowserExtraHeaders : {};
+        if (body.agentBrowserCookies !== undefined) cfg.agentBrowserCookies = Array.isArray(body.agentBrowserCookies) ? body.agentBrowserCookies : [];
+        if (body.agentBrowserCookieSites !== undefined) cfg.agentBrowserCookieSites = Array.isArray(body.agentBrowserCookieSites) ? body.agentBrowserCookieSites : [];
         saveConfig(ctx);
         if (cfg.mcpEnabled) {
           ensureAgentMcpHub(cfg, true).catch((e) => log('warn', 'MCP 重载失败', e.message, 'mcp'));
@@ -4181,9 +4342,24 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
       });
 
       router.getNoAuth('/stats', async (_, res) => {
+        const sourceRaw = normalizeTokenSource(_.query?.source || 'all');
+        const source = (_.query?.source || '').toString().toLowerCase() === 'all' ? 'all' : sourceRaw;
+        const sourceBucket = source === 'all'
+          ? { prompt: tokenStats.totalPrompt, completion: tokenStats.totalCompletion, total: tokenStats.totalTokens }
+          : (tokenStats.bySource.get(source) || { prompt: 0, completion: 0, total: 0 });
+        const keyMap = source === 'all'
+          ? tokenStats.byKey
+          : (tokenStats.byKeySource.get(source) || new Map());
+
         const byKey = [];
-        for (const [key, v] of tokenStats.byKey.entries()) {
+        for (const [key, v] of keyMap.entries()) {
           byKey.push({ key, ...v });
+        }
+        const recentRaw = tokenStats.recent.slice(-50).reverse();
+        const recent = source === 'all' ? recentRaw : recentRaw.filter((r) => r.source === source);
+        const bySource = {};
+        for (const [sKey, sVal] of tokenStats.bySource.entries()) {
+          bySource[sKey] = { ...sVal };
         }
         const cfg = pluginState.config;
         let drawStats = null;
@@ -4193,11 +4369,14 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         }
         res.json({
           success: true,
-          totalPrompt: tokenStats.totalPrompt,
-          totalCompletion: tokenStats.totalCompletion,
-          totalTokens: tokenStats.totalTokens,
+          source,
+          totalPrompt: sourceBucket.prompt || 0,
+          totalCompletion: sourceBucket.completion || 0,
+          totalTokens: sourceBucket.total || 0,
           byKey: byKey.sort((a, b) => b.total - a.total),
-          recent: tokenStats.recent.slice(-50).reverse(),
+          recent,
+          bySource,
+          toolCalls: { ...tokenStats.toolCalls },
           conversationCount: conversationHistory.size,
           features: {
             chat: cfg.enabled !== false,
@@ -4524,8 +4703,64 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         }
       });
 
+      router.postNoAuth('/agent/risk/confirm', async (req, res) => {
+        try {
+          cleanupPendingRiskApprovals();
+          const cfg = pluginState.config || {};
+          const body = req.body || {};
+          const id = String(body.requestId || '').trim();
+          const userId = String(body.userId || '').trim();
+          const password = String(body.password || '');
+          const item = pendingRiskApprovals.get(id);
+          if (!item) return res.json({ success: false, error: '确认请求不存在或已过期' });
+          const now = Date.now();
+          if (now < item.availableAt) return res.json({ success: false, error: '冷静期未到，暂不可确认' });
+          if (now > item.expiresAt) {
+            pendingRiskApprovals.delete(id);
+            return res.json({ success: false, error: '确认已过期，请重新触发操作' });
+          }
+          if (cfg.agentDangerRequireAdmin !== false && !isAdminUser(userId || item.userId, cfg)) {
+            return res.json({ success: false, error: '当前 QQ 非管理员，不能确认高危操作' });
+          }
+          const hasPassword = String(cfg.agentDangerPasswordHash || '') && String(cfg.agentDangerPasswordSalt || '');
+          if (hasPassword && !verifyDangerPassword(cfg, password)) {
+            return res.json({ success: false, error: '危险操作密码错误' });
+          }
+          item.approved = true;
+          item.approvedAt = now;
+          pendingRiskApprovals.set(id, item);
+          res.json({ success: true, requestId: id, operationType: item.operationType, riskLevel: item.riskLevel });
+        } catch (e) {
+          res.json({ success: false, error: e?.message || String(e) });
+        }
+      });
+
+      router.postNoAuth('/agent/danger-password/set', async (req, res) => {
+        try {
+          const cfg = pluginState.config || {};
+          const body = req.body || {};
+          const userId = String(body.userId || '').trim();
+          const currentPassword = String(body.currentPassword || '');
+          const newPassword = String(body.newPassword || '');
+          if (!isAdminUser(userId, cfg)) return res.json({ success: false, error: '仅管理员可设置危险操作密码' });
+          if (newPassword.length < 8) return res.json({ success: false, error: '新密码至少 8 位' });
+          const hasOld = String(cfg.agentDangerPasswordHash || '') && String(cfg.agentDangerPasswordSalt || '');
+          if (hasOld && !verifyDangerPassword(cfg, currentPassword)) {
+            return res.json({ success: false, error: '当前密码不正确' });
+          }
+          const hashed = hashDangerPassword(newPassword);
+          cfg.agentDangerPasswordHash = hashed.hashHex;
+          cfg.agentDangerPasswordSalt = hashed.saltHex;
+          saveConfig(ctx);
+          res.json({ success: true });
+        } catch (e) {
+          res.json({ success: false, error: e?.message || String(e) });
+        }
+      });
+
       router.postNoAuth('/agent/online-chat', async (req, res) => {
         try {
+          cleanupPendingRiskApprovals();
           const cfg = pluginState.config || {};
           const body = req.body || {};
           const text = String(body.text || '').trim().slice(0, 4000);
@@ -4533,6 +4768,17 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
             res.json({ success: false, error: '请输入消息内容' });
             return;
           }
+          const rawAttachments = Array.isArray(body.attachments) ? body.attachments : [];
+          const attachments = rawAttachments
+            .map((a) => ({
+              kind: String(a?.kind || '').toLowerCase(),
+              name: String(a?.name || '').slice(0, 120),
+              size: Math.max(0, Number(a?.size) || 0),
+              mime: String(a?.mime || '').slice(0, 80),
+              textSnippet: String(a?.textSnippet || '').slice(0, 3000)
+            }))
+            .filter((a) => a.name && a.size <= 10 * 1024 * 1024)
+            .slice(0, 8);
 
           const groupIdRaw = String(body.groupId || '').trim();
           const groupId = /^\d+$/.test(groupIdRaw) ? groupIdRaw : '';
@@ -4540,6 +4786,8 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
           const userId = /^\d+$/.test(userIdRaw) ? userIdRaw : '90000001';
           const userName = String(body.userName || '在线调试').trim().slice(0, 32);
           const groupName = String(body.groupName || 'MCP 调试群').trim().slice(0, 32);
+          const approvedRiskId = String(body.riskApprovalId || '').trim();
+          let pendingRiskRequest = null;
 
           const key = getConversationKey(groupId || null, userId);
           touchConversationMeta(key, {
@@ -4557,7 +4805,20 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
           const messages = [
             { role: 'system', content: systemContent },
             ...history.map((h) => ({ role: h.role, content: h.content })),
-            { role: 'user', content: text.slice(0, 2000) }
+            {
+              role: 'user',
+              content: (
+                text.slice(0, 2000) +
+                (attachments.length
+                  ? ('\n\n[用户上传附件]\n' + attachments.map((a, i) => {
+                    const sizeKb = Math.max(1, Math.round((a.size || 0) / 1024));
+                    const line = `${i + 1}. ${a.kind === 'image' ? '图片' : '文件'} ${a.name} (${sizeKb}KB, ${a.mime || 'unknown'})`;
+                    if (a.textSnippet) return line + `\n内容摘要:\n${a.textSnippet.slice(0, 1200)}`;
+                    return line;
+                  }).join('\n'))
+                  : '')
+              )
+            }
           ];
 
           let replyText = '';
@@ -4565,20 +4826,69 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
           if (cfg.agentToolsEnabled) {
             await ensureAgentMcpHub(cfg);
             const maxRounds = Math.max(1, Math.min(12, Number(cfg.agentMaxToolRounds) || 6));
+            const agentChatCompletion = (msgList, opts = {}) => chatCompletion(msgList, { ...opts, usageKey: key, usageSource: 'agent' });
             const agentResult = await runAgentToolLoop({
               messages,
-              chatCompletion,
+              chatCompletion: agentChatCompletion,
               cfg,
               mcpHub: pluginState.mcpHub,
               builtinTools: buildBuiltinTools(cfg, __dirname),
-              runtime: { cfg, webSearchMulti, pluginRoot: __dirname },
+              runtime: {
+                cfg,
+                webSearchMulti,
+                pluginRoot: __dirname,
+                requestRiskApproval: async (risk) => {
+                  if (cfg.agentDangerGuardEnabled === false) return { approved: true };
+                  if (cfg.agentDangerRequireAdmin !== false && !isAdminUser(userId, cfg)) {
+                    return { approved: false, reason: '当前 QQ 非管理员，拒绝高危操作', requestId: '' };
+                  }
+                  const needWebConfirm = cfg.agentDangerRequireWebConfirm !== false;
+                  if (!needWebConfirm) return { approved: true };
+                  if (approvedRiskId) {
+                    const approved = pendingRiskApprovals.get(approvedRiskId);
+                    if (approved && approved.approved && Date.now() <= approved.expiresAt && approved.userId === userId) {
+                      pendingRiskApprovals.delete(approvedRiskId);
+                      return { approved: true, requestId: approvedRiskId };
+                    }
+                  }
+                  const reqItem = createPendingRiskApproval(cfg, {
+                    operationType: risk.operationType,
+                    riskLevel: risk.riskLevel,
+                    reason: risk.reason,
+                    preview: risk.preview,
+                    userId,
+                    groupId,
+                    source: 'web_online_chat'
+                  });
+                  pendingRiskRequest = {
+                    requestId: reqItem.id,
+                    operationType: reqItem.operationType,
+                    riskLevel: reqItem.riskLevel,
+                    reason: reqItem.reason,
+                    preview: reqItem.preview,
+                    availableAt: reqItem.availableAt,
+                    expiresAt: reqItem.expiresAt,
+                    waitSeconds: Math.max(0, Math.ceil((reqItem.availableAt - Date.now()) / 1000)),
+                    expiresInSeconds: Math.max(0, Math.ceil((reqItem.expiresAt - Date.now()) / 1000))
+                  };
+                  return {
+                    approved: false,
+                    requestId: reqItem.id,
+                    waitSeconds: pendingRiskRequest.waitSeconds,
+                    expiresInSeconds: pendingRiskRequest.expiresInSeconds
+                  };
+                }
+              },
               maxRounds,
-              onToolExecuted: (t) => log('info', '在线调试工具调用', t, 'agent')
+              onToolExecuted: (t) => {
+                recordToolCall(t?.type || 'agent');
+                log('info', '在线调试工具调用', t, 'agent');
+              }
             });
             replyText = String(agentResult.content || '').trim();
             agentToolTrace = agentResult.toolTrace || [];
           } else {
-            const result = await chatCompletion(messages, { usageKey: key });
+            const result = await chatCompletion(messages, { usageKey: key, usageSource: 'chat' });
             if (result && typeof result === 'object') {
               replyText = result.content !== undefined ? String(result.content || '') : String(result.text || '');
             } else {
@@ -4601,7 +4911,8 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
             messages: out,
             toolCount: assistantTools.length,
             mcpEnabled: !!cfg.mcpEnabled,
-            agentToolsEnabled: !!cfg.agentToolsEnabled
+            agentToolsEnabled: !!cfg.agentToolsEnabled,
+            riskRequest: pendingRiskRequest
           });
         } catch (e) {
           res.json({ success: false, error: e?.message || String(e) });
@@ -5150,20 +5461,38 @@ const plugin_onmessage = async (ctx, event) => {
     if (cfg.agentToolsEnabled) {
       await ensureAgentMcpHub(cfg);
       const maxRounds = Math.max(1, Math.min(12, Number(cfg.agentMaxToolRounds) || 6));
+      const agentChatCompletion = (msgList, opts = {}) => chatCompletion(msgList, { ...opts, usageKey: key, usageSource: 'agent' });
       const agentResult = await runAgentToolLoop({
         messages,
-        chatCompletion,
+        chatCompletion: agentChatCompletion,
         cfg,
         mcpHub: pluginState.mcpHub,
         builtinTools: buildBuiltinTools(cfg, __dirname),
-        runtime: { cfg, webSearchMulti, pluginRoot: __dirname },
+        runtime: {
+          cfg,
+          webSearchMulti,
+          pluginRoot: __dirname,
+          requestRiskApproval: async (risk) => {
+            if (cfg.agentDangerGuardEnabled === false) return { approved: true };
+            if (cfg.agentDangerRequireAdmin !== false && !isAdminUser(userId, cfg)) {
+              return { approved: false, reason: '当前 QQ 非管理员，拒绝高危操作', requestId: '' };
+            }
+            if (cfg.agentDangerRequireWebConfirm !== false) {
+              return { approved: false, reason: '当前为 QQ 会话，无法弹窗二次确认，已拒绝高危操作', requestId: '' };
+            }
+            return { approved: true };
+          }
+        },
         maxRounds,
-        onToolExecuted: (t) => log('info', 'Agent 工具调用', t, 'agent')
+        onToolExecuted: (t) => {
+          recordToolCall(t?.type || 'agent');
+          log('info', 'Agent 工具调用', t, 'agent');
+        }
       });
       replyText = agentResult.content;
       agentToolTrace = agentResult.toolTrace || [];
     } else {
-      const result = await chatCompletion(messages, { usageKey: key });
+      const result = await chatCompletion(messages, { usageKey: key, usageSource: 'chat' });
       if (result && typeof result === 'object') {
         replyText = result.content !== undefined ? result.content : (result.text !== undefined ? result.text : '');
         if (result.ok === false && result.status === 429 && result.text) fromRateLimit = true;

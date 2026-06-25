@@ -1730,6 +1730,11 @@
       max-height: 280px; overflow-y: auto; word-break: break-word; white-space: pre-wrap;
     }
     .chat-tool-block.open .chat-tool-body { display: block; }
+    .chat-tool-block.tool-enter { animation: toolPopIn .28s var(--ease); }
+    @keyframes toolPopIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
     .chat-tool-img { max-width: 100%; border-radius: 8px; margin-top: 6px; border: 1px solid var(--border); }
     .conv-detail-actions {
       background: var(--bg2);
@@ -2321,7 +2326,17 @@
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      min-height: 520px;
+      min-height: 640px;
+    }
+    #pg-onlinechat {
+      max-width: none;
+      width: 100%;
+      padding-top: 0;
+    }
+    #pg-onlinechat .overview-chat {
+      width: 100%;
+      margin-top: 0;
+      min-height: calc(100vh - 150px);
     }
     .overview-chat-head {
       display: flex;
@@ -2354,25 +2369,57 @@
     .overview-chat-body {
       flex: 1;
       overflow-y: auto;
-      padding: 16px;
+      padding: 16px 16px 10px;
       display: flex;
       flex-direction: column;
       gap: 10px;
-      min-height: 320px;
+      min-height: 420px;
     }
     .overview-chat-actions {
       border-top: 1px solid var(--border);
-      padding: 10px 12px;
-      display: flex;
-      gap: 8px;
-      align-items: flex-end;
+      padding: 6px 10px 8px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 6px;
+      align-items: end;
       background: var(--bg2);
+    }
+    .ov-chat-toolbar { grid-column: 1 / -1; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .ov-chat-dropzone {
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      padding: 5px 8px;
+      font-size: 11px;
+      color: var(--text3);
+      background: color-mix(in srgb, var(--bg2) 86%, transparent);
+      transition: .2s ease;
+      margin-left: auto;
+    }
+    .ov-chat-dropzone.active { border-color: #4ade80; color: #4ade80; background: rgba(34,197,94,0.08); }
+    .ov-chat-attachments { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+    .ov-chat-attachment-chip {
+      display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px;
+      border: 1px solid var(--border); border-radius: 999px; font-size: 12px;
+      color: var(--text2); background: var(--card);
+    }
+    .ov-chat-send-btn {
+      min-width: 38px; width: 38px; height: 38px; border-radius: 10px;
+      display: inline-flex; align-items: center; justify-content: center; padding: 0;
     }
     .overview-chat-actions textarea {
       flex: 1;
-      min-height: 56px;
-      max-height: 180px;
+      min-height: 72px;
+      max-height: 160px;
       resize: vertical;
+      width: 100%;
+      padding: 8px 10px;
+    }
+    #ov-chat-input {
+      grid-column: 1 / 2;
+      width: 100% !important;
+      min-width: 0;
+      box-sizing: border-box;
+      display: block;
     }
     .chat-bubble.typing {
       position: relative;
@@ -2389,6 +2436,17 @@
     }
     @keyframes shimmer {
       to { transform: translateX(100%); }
+    }
+    .chat-stream-cursor {
+      display: inline-block;
+      width: 8px;
+      margin-left: 2px;
+      opacity: 0.75;
+      animation: cursorBlink 0.9s steps(1) infinite;
+    }
+    @keyframes cursorBlink {
+      0%, 49% { opacity: 0.85; }
+      50%, 100% { opacity: 0; }
     }
     .quick-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
     .quick-action-btn {
@@ -4028,6 +4086,51 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="browser-cookie-modal" onclick="closeBrowserCookiesModal(event)">
+    <div class="modal-panel" role="dialog" aria-labelledby="browser-cookie-title" onclick="event.stopPropagation()" style="max-width:860px">
+      <div class="modal-head">
+        <h3 id="browser-cookie-title">站点 Cookies 列表编辑器</h3>
+        <button type="button" class="icon-btn" title="关闭" onclick="closeBrowserCookiesModal()"><span class="material-symbols-outlined">close</span></button>
+      </div>
+      <div class="modal-body" id="browser-cookie-modal-body"></div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-s" onclick="addBrowserCookieSite()">新增站点</button>
+        <button type="button" class="btn btn-s" onclick="closeBrowserCookiesModal()">取消</button>
+        <button type="button" class="btn btn-p" onclick="saveBrowserCookiesModal()">保存 Cookies 配置</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="danger-password-modal" onclick="closeDangerPasswordModal(event)">
+    <div class="modal-panel" role="dialog" aria-labelledby="danger-password-title" onclick="event.stopPropagation()" style="max-width:520px">
+      <div class="modal-head">
+        <h3 id="danger-password-title">设置危险操作密码</h3>
+        <button type="button" class="icon-btn" title="关闭" onclick="closeDangerPasswordModal()"><span class="material-symbols-outlined">close</span></button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:12px;color:var(--text2);line-height:1.7;margin:0 0 10px">
+          请仔细阅读：该密码用于执行高危操作的二次验证，采用不可逆加密存储。若遗忘，开发者也无法为你找回。
+        </p>
+        <div class="form-row">
+          <div class="form-label">当前密码（首次设置可留空）</div>
+          <input type="password" class="ipt" id="danger-password-current" placeholder="当前密码" />
+        </div>
+        <div class="form-row">
+          <div class="form-label">新密码（至少 8 位）</div>
+          <input type="password" class="ipt" id="danger-password-new" placeholder="输入新密码" />
+        </div>
+        <div class="form-row">
+          <div class="form-label">确认新密码</div>
+          <input type="password" class="ipt" id="danger-password-confirm" placeholder="再次输入新密码" />
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-s" onclick="closeDangerPasswordModal()">取消</button>
+        <button type="button" class="btn btn-p" onclick="submitDangerPasswordChange()">保存密码</button>
+      </div>
+    </div>
+  </div>
+
   <div class="header-bar">
     <div class="header-left">
       <button type="button" class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" aria-label="打开菜单">
@@ -4052,7 +4155,7 @@
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span id="sidebar-version">NapCat 插件 · v2.7.0</span>
+          <span id="sidebar-version">NapCat 插件 · v2.7.2</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -4089,7 +4192,11 @@
           </div>
         <div class="nav-item" data-page="agent" data-title="Agent / MCP">
           <span class="material-symbols-outlined nav-icon">psychology</span>
-          Agent 扩展
+          Agent / MCP
+        </div>
+        <div class="nav-item" data-page="onlinechat" data-title="在线聊天">
+          <span class="material-symbols-outlined nav-icon">chat</span>
+          在线聊天
         </div>
         <!-- [hidden] Skills 商店导航 — 恢复时取消注释
         <div class="nav-item" data-page="skillhub" data-title="Skills 商店">
@@ -4106,6 +4213,10 @@
         <div class="nav-item" data-page="admin" data-title="管理员指令">
           <span class="material-symbols-outlined nav-icon">admin_panel_settings</span>
           管理员指令
+        </div>
+        <div class="nav-item" data-page="admincenter" data-title="管理员中心">
+          <span class="material-symbols-outlined nav-icon">shield_person</span>
+          管理员中心
         </div>
         <div class="nav-item" data-page="cooldown" data-title="冷却与隔离">
           <span class="material-symbols-outlined nav-icon">timer</span>
@@ -4193,6 +4304,9 @@
           <button type="button" class="quick-action-btn" title="隔离设置" onclick="navigatePage('cooldown', document.querySelector('[data-page=cooldown]'))"><span class="material-symbols-outlined">lock</span></button>
           <button type="button" class="quick-action-btn" title="运行日志" onclick="navigatePage('logs', document.querySelector('[data-page=logs]'))"><span class="material-symbols-outlined">assignment</span></button>
         </div>
+      </div>
+
+      <div id="pg-onlinechat" class="page">
         <div class="overview-chat">
           <div class="overview-chat-head">
             <div class="title">在线对话调试（支持 MCP / 工具调用可视化）</div>
@@ -4209,8 +4323,20 @@
             </div>
           </div>
           <div class="overview-chat-actions">
+            <div class="ov-chat-toolbar">
+              <button type="button" class="btn btn-s" onclick="insertOverviewChatEmoji()">😀 表情</button>
+              <button type="button" class="btn btn-s" onclick="insertOverviewChatCommand()">/ 指令</button>
+              <button type="button" class="btn btn-s" onclick="document.getElementById('ov-chat-image-input').click()"><span class="material-symbols-outlined">image</span>图片</button>
+              <button type="button" class="btn btn-s" onclick="document.getElementById('ov-chat-file-input').click()"><span class="material-symbols-outlined">attach_file</span>文件</button>
+              <div class="ov-chat-dropzone" id="ov-chat-dropzone">拖拽图片/文件到这里上传（单文件 ≤ 10MB）</div>
+            </div>
+            <div class="ov-chat-attachments" id="ov-chat-attachments"></div>
             <textarea class="ipt" id="ov-chat-input" placeholder="输入问题，例如：帮我查一下今天上海天气，并给出穿衣建议（会按需调用MCP）" onkeydown="onOverviewChatKeydown(event)"></textarea>
-            <button type="button" class="btn btn-p" id="ov-chat-send" onclick="sendOverviewChat()">发送</button>
+            <button type="button" class="btn btn-p ov-chat-send-btn" id="ov-chat-send" onclick="sendOverviewChat()" title="发送">
+              <span class="material-symbols-outlined">send</span>
+            </button>
+            <input type="file" id="ov-chat-image-input" accept="image/*" multiple style="display:none" onchange="onOverviewChatFilePick(event, 'image')" />
+            <input type="file" id="ov-chat-file-input" multiple style="display:none" onchange="onOverviewChatFilePick(event, 'file')" />
           </div>
         </div>
       </div>
@@ -4978,6 +5104,100 @@
           </div>
         </div>
 
+        <div class="section">
+          <div class="section-title">系统操作能力（Shell / 浏览器 / 注册表 / 文件）</div>
+          <div class="section-body">
+            <div class="form-row">
+              <div class="form-label">允许 Shell 执行<div class="hint">开启后可调用 PowerShell/CMD：创建、删除、编辑、重命名、下载、安装等系统操作。</div></div>
+              <div class="tgl" id="tgl-agentShellEnabled" onclick="toggle(this,'agentShellEnabled')"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-label">Shell 类型</div>
+              <select class="ipt" id="cfg-agentShellType" style="max-width:180px">
+                <option value="auto">auto</option>
+                <option value="powershell">powershell</option>
+                <option value="cmd">cmd</option>
+                <option value="bash">bash</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <div class="form-label">Shell 超时毫秒</div>
+              <input type="number" class="ipt" id="cfg-agentShellTimeoutMs" min="5000" max="600000" value="120000" style="max-width:180px" />
+            </div>
+            <div class="form-row form-row-top">
+              <div class="form-label">Shell 黑名单正则<div class="hint">每行一个正则，命中则拒绝执行（可留空）。</div></div>
+              <textarea class="ipt agent-textarea agent-textarea-sm" id="cfg-agentShellBlockPatterns" rows="3" placeholder="rm\s+-rf\s+/"></textarea>
+            </div>
+            <div class="form-row">
+              <div class="form-label">允许浏览器自动化</div>
+              <div class="tgl" id="tgl-agentBrowserEnabled" onclick="toggle(this,'agentBrowserEnabled')"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-label">优先 Playwright</div>
+              <div class="tgl on" id="tgl-agentBrowserUsePlaywright" onclick="toggle(this,'agentBrowserUsePlaywright')"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-label">浏览器高级参数总开关<div class="hint">关闭后忽略自定义 User-Agent 与额外请求头，使用默认值。</div></div>
+              <div class="tgl on" id="tgl-agentBrowserAdvancedEnabled" onclick="toggle(this,'agentBrowserAdvancedEnabled');toggleBrowserAdvancedFold()"></div>
+            </div>
+            <details id="agent-browser-advanced-fold" open style="border:1px solid var(--border);border-radius:12px;padding:10px 12px;background:var(--card2)">
+              <summary style="cursor:pointer;color:var(--text2);font-size:12px">高级参数（User-Agent / 额外请求头）</summary>
+              <div class="form-row" style="margin-top:10px">
+                <div class="form-label">User-Agent<div class="hint">留空使用默认 UA。</div></div>
+                <input type="text" class="ipt" id="cfg-agentBrowserUserAgent" placeholder="Mozilla/5.0 ..." />
+              </div>
+              <div class="form-row form-row-top">
+                <div class="form-label">浏览器额外请求头（JSON）<div class="hint">例如 {&quot;Authorization&quot;:&quot;Bearer xxx&quot;,&quot;X-Test&quot;:&quot;1&quot;}</div></div>
+                <textarea class="ipt agent-textarea agent-textarea-sm" id="cfg-agentBrowserExtraHeaders" rows="3" placeholder="{&quot;Accept-Language&quot;:&quot;zh-CN,zh;q=0.9&quot;}"></textarea>
+              </div>
+            </details>
+            <div class="form-row">
+              <div class="form-label">自定义域名 Cookies<div class="hint">弹窗按网站分组配置，支持多个域名逗号分隔（如 bilibili.com,www.bilibili.com）。</div></div>
+              <div style="display:flex;gap:8px;align-items:center;width:100%">
+                <button type="button" class="btn btn-s" onclick="openBrowserCookiesModal()"><span class="material-symbols-outlined">cookie</span>打开 Cookies 列表编辑器</button>
+                <span id="browser-cookie-sites-summary" style="font-size:12px;color:var(--text3)">未配置</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Agent 功能类型开关（细粒度）</div>
+          <div class="section-body">
+            <div class="form-row"><div class="form-label">联网搜索工具</div><div class="tgl" id="tgl-agentToolWebSearchEnabled" onclick="toggle(this,'agentToolWebSearchEnabled')"></div></div>
+            <div class="form-row"><div class="form-label">当前时间工具</div><div class="tgl" id="tgl-agentToolCurrentTimeEnabled" onclick="toggle(this,'agentToolCurrentTimeEnabled')"></div></div>
+            <div class="form-row"><div class="form-label">MCP 工具桥接</div><div class="tgl" id="tgl-agentToolMcpEnabled" onclick="toggle(this,'agentToolMcpEnabled')"></div></div>
+            <div class="form-row"><div class="form-label">Shell 执行工具</div><div class="tgl" id="tgl-agentToolShellExecEnabled" onclick="toggle(this,'agentToolShellExecEnabled')"></div></div>
+            <div class="form-row"><div class="form-label">文件管理工具</div><div class="tgl" id="tgl-agentToolFileManagerEnabled" onclick="toggle(this,'agentToolFileManagerEnabled')"></div></div>
+            <div class="form-row"><div class="form-label">注册表工具</div><div class="tgl" id="tgl-agentToolRegistryEnabled" onclick="toggle(this,'agentToolRegistryEnabled')"></div></div>
+            <div class="form-row"><div class="form-label">资源管理器工具</div><div class="tgl" id="tgl-agentToolExplorerEnabled" onclick="toggle(this,'agentToolExplorerEnabled')"></div></div>
+            <div class="form-row"><div class="form-label">浏览器快照工具</div><div class="tgl" id="tgl-agentToolBrowserSnapshotEnabled" onclick="toggle(this,'agentToolBrowserSnapshotEnabled')"></div></div>
+            <div class="form-row"><div class="form-label">浏览器操作工具</div><div class="tgl" id="tgl-agentToolBrowserActEnabled" onclick="toggle(this,'agentToolBrowserActEnabled')"></div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">高危操作双重保险</div>
+          <div class="section-body">
+            <div class="form-row"><div class="form-label">启用高危保护总开关</div><div class="tgl" id="tgl-agentDangerGuardEnabled" onclick="toggle(this,'agentDangerGuardEnabled')"></div></div>
+            <div class="form-row"><div class="form-label">第一重：仅管理员 QQ 可执行</div><div class="tgl" id="tgl-agentDangerRequireAdmin" onclick="toggle(this,'agentDangerRequireAdmin')"></div></div>
+            <div class="form-row"><div class="form-label">第二重：网页弹窗确认</div><div class="tgl" id="tgl-agentDangerRequireWebConfirm" onclick="toggle(this,'agentDangerRequireWebConfirm')"></div></div>
+            <div class="form-row">
+              <div class="form-label">危险操作密码<div class="hint">不可逆加密存储，忘记后无法恢复。请谨慎设置并妥善保管。</div></div>
+              <div style="display:flex;gap:8px;align-items:center;width:100%">
+                <button type="button" class="btn btn-s" onclick="openDangerPasswordModal()">设置 / 修改密码</button>
+                <span id="agent-danger-password-status" style="font-size:12px;color:var(--text3)">未设置</span>
+              </div>
+            </div>
+            <div class="form-row"><div class="form-label">确认按钮延时（秒）</div><input type="number" class="ipt" id="cfg-agentDangerConfirmDelaySec" min="0" max="30" value="5" style="max-width:120px" /></div>
+            <div class="form-row"><div class="form-label">确认过期时间（秒）</div><input type="number" class="ipt" id="cfg-agentDangerConfirmExpireSec" min="5" max="180" value="20" style="max-width:120px" /></div>
+            <div class="form-row"><div class="form-label">拦截关机/重启命令</div><div class="tgl" id="tgl-agentDangerOnSystemPower" onclick="toggle(this,'agentDangerOnSystemPower')"></div></div>
+            <div class="form-row"><div class="form-label">拦截 Shell 删除命令</div><div class="tgl" id="tgl-agentDangerOnShellDelete" onclick="toggle(this,'agentDangerOnShellDelete')"></div></div>
+            <div class="form-row"><div class="form-label">拦截文件删除操作</div><div class="tgl" id="tgl-agentDangerOnFileDelete" onclick="toggle(this,'agentDangerOnFileDelete')"></div></div>
+            <div class="form-row"><div class="form-label">拦截注册表写入/删除</div><div class="tgl" id="tgl-agentDangerOnRegistryWrite" onclick="toggle(this,'agentDangerOnRegistryWrite')"></div></div>
+          </div>
+        </div>
+
         <!-- [hidden] Agent Skills 区块 — 恢复时取消注释
         <div class="section">
           <div class="section-title">Skills（技能包）</div>
@@ -5114,7 +5334,7 @@
           </div>
           <div class="section">
             <div class="section-title">Agent 手脚</div>
-            <p class="section-subtitle">AI 可通过 Agent 模式调用 Shell 与浏览器（Playwright）。请在「Agent 扩展」页开启 Agent 工具循环。</p>
+            <p class="section-subtitle">AI 可通过 Agent 模式调用 Shell 与浏览器（Playwright）。请在「Agent / MCP」页开启 Agent 工具循环。</p>
             <div class="form-row">
               <div class="form-label">允许 Shell 执行</div>
               <div class="tgl" id="tgl-agentShellEnabled" onclick="toggle(this,'agentShellEnabled')"></div>
@@ -5168,19 +5388,8 @@
             <div class="tgl" id="tgl-adminCommandsEnabled" onclick="toggle(this,'adminCommandsEnabled')"></div>
           </div>
           <div class="form-row">
-            <div class="form-label">管理员用户<div class="hint">支持按 QQ 或昵称搜索添加，不再手填逗号列表</div></div>
-            <div style="width:100%">
-              <div class="section-toolbar" style="margin-bottom:6px">
-                <div class="resolve-box" style="max-width:360px">
-                  <input type="text" class="ipt" id="admin-user-input" placeholder="搜索 QQ 号或昵称" autocomplete="off"
-                    oninput="onAdminUserResolveInput()" onkeydown="onAdminUserResolveKeydown(event)" />
-                  <div class="resolve-dropdown" id="admin-user-dropdown" style="display:none"></div>
-                </div>
-                <button class="btn btn-s" type="button" onclick="addAdminUser()">添加管理员</button>
-              </div>
-              <div id="admin-users-list" class="admin-users-list"></div>
-              <input type="hidden" id="cfg-adminUsers" />
-            </div>
+            <div class="form-label">管理员身份来源<div class="hint">管理员名单已迁移到左侧「管理员中心」，此页面仅管理指令能力。</div></div>
+            <div style="font-size:12px;color:var(--text3)">请先在「管理员中心」维护 `adminUsers`，再回到这里配置指令前缀与白名单指令。</div>
           </div>
           <div class="form-row">
             <div class="form-label">指令前缀<div class="hint">默认 #，如 #status、#clear</div></div>
@@ -5208,6 +5417,29 @@
           </div>
         </div>
         <button class="btn btn-p" onclick="saveAdminConfig()">保存管理员配置</button>
+      </div>
+
+      <div id="pg-admincenter" class="page">
+        <h2 class="page-title">管理员中心</h2>
+        <p class="page-desc">独立维护管理员身份（QQ 白名单），供管理员指令和 Agent 高危操作第一重校验使用。</p>
+        <div class="section">
+          <div class="section-title">管理员用户</div>
+          <div class="form-row">
+            <div class="form-label">管理员列表<div class="hint">支持按 QQ 或昵称搜索添加。</div></div>
+            <div style="width:100%">
+              <div class="section-toolbar" style="margin-bottom:6px">
+                <div class="resolve-box" style="max-width:360px">
+                  <input type="text" class="ipt" id="admin-center-user-input" placeholder="搜索 QQ 号或昵称" autocomplete="off"
+                    oninput="onAdminUserResolveInput('center')" onkeydown="onAdminUserResolveKeydown(event,'center')" />
+                  <div class="resolve-dropdown" id="admin-center-user-dropdown" style="display:none"></div>
+                </div>
+                <button class="btn btn-s" type="button" onclick="addAdminUser('center')">添加管理员</button>
+              </div>
+              <div id="admin-center-users-list" class="admin-users-list"></div>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-p" onclick="saveAdminCenterConfig()">保存管理员中心</button>
       </div>
 
       <div id="pg-cooldown" class="page">
@@ -5640,6 +5872,16 @@
           <p class="page-desc">各会话与近期调用的 Token 消耗汇总，支持趋势图表与明细表格。</p>
         </div>
         <div class="token-stat-grid" id="token-stats-cards"></div>
+        <div class="token-refresh-bar" style="gap:10px;align-items:center">
+          <select class="ipt" id="token-source-filter" style="max-width:220px" onchange="loadTokenStats()">
+            <option value="all">全部来源（默认）</option>
+            <option value="chat">仅普通对话</option>
+            <option value="agent">仅 Agent 推理</option>
+            <option value="search">仅搜索相关</option>
+            <option value="browser">仅浏览器相关</option>
+          </select>
+          <button type="button" class="icon-btn" title="刷新统计" onclick="loadTokenStats()"><span class="material-symbols-outlined">refresh</span></button>
+        </div>
         <div class="token-charts-grid">
           <div class="chart-card token-chart-card">
             <h4>近期消耗趋势</h4>
@@ -5654,9 +5896,6 @@
             <div class="chart-wrap"><canvas id="token-chart-pie"></canvas></div>
           </div>
         </div>
-        <div class="token-refresh-bar">
-          <button type="button" class="icon-btn" title="刷新统计" onclick="loadTokenStats()"><span class="material-symbols-outlined">refresh</span></button>
-        </div>
         <div class="section token-table-section">
           <div class="section-title">按会话汇总</div>
           <div style="overflow-x:auto;padding:0 18px 18px">
@@ -5670,7 +5909,7 @@
           <div class="section-title">最近调用（最近 50 条）</div>
           <div style="overflow-x:auto;padding:0 18px 18px">
             <table class="token-table">
-              <thead><tr><th>时间</th><th>Key</th><th>Prompt</th><th>Completion</th><th>Total</th><th>Model</th></tr></thead>
+              <thead><tr><th>时间</th><th>来源</th><th>Key</th><th>Prompt</th><th>Completion</th><th>Total</th><th>Model</th></tr></thead>
               <tbody id="token-recent-tbody"></tbody>
             </table>
           </div>
@@ -6232,7 +6471,13 @@
     function closeAppConfirmModal(ev, result) {
       if (ev && ev.target !== ev.currentTarget && result !== null && result !== false && typeof result !== 'string') return;
       const modal = document.getElementById('app-confirm-modal');
-      if (modal) modal.classList.remove('open');
+      if (modal) {
+        if (modal._delayTimer) {
+          clearInterval(modal._delayTimer);
+          modal._delayTimer = null;
+        }
+        modal.classList.remove('open');
+      }
       const resolver = appConfirmResolver;
       appConfirmResolver = null;
       if (resolver) resolver(result);
@@ -6271,9 +6516,29 @@
           choiceWrap.classList.remove('open');
           choiceWrap.innerHTML = '';
           okBtn.style.display = '';
-          okBtn.textContent = opts.confirmText || '确定';
+          const baseConfirmText = opts.confirmText || '确定';
+          okBtn.textContent = baseConfirmText;
           okBtn.className = 'btn ' + (opts.danger ? 'btn-d' : 'btn-p');
           okBtn.onclick = function () { closeAppConfirmModal(null, true); };
+          const delayMs = Math.max(0, parseInt(opts.delayMs || 0, 10) || 0);
+          if (delayMs > 0) {
+            let left = Math.ceil(delayMs / 1000);
+            okBtn.disabled = true;
+            okBtn.textContent = baseConfirmText + '（' + left + 's）';
+            const timer = setInterval(function () {
+              left -= 1;
+              if (left <= 0) {
+                clearInterval(timer);
+                okBtn.disabled = false;
+                okBtn.textContent = baseConfirmText;
+              } else {
+                okBtn.textContent = baseConfirmText + '（' + left + 's）';
+              }
+            }, 1000);
+            modal._delayTimer = timer;
+          } else {
+            okBtn.disabled = false;
+          }
         }
         cancelBtn.onclick = function () { closeAppConfirmModal(null, choices ? null : false); };
         modal.classList.add('open');
@@ -7689,8 +7954,34 @@
       if (shTok) shTok.value = config.skillhubToken || '';
       const shShell = document.getElementById('tgl-agentShellEnabled');
       if (shShell) shShell.classList.toggle('on', config.agentShellEnabled === true);
+      const shType = document.getElementById('cfg-agentShellType');
+      if (shType) shType.value = config.agentShellType || 'auto';
+      const shTimeout = document.getElementById('cfg-agentShellTimeoutMs');
+      if (shTimeout) shTimeout.value = config.agentShellTimeoutMs ?? 120000;
+      const shBlocks = document.getElementById('cfg-agentShellBlockPatterns');
+      if (shBlocks) shBlocks.value = Array.isArray(config.agentShellBlockPatterns) ? config.agentShellBlockPatterns.join('\n') : '';
       const shBrowser = document.getElementById('tgl-agentBrowserEnabled');
       if (shBrowser) shBrowser.classList.toggle('on', config.agentBrowserEnabled === true);
+      const shBrowserPw = document.getElementById('tgl-agentBrowserUsePlaywright');
+      if (shBrowserPw) shBrowserPw.classList.toggle('on', config.agentBrowserUsePlaywright !== false);
+      const shAdvanced = document.getElementById('tgl-agentBrowserAdvancedEnabled');
+      if (shAdvanced) shAdvanced.classList.toggle('on', config.agentBrowserAdvancedEnabled !== false);
+      const shUA = document.getElementById('cfg-agentBrowserUserAgent');
+      if (shUA) shUA.value = config.agentBrowserUserAgent || '';
+      const shHeaders = document.getElementById('cfg-agentBrowserExtraHeaders');
+      if (shHeaders) shHeaders.value = JSON.stringify(config.agentBrowserExtraHeaders || {}, null, 2);
+      if (!Array.isArray(config.agentBrowserCookieSites)) {
+        config.agentBrowserCookieSites = normalizeBrowserCookieSitesFromConfig(config);
+      }
+      refreshBrowserCookieSitesSummary();
+      toggleBrowserAdvancedFold();
+      ['agentToolWebSearchEnabled','agentToolCurrentTimeEnabled','agentToolMcpEnabled','agentToolShellExecEnabled','agentToolFileManagerEnabled','agentToolRegistryEnabled','agentToolExplorerEnabled','agentToolBrowserSnapshotEnabled','agentToolBrowserActEnabled','agentDangerGuardEnabled','agentDangerRequireAdmin','agentDangerRequireWebConfirm','agentDangerOnSystemPower','agentDangerOnShellDelete','agentDangerOnFileDelete','agentDangerOnRegistryWrite'].forEach(function(k){
+        const el = document.getElementById('tgl-' + k);
+        if (el) el.classList.toggle('on', config[k] !== false);
+      });
+      if (document.getElementById('cfg-agentDangerConfirmDelaySec')) document.getElementById('cfg-agentDangerConfirmDelaySec').value = config.agentDangerConfirmDelaySec ?? 5;
+      if (document.getElementById('cfg-agentDangerConfirmExpireSec')) document.getElementById('cfg-agentDangerConfirmExpireSec').value = config.agentDangerConfirmExpireSec ?? 20;
+      updateDangerPasswordStatus();
       document.getElementById('cfg-apiProvider').value = config.apiProvider || 'siliconflow';
       document.getElementById('cfg-deepseekApiKey').value = config.deepseekApiKey || '';
       document.getElementById('cfg-siliconflowApiKey').value = config.siliconflowApiKey || '';
@@ -7775,7 +8066,8 @@
       if (adminTgl) adminTgl.classList.toggle('on', config.adminCommandsEnabled === true);
       const adminUsersEl = document.getElementById('cfg-adminUsers');
       if (adminUsersEl) adminUsersEl.value = (config.adminUsers || []).join(', ');
-      renderAdminUsersList();
+      renderAdminUsersList('admin');
+      renderAdminUsersList('center');
       const adminPrefixEl = document.getElementById('cfg-adminCommandPrefix');
       if (adminPrefixEl) adminPrefixEl.value = config.adminCommandPrefix ?? '#';
       const adminCmdsEl = document.getElementById('cfg-adminCommands');
@@ -8676,6 +8968,16 @@
       } catch (e) { toast('保存失败', 'error'); }
     }
 
+    async function saveAdminCenterConfig() {
+      const cfg = { ...config };
+      cfg.adminUsers = Array.from(new Set((config.adminUsers || []).map((s) => String(s).trim()).filter(Boolean)));
+      try {
+        const res = await fetch(BASE + '/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) });
+        const data = await res.json();
+        if (data.success) { config = cfg; renderAdminUsersList('admin'); renderAdminUsersList('center'); toast('管理员中心已保存', 'success'); } else toast(data.error || '保存失败', 'error');
+      } catch (e) { toast('保存失败', 'error'); }
+    }
+
     async function saveCooldownIsolationConfig() {
       const cfg = { ...config };
       cfg.cooldownSeconds = Math.max(0, parseInt(document.getElementById('cfg-cooldownSeconds').value, 10) || 0);
@@ -8893,8 +9195,226 @@
     let overviewChatState = {
       key: '',
       messages: [],
-      sending: false
+      sending: false,
+      streaming: false,
+      pendingRisk: null,
+      attachments: []
     };
+    let browserCookieSitesEditor = [];
+
+    function normalizeBrowserCookieSitesFromConfig(cfg) {
+      const sites = Array.isArray(cfg.agentBrowserCookieSites) ? cfg.agentBrowserCookieSites : [];
+      if (sites.length) {
+        return sites.map(function (s) {
+          return {
+            domains: String(s.domains || '').trim(),
+            cookies: Array.isArray(s.cookies) ? s.cookies.map(function (c) {
+              return {
+                name: String(c.name || '').trim(),
+                value: String(c.value || ''),
+                path: String(c.path || '/'),
+                secure: c.secure !== false,
+                httpOnly: c.httpOnly === true,
+                sameSite: ['Lax', 'Strict', 'None'].includes(String(c.sameSite || 'Lax')) ? String(c.sameSite || 'Lax') : 'Lax',
+                expires: c.expires != null ? String(c.expires) : ''
+              };
+            }) : []
+          };
+        });
+      }
+      const flat = Array.isArray(cfg.agentBrowserCookies) ? cfg.agentBrowserCookies : [];
+      const byDomain = {};
+      flat.forEach(function (c) {
+        const d = String(c.domain || '').replace(/^\./, '').trim();
+        if (!d) return;
+        if (!byDomain[d]) byDomain[d] = [];
+        byDomain[d].push({
+          name: String(c.name || '').trim(),
+          value: String(c.value || ''),
+          path: String(c.path || '/'),
+          secure: c.secure !== false,
+          httpOnly: c.httpOnly === true,
+          sameSite: ['Lax', 'Strict', 'None'].includes(String(c.sameSite || 'Lax')) ? String(c.sameSite || 'Lax') : 'Lax',
+          expires: c.expires != null ? String(c.expires) : ''
+        });
+      });
+      return Object.keys(byDomain).map(function (d) { return { domains: d, cookies: byDomain[d] }; });
+    }
+
+    function flattenBrowserCookieSites(sites) {
+      const out = [];
+      (sites || []).forEach(function (site) {
+        const domains = String(site.domains || '').split(/[,，]/).map(function (s) { return s.trim(); }).filter(Boolean);
+        (site.cookies || []).forEach(function (c) {
+          const name = String(c.name || '').trim();
+          if (!name || !domains.length) return;
+          domains.forEach(function (domain) {
+            out.push({
+              name: name,
+              value: String(c.value || ''),
+              domain: domain.startsWith('.') ? domain : domain,
+              path: String(c.path || '/'),
+              secure: c.secure !== false,
+              httpOnly: c.httpOnly === true,
+              sameSite: ['Lax', 'Strict', 'None'].includes(String(c.sameSite || 'Lax')) ? String(c.sameSite || 'Lax') : 'Lax',
+              expires: c.expires ? Number(c.expires) || undefined : undefined
+            });
+          });
+        });
+      });
+      return out;
+    }
+
+    function refreshBrowserCookieSitesSummary() {
+      const el = document.getElementById('browser-cookie-sites-summary');
+      if (!el) return;
+      const sites = Array.isArray(config.agentBrowserCookieSites) ? config.agentBrowserCookieSites : [];
+      if (!sites.length) {
+        el.textContent = '未配置';
+        return;
+      }
+      const cookieCount = flattenBrowserCookieSites(sites).length;
+      el.textContent = '已配置 ' + sites.length + ' 个站点分组，' + cookieCount + ' 条 cookie';
+    }
+
+    function toggleBrowserAdvancedFold() {
+      const fold = document.getElementById('agent-browser-advanced-fold');
+      const on = document.getElementById('tgl-agentBrowserAdvancedEnabled')?.classList.contains('on');
+      if (!fold) return;
+      fold.open = on;
+      fold.style.marginTop = '6px';
+      fold.style.opacity = on ? '1' : '0.5';
+      fold.style.pointerEvents = on ? 'auto' : 'none';
+    }
+
+    function updateDangerPasswordStatus() {
+      const el = document.getElementById('agent-danger-password-status');
+      if (!el) return;
+      const set = config.agentDangerPasswordSet === true || Boolean(config.agentDangerPasswordHash);
+      el.textContent = set ? '已设置（加密存储）' : '未设置';
+    }
+
+    function openDangerPasswordModal() {
+      const ids = ['danger-password-current', 'danger-password-new', 'danger-password-confirm'];
+      ids.forEach(function (id) { const el = document.getElementById(id); if (el) el.value = ''; });
+      document.getElementById('danger-password-modal')?.classList.add('open');
+    }
+
+    function closeDangerPasswordModal(ev) {
+      if (ev && ev.target !== ev.currentTarget) return;
+      document.getElementById('danger-password-modal')?.classList.remove('open');
+    }
+
+    async function submitDangerPasswordChange() {
+      const currentPassword = (document.getElementById('danger-password-current')?.value || '').trim();
+      const newPassword = (document.getElementById('danger-password-new')?.value || '').trim();
+      const confirmPassword = (document.getElementById('danger-password-confirm')?.value || '').trim();
+      if (!newPassword || newPassword.length < 8) return toast('新密码至少 8 位', 'error');
+      if (newPassword !== confirmPassword) return toast('两次输入的新密码不一致', 'error');
+      const ok = await showAppConfirm({
+        title: '确认设置危险操作密码',
+        message: '请仔细阅读：该密码用于高危操作二次验证，采用不可逆加密存储。若忘记，开发者无法恢复。\n\n确认后将等待 5 秒才能点击确认。',
+        confirmText: '确认设置',
+        danger: true,
+        delayMs: 5000
+      });
+      if (!ok) return;
+      try {
+        const ctx = getOverviewChatContext();
+        const res = await fetch(BASE + '/agent/danger-password/set', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: ctx.userId, currentPassword, newPassword })
+        });
+        const data = await res.json();
+        if (!data.success) return toast(data.error || '设置失败', 'error');
+        config.agentDangerPasswordSet = true;
+        updateDangerPasswordStatus();
+        closeDangerPasswordModal();
+        toast('危险操作密码已更新（加密存储）', 'success');
+      } catch (_) {
+        toast('设置失败：网络异常', 'error');
+      }
+    }
+
+    function openBrowserCookiesModal() {
+      browserCookieSitesEditor = normalizeBrowserCookieSitesFromConfig(config);
+      renderBrowserCookiesModalBody();
+      document.getElementById('browser-cookie-modal')?.classList.add('open');
+    }
+
+    function closeBrowserCookiesModal(ev) {
+      if (ev && ev.target !== ev.currentTarget) return;
+      document.getElementById('browser-cookie-modal')?.classList.remove('open');
+    }
+
+    function addBrowserCookieSite() {
+      browserCookieSitesEditor.push({ domains: '', cookies: [{ name: '', value: '', path: '/', secure: true, httpOnly: false, sameSite: 'Lax', expires: '' }] });
+      renderBrowserCookiesModalBody();
+    }
+
+    function addBrowserCookieRow(siteIdx) {
+      if (!browserCookieSitesEditor[siteIdx]) return;
+      browserCookieSitesEditor[siteIdx].cookies.push({ name: '', value: '', path: '/', secure: true, httpOnly: false, sameSite: 'Lax', expires: '' });
+      renderBrowserCookiesModalBody();
+    }
+
+    function removeBrowserCookieSite(siteIdx) {
+      browserCookieSitesEditor.splice(siteIdx, 1);
+      renderBrowserCookiesModalBody();
+    }
+
+    function removeBrowserCookieRow(siteIdx, cookieIdx) {
+      if (!browserCookieSitesEditor[siteIdx]) return;
+      browserCookieSitesEditor[siteIdx].cookies.splice(cookieIdx, 1);
+      renderBrowserCookiesModalBody();
+    }
+
+    function renderBrowserCookiesModalBody() {
+      const body = document.getElementById('browser-cookie-modal-body');
+      if (!body) return;
+      if (!browserCookieSitesEditor.length) {
+        body.innerHTML = '<div class="mcp-empty">暂无站点配置。点击下方“新增站点”开始。</div>';
+        return;
+      }
+      body.innerHTML = browserCookieSitesEditor.map(function (site, i) {
+        const cookiesHtml = (site.cookies || []).map(function (c, j) {
+          return '<div style="display:grid;grid-template-columns:1.2fr 1.2fr .7fr .6fr .6fr .7fr .9fr auto;gap:6px;margin-top:6px">' +
+            '<input class="ipt" placeholder="name" value="' + escapeHtml(c.name || '') + '" oninput="browserCookieSitesEditor[' + i + '].cookies[' + j + '].name=this.value" />' +
+            '<input class="ipt" placeholder="value" value="' + escapeHtml(c.value || '') + '" oninput="browserCookieSitesEditor[' + i + '].cookies[' + j + '].value=this.value" />' +
+            '<input class="ipt" placeholder="path" value="' + escapeHtml(c.path || '/') + '" oninput="browserCookieSitesEditor[' + i + '].cookies[' + j + '].path=this.value" />' +
+            '<label style="font-size:12px"><input type="checkbox" ' + (c.secure !== false ? 'checked' : '') + ' onchange="browserCookieSitesEditor[' + i + '].cookies[' + j + '].secure=this.checked" /> secure</label>' +
+            '<label style="font-size:12px"><input type="checkbox" ' + (c.httpOnly === true ? 'checked' : '') + ' onchange="browserCookieSitesEditor[' + i + '].cookies[' + j + '].httpOnly=this.checked" /> httpOnly</label>' +
+            '<select class="ipt" onchange="browserCookieSitesEditor[' + i + '].cookies[' + j + '].sameSite=this.value"><option value="Lax"' + ((c.sameSite || 'Lax') === 'Lax' ? ' selected' : '') + '>Lax</option><option value="Strict"' + ((c.sameSite || '') === 'Strict' ? ' selected' : '') + '>Strict</option><option value="None"' + ((c.sameSite || '') === 'None' ? ' selected' : '') + '>None</option></select>' +
+            '<input class="ipt" placeholder="expires(unix)" value="' + escapeHtml(c.expires || '') + '" oninput="browserCookieSitesEditor[' + i + '].cookies[' + j + '].expires=this.value" />' +
+            '<button type="button" class="btn btn-s" onclick="removeBrowserCookieRow(' + i + ',' + j + ')">删</button>' +
+          '</div>';
+        }).join('');
+        return '<div class="section" style="margin-bottom:10px">' +
+          '<div class="section-title" style="display:flex;justify-content:space-between;align-items:center">站点分组 ' + (i + 1) + '<button type="button" class="btn btn-s" onclick="removeBrowserCookieSite(' + i + ')">删除分组</button></div>' +
+          '<div class="form-row"><div class="form-label">域名列表（逗号分隔）</div><input class="ipt" placeholder="bilibili.com,www.bilibili.com" value="' + escapeHtml(site.domains || '') + '" oninput="browserCookieSitesEditor[' + i + '].domains=this.value" /></div>' +
+          '<div style="font-size:12px;color:var(--text3);margin-top:4px">示例：`bilibili.com,www.bilibili.com` 会匹配这两个域名下的页面。</div>' +
+          cookiesHtml +
+          '<div style="margin-top:8px"><button type="button" class="btn btn-s" onclick="addBrowserCookieRow(' + i + ')">新增 Cookie</button></div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function saveBrowserCookiesModal() {
+      const cleaned = browserCookieSitesEditor
+        .map(function (s) {
+          return {
+            domains: String(s.domains || '').trim(),
+            cookies: (s.cookies || []).filter(function (c) { return String(c.name || '').trim() !== ''; })
+          };
+        })
+        .filter(function (s) { return s.domains && s.cookies.length > 0; });
+      config.agentBrowserCookieSites = cleaned;
+      config.agentBrowserCookies = flattenBrowserCookieSites(cleaned);
+      refreshBrowserCookieSitesSummary();
+      closeBrowserCookiesModal();
+      toast('Cookies 列表已更新，记得点页面保存配置', 'success');
+    }
 
     function getOverviewChatContext() {
       const userIdRaw = (document.getElementById('ov-chat-user-id')?.value || '').trim();
@@ -8918,6 +9438,176 @@
       body.scrollTop = body.scrollHeight;
     }
 
+    function renderOverviewAttachments() {
+      const box = document.getElementById('ov-chat-attachments');
+      if (!box) return;
+      const list = Array.isArray(overviewChatState.attachments) ? overviewChatState.attachments : [];
+      if (!list.length) {
+        box.innerHTML = '';
+        return;
+      }
+      box.innerHTML = list.map(function (f, i) {
+        const sizeKb = Math.max(1, Math.round((Number(f.size) || 0) / 1024));
+        return '<span class="ov-chat-attachment-chip">' +
+          '<span class="material-symbols-outlined" style="font-size:14px">' + (f.kind === 'image' ? 'image' : 'description') + '</span>' +
+          '<span>' + escapeHtml(f.name || ('附件' + (i + 1))) + ' · ' + sizeKb + 'KB</span>' +
+          '<button type="button" class="icon-btn sm" onclick="removeOverviewAttachment(' + i + ')"><span class="material-symbols-outlined" style="font-size:14px">close</span></button>' +
+        '</span>';
+      }).join('');
+    }
+
+    function removeOverviewAttachment(idx) {
+      if (!Array.isArray(overviewChatState.attachments)) overviewChatState.attachments = [];
+      overviewChatState.attachments.splice(idx, 1);
+      renderOverviewAttachments();
+    }
+
+    function insertOverviewChatEmoji() {
+      const input = document.getElementById('ov-chat-input');
+      if (!input) return;
+      const pos = input.selectionStart || input.value.length;
+      input.value = input.value.slice(0, pos) + '😀 ' + input.value.slice(pos);
+      input.focus();
+    }
+
+    function insertOverviewChatCommand() {
+      const input = document.getElementById('ov-chat-input');
+      if (!input) return;
+      if (!input.value.trim()) input.value = '/help ';
+      else input.value += '\n/help ';
+      input.focus();
+    }
+
+    async function addOverviewFiles(files) {
+      const maxSize = 10 * 1024 * 1024;
+      const list = Array.from(files || []);
+      for (const f of list) {
+        if (!f) continue;
+        if (f.size > maxSize) {
+          toast('文件过大（>10MB）：' + f.name, 'error');
+          continue;
+        }
+        const isImage = /^image\//i.test(f.type || '');
+        const item = { name: f.name, size: f.size, kind: isImage ? 'image' : 'file', mime: f.type || '' };
+        if (isImage) {
+          item.previewUrl = URL.createObjectURL(f);
+        } else if (/^(text\/|application\/json)/i.test(f.type || '') || /\.(txt|md|json|csv|log|yaml|yml|xml|js|ts|py|java|go|rs|cpp|c|h)$/i.test(f.name || '')) {
+          try {
+            const text = await f.text();
+            item.textSnippet = text.slice(0, 3000);
+          } catch (_) {}
+        }
+        overviewChatState.attachments.push(item);
+      }
+      renderOverviewAttachments();
+    }
+
+    async function onOverviewChatFilePick(ev, type) {
+      const files = ev && ev.target && ev.target.files;
+      if (!files || !files.length) return;
+      if (type === 'image') {
+        const imgs = Array.from(files).filter(function (f) { return /^image\//i.test(f.type || ''); });
+        await addOverviewFiles(imgs);
+      } else {
+        await addOverviewFiles(files);
+      }
+      if (ev.target) ev.target.value = '';
+    }
+
+    function bindOverviewChatDropzone() {
+      const dz = document.getElementById('ov-chat-dropzone');
+      const ta = document.getElementById('ov-chat-input');
+      if (!dz || dz.dataset.bindDone === '1') return;
+      dz.dataset.bindDone = '1';
+      const onEnter = function (e) { e.preventDefault(); dz.classList.add('active'); };
+      const onLeave = function (e) { e.preventDefault(); dz.classList.remove('active'); };
+      dz.addEventListener('dragenter', onEnter);
+      dz.addEventListener('dragover', onEnter);
+      dz.addEventListener('dragleave', onLeave);
+      dz.addEventListener('drop', async function (e) {
+        e.preventDefault();
+        dz.classList.remove('active');
+        const files = e.dataTransfer && e.dataTransfer.files;
+        if (files && files.length) await addOverviewFiles(files);
+      });
+      if (ta) {
+        ta.addEventListener('dragover', function (e) { e.preventDefault(); dz.classList.add('active'); });
+        ta.addEventListener('dragleave', function (e) { e.preventDefault(); dz.classList.remove('active'); });
+        ta.addEventListener('drop', async function (e) {
+          e.preventDefault();
+          dz.classList.remove('active');
+          const files = e.dataTransfer && e.dataTransfer.files;
+          if (files && files.length) await addOverviewFiles(files);
+        });
+      }
+    }
+
+    function streamAssistantBubble(msg) {
+      return new Promise((resolve) => {
+        const body = document.getElementById('ov-chat-body');
+        if (!body) return resolve();
+        const text = String(msg?.content || '');
+        const tools = Array.isArray(msg?.tools) ? msg.tools : [];
+        const wrap = document.createElement('div');
+        wrap.className = 'chat-bubble assistant';
+        const label = document.createElement('div');
+        label.className = 'chat-bubble-label';
+        label.textContent = getBotDisplayName();
+        const contentEl = document.createElement('div');
+        wrap.appendChild(label);
+        wrap.appendChild(contentEl);
+        body.appendChild(wrap);
+        body.scrollTop = body.scrollHeight;
+
+        let i = 0;
+        const step = () => {
+          i += Math.max(1, Math.ceil(text.length / 120));
+          const shown = text.slice(0, i);
+          contentEl.innerHTML = escapeHtml(shown).replace(/\n/g, '<br>') + '<span class="chat-stream-cursor">▋</span>';
+          body.scrollTop = body.scrollHeight;
+          if (i < text.length) {
+            requestAnimationFrame(step);
+          } else {
+            contentEl.innerHTML = escapeHtml(text).replace(/\n/g, '<br>');
+            const finish = () => {
+              body.scrollTop = body.scrollHeight;
+              resolve();
+            };
+            if (tools.length) {
+              const toolsBox = document.createElement('div');
+              toolsBox.className = 'chat-tool-blocks';
+              wrap.appendChild(toolsBox);
+              let ti = 0;
+              const pushTool = () => {
+                const t = tools[ti++];
+                if (!t) return finish();
+                const temp = document.createElement('div');
+                temp.innerHTML = renderToolBlocks([t]);
+                const blk = temp.querySelector('.chat-tool-block');
+                if (blk) {
+                  blk.classList.add('tool-enter');
+                  toolsBox.appendChild(blk);
+                }
+                body.scrollTop = body.scrollHeight;
+                setTimeout(pushTool, 140);
+              };
+              pushTool();
+            } else finish();
+          }
+        };
+        if (!text) {
+          if (tools.length) {
+            const toolWrap = document.createElement('div');
+            toolWrap.innerHTML = renderToolBlocks(tools);
+            wrap.appendChild(toolWrap.firstChild);
+          }
+          resolve();
+        } else {
+          requestAnimationFrame(step);
+        }
+      });
+    }
+
     function onOverviewChatKeydown(e) {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -8925,17 +9615,54 @@
       }
     }
 
-    async function sendOverviewChat() {
+    async function askRiskConfirm(req, ctx) {
+      const now = Date.now();
+      const waitMs = Math.max(0, Number(req.availableAt || now) - now);
+      const expireMs = Math.max(waitMs + 1000, Number(req.expiresAt || now + 20000) - now);
+      const riskText = '操作类型：' + (req.operationType || '-') + '\n风险等级：' + (req.riskLevel || 'high') + '\n原因：' + (req.reason || '-') + '\n预览：' + (req.preview || '-');
+      const confirmed = await showAppConfirm({
+        title: '高危操作二次确认',
+        message: riskText + '\n\n5 秒冷静期后可确认，20 秒内有效。',
+        confirmText: '确认执行',
+        danger: true,
+        delayMs: waitMs
+      });
+      if (!confirmed) return '';
+      if (Date.now() > Number(req.expiresAt || 0)) {
+        toast('高危确认已过期，请重新触发操作', 'warn');
+        return '';
+      }
+      const needPwd = config.agentDangerPasswordSet === true || Boolean(config.agentDangerPasswordHash);
+      const pwd = needPwd ? String(window.prompt('请输入危险操作密码以确认执行：', '') || '').trim() : '';
+      const r = await fetch(BASE + '/agent/risk/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId: req.requestId, userId: ctx.userId, password: pwd, expireMs })
+      });
+      const d = await r.json();
+      if (!d.success) {
+        toast(d.error || '高危确认失败', 'error');
+        return '';
+      }
+      return req.requestId;
+    }
+
+    async function sendOverviewChat(riskApprovalId, overrideText) {
       const input = document.getElementById('ov-chat-input');
       const btn = document.getElementById('ov-chat-send');
-      const text = (input?.value || '').trim();
+      const text = (overrideText != null ? String(overrideText) : (input?.value || '')).trim();
       if (!text || overviewChatState.sending) return;
       const ctx = getOverviewChatContext();
       overviewChatState.sending = true;
       if (btn) btn.disabled = true;
-      overviewChatState.messages.push({ role: 'user', content: text });
+      const attachments = Array.isArray(overviewChatState.attachments) ? overviewChatState.attachments.slice() : [];
+      if (overrideText == null) {
+        let userDisplay = text;
+        if (attachments.length) userDisplay += '\n\n[附件] ' + attachments.map(function (a) { return (a.kind === 'image' ? '图片:' : '文件:') + (a.name || '未命名'); }).join('，');
+        overviewChatState.messages.push({ role: 'user', content: userDisplay });
+      }
       renderOverviewChatBody();
-      if (input) input.value = '';
+      if (overrideText == null && input) input.value = '';
       try {
         const res = await fetch(BASE + '/agent/online-chat', {
           method: 'POST',
@@ -8943,7 +9670,17 @@
           body: JSON.stringify({
             text,
             userId: ctx.userId,
-            groupId: ctx.groupId
+            groupId: ctx.groupId,
+            riskApprovalId: riskApprovalId || '',
+            attachments: attachments.map(function (a) {
+              return {
+                kind: a.kind,
+                name: a.name,
+                size: a.size,
+                mime: a.mime || '',
+                textSnippet: a.textSnippet || ''
+              };
+            })
           })
         });
         const data = await res.json();
@@ -8951,14 +9688,40 @@
           toast(data.error || '在线对话失败', 'error');
           overviewChatState.messages.push({ role: 'assistant', content: '请求失败：' + (data.error || '未知错误') });
         } else {
+          if (data.riskRequest && data.riskRequest.requestId) {
+            overviewChatState.pendingRisk = data.riskRequest;
+            const approvedId = await askRiskConfirm(data.riskRequest, ctx);
+            if (approvedId) {
+              overviewChatState.messages.push({ role: 'assistant', content: '已通过二次确认，正在执行高危操作…' });
+              renderOverviewChatBody();
+              await sendOverviewChat(approvedId, text);
+              return;
+            }
+          }
           overviewChatState.key = data.key || '';
-          overviewChatState.messages = Array.isArray(data.messages) ? data.messages : overviewChatState.messages.concat([{ role: 'assistant', content: data.reply || '' }]);
+          const all = Array.isArray(data.messages) ? data.messages : overviewChatState.messages.concat([{ role: 'assistant', content: data.reply || '' }]);
+          const last = all.length ? all[all.length - 1] : null;
+          const shouldStream = last && last.role !== 'user';
+          if (shouldStream) {
+            overviewChatState.messages = all.slice(0, -1);
+            overviewChatState.streaming = true;
+            renderOverviewChatBody();
+            await streamAssistantBubble(last);
+            overviewChatState.messages = all;
+            overviewChatState.streaming = false;
+          } else {
+            overviewChatState.messages = all;
+          }
           toast('回复已返回' + ((data.toolCount || 0) > 0 ? `（调用 ${data.toolCount} 个工具）` : ''), 'success');
         }
       } catch (e) {
         toast('在线对话失败', 'error');
         overviewChatState.messages.push({ role: 'assistant', content: '请求失败：网络异常。' });
       } finally {
+        if (overrideText == null) {
+          overviewChatState.attachments = [];
+          renderOverviewAttachments();
+        }
         overviewChatState.sending = false;
         if (btn) btn.disabled = false;
         renderOverviewChatBody();
@@ -9136,7 +9899,9 @@
 
     async function loadTokenStats() {
       try {
-        const res = await fetch(BASE + '/stats');
+        const sourceEl = document.getElementById('token-source-filter');
+        const source = (sourceEl && sourceEl.value) ? sourceEl.value : 'all';
+        const res = await fetch(BASE + '/stats?source=' + encodeURIComponent(source));
         const data = await res.json();
         if (!data.success) return;
         const cards = document.getElementById('token-stats-cards');
@@ -9145,7 +9910,10 @@
             { label: '总 Prompt', value: data.totalPrompt || 0 },
             { label: '总 Completion', value: data.totalCompletion || 0 },
             { label: '总 Tokens', value: data.totalTokens || 0 },
-            { label: '会话数', value: (data.byKey || []).length }
+            { label: '会话数', value: (data.byKey || []).length },
+            { label: 'Agent 调用', value: (data.toolCalls && data.toolCalls.agent) || 0 },
+            { label: '搜索调用', value: (data.toolCalls && data.toolCalls.search) || 0 },
+            { label: '浏览器调用', value: (data.toolCalls && data.toolCalls.browser) || 0 }
           ];
           cards.innerHTML = items.map((it) =>
             '<div class="token-stat-card"><div class="ts-label">' + it.label + '</div><div class="ts-value" data-val="' + it.value + '">0</div></div>'
@@ -9160,7 +9928,7 @@
         if (tbody) tbody.innerHTML = byKey.map((r) => '<tr><td>' + escapeHtml(r.key) + '</td><td>' + (r.prompt || 0) + '</td><td>' + (r.completion || 0) + '</td><td>' + (r.total || 0) + '</td></tr>').join('');
         const recent = (data.recent || []).slice(0, 50);
         const tbody2 = document.getElementById('token-recent-tbody');
-        if (tbody2) tbody2.innerHTML = recent.map((r) => '<tr><td>' + (r.ts ? new Date(r.ts).toLocaleString() : '') + '</td><td>' + escapeHtml(r.key || '') + '</td><td>' + (r.prompt || 0) + '</td><td>' + (r.completion || 0) + '</td><td>' + (r.total || 0) + '</td><td>' + escapeHtml(r.model || '') + '</td></tr>').join('');
+        if (tbody2) tbody2.innerHTML = recent.map((r) => '<tr><td>' + (r.ts ? new Date(r.ts).toLocaleString() : '') + '</td><td>' + escapeHtml(r.source || 'chat') + '</td><td>' + escapeHtml(r.key || '') + '</td><td>' + (r.prompt || 0) + '</td><td>' + (r.completion || 0) + '</td><td>' + (r.total || 0) + '</td><td>' + escapeHtml(r.model || '') + '</td></tr>').join('');
       } catch (e) {
         toast('加载统计失败', 'error');
       }
@@ -10300,16 +11068,27 @@
       await renderUserLists();
     }
 
-    function hideAdminUserDropdown() {
-      const dd = document.getElementById('admin-user-dropdown');
+    function getAdminScopeIds(scope) {
+      const s = scope === 'center' ? 'center' : 'admin';
+      return {
+        input: s === 'center' ? 'admin-center-user-input' : 'admin-user-input',
+        dropdown: s === 'center' ? 'admin-center-user-dropdown' : 'admin-user-dropdown',
+        list: s === 'center' ? 'admin-center-users-list' : 'admin-users-list'
+      };
+    }
+
+    function hideAdminUserDropdown(scope) {
+      const ids = getAdminScopeIds(scope);
+      const dd = document.getElementById(ids.dropdown);
       if (dd) dd.style.display = 'none';
       syncResolveDropdownState(dd, false);
       userResolveState.admin.idx = -1;
     }
 
-    function renderAdminUserDropdown() {
+    function renderAdminUserDropdown(scope) {
       const st = userResolveState.admin;
-      const dd = document.getElementById('admin-user-dropdown');
+      const ids = getAdminScopeIds(scope);
+      const dd = document.getElementById(ids.dropdown);
       if (!dd) return;
       if (!st.results.length) {
         dd.style.display = 'none';
@@ -10321,67 +11100,70 @@
         const nick = escapeHtml(item.nickname || '未知');
         const sub = escapeHtml(item.userId);
         const av = avatarImgHtml(item.avatar, item.nickname);
-        return '<div class="resolve-item' + (i === st.idx ? ' active' : '') + '" onclick="pickAdminUserResolve(' + i + ')">' + av + '<div><div>' + nick + '</div><div>' + sub + '</div></div></div>';
+        return '<div class="resolve-item' + (i === st.idx ? ' active' : '') + '" onclick="pickAdminUserResolve(' + i + ',\'' + (scope === 'center' ? 'center' : 'admin') + '\')">' + av + '<div><div>' + nick + '</div><div>' + sub + '</div></div></div>';
       }).join('');
       dd.style.display = 'block';
       syncResolveDropdownState(dd, true);
     }
 
-    function onAdminUserResolveInput() {
-      const inp = document.getElementById('admin-user-input');
+    function onAdminUserResolveInput(scope) {
+      const ids = getAdminScopeIds(scope);
+      const inp = document.getElementById(ids.input);
       const q = (inp && inp.value || '').trim();
       userResolveState.admin.pick = null;
       clearTimeout(userResolveDebounce.admin);
-      if (!q) { hideAdminUserDropdown(); return; }
+      if (!q) { hideAdminUserDropdown(scope); return; }
       userResolveDebounce.admin = setTimeout(async () => {
         try {
           const res = await fetch(BASE + '/users/resolve?q=' + encodeURIComponent(q));
           const data = await res.json();
           userResolveState.admin.results = (data.data || []).map(enrichUserResult);
           userResolveState.admin.idx = userResolveState.admin.results.length ? 0 : -1;
-          renderAdminUserDropdown();
+          renderAdminUserDropdown(scope);
         } catch {
-          hideAdminUserDropdown();
+          hideAdminUserDropdown(scope);
         }
       }, 280);
     }
 
-    function onAdminUserResolveKeydown(ev) {
+    function onAdminUserResolveKeydown(ev, scope) {
       const st = userResolveState.admin;
       if (ev.key === 'ArrowDown') {
         ev.preventDefault();
-        if (st.results.length) { st.idx = Math.min(st.idx + 1, st.results.length - 1); renderAdminUserDropdown(); }
+        if (st.results.length) { st.idx = Math.min(st.idx + 1, st.results.length - 1); renderAdminUserDropdown(scope); }
       } else if (ev.key === 'ArrowUp') {
         ev.preventDefault();
-        if (st.results.length) { st.idx = Math.max(st.idx - 1, 0); renderAdminUserDropdown(); }
+        if (st.results.length) { st.idx = Math.max(st.idx - 1, 0); renderAdminUserDropdown(scope); }
       } else if (ev.key === 'Enter') {
         ev.preventDefault();
-        if (st.idx >= 0 && st.results[st.idx]) pickAdminUserResolve(st.idx);
-        else addAdminUser();
-      } else if (ev.key === 'Escape') hideAdminUserDropdown();
+        if (st.idx >= 0 && st.results[st.idx]) pickAdminUserResolve(st.idx, scope);
+        else addAdminUser(scope);
+      } else if (ev.key === 'Escape') hideAdminUserDropdown(scope);
     }
 
-    function pickAdminUserResolve(idx) {
+    function pickAdminUserResolve(idx, scope) {
       const u = userResolveState.admin.results[idx];
       if (!u) return;
       userResolveState.admin.pick = u;
       cacheUserProfile(u);
-      const inp = document.getElementById('admin-user-input');
+      const ids = getAdminScopeIds(scope);
+      const inp = document.getElementById(ids.input);
       if (inp) inp.value = u.nickname ? (u.nickname + ' (' + u.userId + ')') : u.userId;
-      hideAdminUserDropdown();
+      hideAdminUserDropdown(scope);
     }
 
-    function renderAdminUsersList() {
-      const box = document.getElementById('admin-users-list');
+    function renderAdminUsersList(scope) {
+      const scopeIds = getAdminScopeIds(scope);
+      const box = document.getElementById(scopeIds.list);
       const hidden = document.getElementById('cfg-adminUsers');
-      const ids = Array.from(new Set((config.adminUsers || []).map((s) => String(s).trim()).filter(Boolean)));
-      if (hidden) hidden.value = ids.join(', ');
+      const users = Array.from(new Set((config.adminUsers || []).map((s) => String(s).trim()).filter(Boolean)));
+      if (hidden) hidden.value = users.join(', ');
       if (!box) return;
-      if (!ids.length) {
+      if (!users.length) {
         box.innerHTML = '<span style="font-size:12px;color:var(--text3)">暂无管理员</span>';
         return;
       }
-      box.innerHTML = ids.map((uid) => {
+      box.innerHTML = users.map((uid) => {
         const p = getUserProfile(uid);
         const nick = p.nickname || uid;
         return '<span class="admin-user-chip">' + escapeHtml(nick) + ' (' + escapeHtml(uid) + ')' +
@@ -10389,8 +11171,9 @@
       }).join('');
     }
 
-    async function addAdminUser() {
-      const inp = document.getElementById('admin-user-input');
+    async function addAdminUser(scope) {
+      const ids = getAdminScopeIds(scope);
+      const inp = document.getElementById(ids.input);
       const raw = (inp && inp.value || '').trim();
       if (!raw) return;
       let uid = userResolveState.admin.pick && userResolveState.admin.pick.userId;
@@ -10425,13 +11208,15 @@
       }
       if (inp) inp.value = '';
       userResolveState.admin.pick = null;
-      hideAdminUserDropdown();
-      renderAdminUsersList();
+      hideAdminUserDropdown(scope);
+      renderAdminUsersList('admin');
+      renderAdminUsersList('center');
     }
 
     function removeAdminUser(uid) {
       config.adminUsers = (config.adminUsers || []).filter((x) => String(x) !== String(uid));
-      renderAdminUsersList();
+      renderAdminUsersList('admin');
+      renderAdminUsersList('center');
     }
 
     async function refreshUserListProfiles() {
@@ -11223,9 +12008,45 @@
       if (document.getElementById('tgl-agentShellEnabled')) {
         cfg.agentShellEnabled = document.getElementById('tgl-agentShellEnabled').classList.contains('on');
       }
+      if (document.getElementById('cfg-agentShellType')) {
+        cfg.agentShellType = document.getElementById('cfg-agentShellType').value || 'auto';
+      }
+      if (document.getElementById('cfg-agentShellTimeoutMs')) {
+        cfg.agentShellTimeoutMs = Math.max(5000, Math.min(600000, parseInt(document.getElementById('cfg-agentShellTimeoutMs').value, 10) || 120000));
+      }
+      if (document.getElementById('cfg-agentShellBlockPatterns')) {
+        cfg.agentShellBlockPatterns = document.getElementById('cfg-agentShellBlockPatterns').value.split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+      }
       if (document.getElementById('tgl-agentBrowserEnabled')) {
         cfg.agentBrowserEnabled = document.getElementById('tgl-agentBrowserEnabled').classList.contains('on');
       }
+      if (document.getElementById('tgl-agentBrowserUsePlaywright')) {
+        cfg.agentBrowserUsePlaywright = document.getElementById('tgl-agentBrowserUsePlaywright').classList.contains('on');
+      }
+      if (document.getElementById('tgl-agentBrowserAdvancedEnabled')) {
+        cfg.agentBrowserAdvancedEnabled = document.getElementById('tgl-agentBrowserAdvancedEnabled').classList.contains('on');
+      }
+      if (document.getElementById('cfg-agentBrowserUserAgent')) {
+        cfg.agentBrowserUserAgent = document.getElementById('cfg-agentBrowserUserAgent').value.trim();
+      }
+      if (document.getElementById('cfg-agentBrowserExtraHeaders')) {
+        try {
+          const raw = document.getElementById('cfg-agentBrowserExtraHeaders').value.trim();
+          cfg.agentBrowserExtraHeaders = raw ? JSON.parse(raw) : {};
+        } catch (_) {
+          toast('浏览器额外请求头 JSON 格式错误', 'error');
+          return;
+        }
+      }
+      cfg.agentBrowserCookieSites = Array.isArray(config.agentBrowserCookieSites) ? config.agentBrowserCookieSites : [];
+      cfg.agentBrowserCookies = flattenBrowserCookieSites(cfg.agentBrowserCookieSites);
+      ['agentToolWebSearchEnabled','agentToolCurrentTimeEnabled','agentToolMcpEnabled','agentToolShellExecEnabled','agentToolFileManagerEnabled','agentToolRegistryEnabled','agentToolExplorerEnabled','agentToolBrowserSnapshotEnabled','agentToolBrowserActEnabled','agentDangerGuardEnabled','agentDangerRequireAdmin','agentDangerRequireWebConfirm','agentDangerOnSystemPower','agentDangerOnShellDelete','agentDangerOnFileDelete','agentDangerOnRegistryWrite'].forEach(function(k){
+        const el = document.getElementById('tgl-' + k);
+        if (el) cfg[k] = el.classList.contains('on');
+      });
+      if (document.getElementById('cfg-agentDangerPassword')) cfg.agentDangerPassword = document.getElementById('cfg-agentDangerPassword').value || '';
+      if (document.getElementById('cfg-agentDangerConfirmDelaySec')) cfg.agentDangerConfirmDelaySec = Math.max(0, Math.min(30, parseInt(document.getElementById('cfg-agentDangerConfirmDelaySec').value, 10) || 5));
+      if (document.getElementById('cfg-agentDangerConfirmExpireSec')) cfg.agentDangerConfirmExpireSec = Math.max(5, Math.min(180, parseInt(document.getElementById('cfg-agentDangerConfirmExpireSec').value, 10) || 20));
       if (document.getElementById('cfg-uapiSort')) cfg.uapiSort = (document.getElementById('cfg-uapiSort').value || '').trim();
       if (document.getElementById('cfg-uapiTimeRange')) cfg.uapiTimeRange = (document.getElementById('cfg-uapiTimeRange').value || '').trim();
       if (document.getElementById('tgl-appendStickerAfterReply')) cfg.appendStickerAfterReply = document.getElementById('tgl-appendStickerAfterReply').classList.contains('on');
@@ -11665,6 +12486,11 @@
       if (titleEl) titleEl.textContent = (navEl && navEl.dataset.title) || page;
 
       if (page === 'overview') refreshOverview();
+      if (page === 'onlinechat') {
+        bindOverviewChatDropzone();
+        renderOverviewAttachments();
+        renderOverviewChatBody();
+      }
       if (page === 'groups') loadGroups();
       if (page === 'users') { mergeUserProfilesFromConfig(); renderUserLists(); }
       if (page === 'fakehuman') loadFakeHumanGroups();

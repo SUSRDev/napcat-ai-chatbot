@@ -1,5 +1,13 @@
 # 更新日志
 
+## [2.7.2] — 2026-06-25
+
+### 新增
+
+- **Agent 工具独立开关**：后台新增 `agentToolWebSearchEnabled`、`agentToolShellExecEnabled`、`agentToolBrowserActEnabled
+
+---
+
 ## [2.7.0] — 2026-06-25
 
 ### 新增
