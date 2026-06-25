@@ -3243,6 +3243,71 @@
       margin-top: 6px;
       line-height: 1.5;
     }
+    #pg-agent .mcp-help-steps {
+      margin: 10px 0 14px;
+      padding-left: 18px;
+      color: var(--text2);
+      line-height: 1.7;
+      font-size: 12px;
+    }
+    #pg-agent .mcp-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    #pg-agent .mcp-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+      padding: 12px;
+    }
+    #pg-agent .mcp-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    #pg-agent .mcp-card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    #pg-agent .mcp-card-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    #pg-agent .mcp-card-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 12px;
+    }
+    #pg-agent .mcp-card-grid .full {
+      grid-column: 1 / -1;
+    }
+    #pg-agent .mcp-field-label {
+      font-size: 11px;
+      color: var(--text3);
+      margin-bottom: 4px;
+    }
+    #pg-agent .mcp-empty {
+      padding: 18px 14px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text3);
+      background: var(--bg2);
+      line-height: 1.7;
+      font-size: 12px;
+      text-align: center;
+    }
+    @media (max-width: 768px) {
+      #pg-agent .mcp-card-grid {
+        grid-template-columns: 1fr;
+      }
+    }
     .failover-list-empty {
       padding: 28px 16px; text-align: center; color: var(--text3); font-size: 12px;
       border: 1px dashed var(--border); border-radius: var(--radius);
@@ -3868,7 +3933,7 @@
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span id="sidebar-version">NapCat 插件 · v2.6.12</span>
+          <span id="sidebar-version">NapCat 插件 · v2.6.13</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -4810,23 +4875,27 @@
         <div class="section">
           <div class="section-title">MCP 服务</div>
           <div class="section-body">
-          <p class="section-subtitle">配置 stdio 型 MCP Server（会启动子进程，请仅连接可信服务）。示例：filesystem、fetch、sqlite 等社区服务器。</p>
+          <p class="section-subtitle">如果你想让机器人连接本地文件、网页抓取、数据库等外部工具，就在这里配置 MCP。不会写命令也没关系，先按下面步骤填写常用信息即可。</p>
+          <ol class="mcp-help-steps">
+            <li>先打开“启用 MCP”。</li>
+            <li>点击“新增 MCP 服务”，填写名称、启动命令和参数。</li>
+            <li>点击“保存配置”后，再点“重载 MCP”。</li>
+            <li>最后点“查看状态”，确认是否已连接。</li>
+          </ol>
           <div class="form-row">
             <div class="form-label">启用 MCP</div>
             <div class="tgl" id="tgl-mcpEnabled" onclick="toggle(this,'mcpEnabled')"></div>
           </div>
           <div class="form-row form-row-top">
-            <div class="form-label">MCP 服务器 JSON<div class="hint">JSON 数组，每项含 <code>id</code>、<code>name</code>、<code>command</code>、<code>args</code>、<code>enabled</code></div></div>
-            <textarea class="ipt agent-textarea agent-textarea-lg" id="cfg-mcpServers" rows="10" placeholder='[
-  {
-    "id": "filesystem",
-    "name": "本地文件",
-    "enabled": true,
-    "command": "npx",
-    "args": ["-y", "@modelcontextprotocol/server-filesystem", "D:/allowed"]
-  }
-]'></textarea>
+            <div class="form-label">MCP 服务列表<div class="hint">不用手写 JSON。每张卡片就是一个 MCP 服务，按顺序填写即可。</div></div>
+            <div class="full" style="width:100%">
+              <div class="agent-toolbar" style="padding-top:0">
+                <button type="button" class="btn btn-s" onclick="addMcpServerCard()"><span class="material-symbols-outlined">add</span>新增 MCP 服务</button>
+              </div>
+              <div id="mcp-servers-list" class="mcp-list"></div>
+            </div>
           </div>
+          <p class="section-subtitle">说明：标识用于区分不同服务；显示名称就是页面里看到的名字；启动命令通常是 npx、uvx、node 或 python；命令参数一行一个，不用加中括号。</p>
           <div class="agent-toolbar">
             <button type="button" class="btn btn-s" onclick="reloadAgentHub()"><span class="material-symbols-outlined">hub</span>重载 MCP</button>
             <button type="button" class="btn btn-s" onclick="loadAgentStatus()"><span class="material-symbols-outlined">monitoring</span>查看状态</button>
@@ -7423,14 +7492,7 @@
       if (skillsDirs) skillsDirs.value = Array.isArray(config.skillsDirs) ? config.skillsDirs.join('\n') : '';
       const skillsAllow = document.getElementById('cfg-skillsAllowlist');
       if (skillsAllow) skillsAllow.value = Array.isArray(config.skillsAllowlist) ? config.skillsAllowlist.join(', ') : '';
-      const mcpServersEl = document.getElementById('cfg-mcpServers');
-      if (mcpServersEl) {
-        try {
-          mcpServersEl.value = JSON.stringify(Array.isArray(config.mcpServers) ? config.mcpServers : [], null, 2);
-        } catch (_) {
-          mcpServersEl.value = '[]';
-        }
-      }
+      renderMcpServersList(Array.isArray(config.mcpServers) ? config.mcpServers : []);
       const shReg = document.getElementById('cfg-skillhubRegistry');
       if (shReg) shReg.value = config.skillhubRegistry || 'https://skill.xfyun.cn';
       const shTok = document.getElementById('cfg-skillhubToken');
@@ -7721,6 +7783,102 @@
     }
 
     function toggleSidebar() { document.getElementById('layout').classList.toggle('sidebar-open'); }
+
+    function createMcpServerCard(server, idx) {
+      const item = Object.assign({
+        id: '',
+        name: '',
+        command: '',
+        args: [],
+        enabled: true
+      }, server || {});
+      const wrap = document.createElement('div');
+      wrap.className = 'mcp-card';
+      wrap.innerHTML = '' +
+        '<div class="mcp-card-head">' +
+          '<div class="mcp-card-title">MCP 服务 ' + (idx + 1) + '</div>' +
+          '<div class="mcp-card-actions">' +
+            '<label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)">' +
+              '<input type="checkbox" class="mcp-enabled"' + (item.enabled !== false ? ' checked' : '') + '> 启用' +
+            '</label>' +
+            '<button type="button" class="btn btn-s" onclick="removeMcpServerCard(this)">删除</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="mcp-card-grid">' +
+          '<div><div class="mcp-field-label">标识</div><input type="text" class="ipt mcp-id" placeholder="filesystem" value="' + escapeAttr(item.id || '') + '"></div>' +
+          '<div><div class="mcp-field-label">显示名称</div><input type="text" class="ipt mcp-name" placeholder="本地文件" value="' + escapeAttr(item.name || '') + '"></div>' +
+          '<div><div class="mcp-field-label">启动命令</div><input type="text" class="ipt mcp-command" placeholder="npx" value="' + escapeAttr(item.command || '') + '"></div>' +
+          '<div><div class="mcp-field-label">命令参数</div><textarea class="ipt mcp-args" rows="4" placeholder="-y&#10;@modelcontextprotocol/server-filesystem&#10;D:/allowed">' + escapeHtml(Array.isArray(item.args) ? item.args.join('\n') : '') + '</textarea></div>' +
+          '<div class="full"><div class="mcp-field-label">快速示例</div><div class="hint">常见写法：`npx` + `@modelcontextprotocol/server-filesystem`，或你自己的 Python/Node 启动命令。</div></div>' +
+        '</div>';
+      return wrap;
+    }
+
+    function refreshMcpCardTitles() {
+      const cards = Array.from(document.querySelectorAll('#mcp-servers-list .mcp-card'));
+      cards.forEach(function (card, idx) {
+        const title = card.querySelector('.mcp-card-title');
+        if (title) title.textContent = 'MCP 服务 ' + (idx + 1);
+      });
+    }
+
+    function renderMcpServersList(servers) {
+      const el = document.getElementById('mcp-servers-list');
+      if (!el) return;
+      el.innerHTML = '';
+      const list = Array.isArray(servers) ? servers : [];
+      if (!list.length) {
+        el.innerHTML = '<div class="mcp-empty">暂时还没有 MCP 服务。<br>点击上方“新增 MCP 服务”开始配置。</div>';
+        return;
+      }
+      list.forEach(function (server, idx) {
+        el.appendChild(createMcpServerCard(server, idx));
+      });
+      refreshMcpCardTitles();
+    }
+
+    function addMcpServerCard(preset) {
+      const el = document.getElementById('mcp-servers-list');
+      if (!el) return;
+      const empty = el.querySelector('.mcp-empty');
+      if (empty) el.innerHTML = '';
+      el.appendChild(createMcpServerCard(preset || {
+        id: '',
+        name: '',
+        command: 'npx',
+        args: ['-y', '@modelcontextprotocol/server-filesystem', 'D:/allowed'],
+        enabled: true
+      }, el.querySelectorAll('.mcp-card').length));
+      refreshMcpCardTitles();
+    }
+
+    function removeMcpServerCard(btn) {
+      const card = btn && btn.closest('.mcp-card');
+      const el = document.getElementById('mcp-servers-list');
+      if (!card || !el) return;
+      card.remove();
+      if (!el.querySelector('.mcp-card')) {
+        el.innerHTML = '<div class="mcp-empty">暂时还没有 MCP 服务。<br>点击上方“新增 MCP 服务”开始配置。</div>';
+      } else {
+        refreshMcpCardTitles();
+      }
+    }
+
+    function collectMcpServersFromUI() {
+      const cards = Array.from(document.querySelectorAll('#mcp-servers-list .mcp-card'));
+      return cards.map(function (card) {
+        const argsText = (card.querySelector('.mcp-args') || {}).value || '';
+        return {
+          id: ((card.querySelector('.mcp-id') || {}).value || '').trim(),
+          name: ((card.querySelector('.mcp-name') || {}).value || '').trim(),
+          command: ((card.querySelector('.mcp-command') || {}).value || '').trim(),
+          args: argsText.split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean),
+          enabled: !!((card.querySelector('.mcp-enabled') || {}).checked)
+        };
+      }).filter(function (item) {
+        return item.id || item.name || item.command || item.args.length;
+      });
+    }
     function closeSidebar() { document.getElementById('layout').classList.remove('sidebar-open'); }
 
     function isMobileLayout() {
@@ -10650,15 +10808,7 @@
       if (document.getElementById('cfg-skillsAllowlist')) {
         cfg.skillsAllowlist = document.getElementById('cfg-skillsAllowlist').value.split(/[,，]/).map(function (s) { return s.trim(); }).filter(Boolean);
       }
-      if (document.getElementById('cfg-mcpServers')) {
-        try {
-          const parsed = JSON.parse(document.getElementById('cfg-mcpServers').value || '[]');
-          cfg.mcpServers = Array.isArray(parsed) ? parsed : [];
-        } catch (e) {
-          toast('MCP 服务器 JSON 格式错误', 'error');
-          return;
-        }
-      }
+      cfg.mcpServers = collectMcpServersFromUI();
       if (document.getElementById('cfg-skillhubRegistry')) {
         cfg.skillhubRegistry = document.getElementById('cfg-skillhubRegistry').value.trim() || 'https://skill.xfyun.cn';
       }
