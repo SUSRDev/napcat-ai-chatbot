@@ -2054,7 +2054,7 @@
     .upd-setting-label .hint { font-size: 11px; color: var(--text3); font-weight: 400; margin-top: 3px; line-height: 1.5; }
     .upd-action-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
     .mir-seg {
-      display: flex; gap: 4px; padding: 4px; margin-bottom: 18px;
+      display: flex; gap: 4px; padding: 4px; margin-bottom: 16px;
       border-radius: 12px; border: 1px solid var(--border); background: var(--bg2);
     }
     .mir-seg-btn {
@@ -2068,7 +2068,7 @@
     }
     .mir-current-card {
       display: flex; align-items: center; gap: 14px;
-      padding: 14px 16px; margin-bottom: 18px;
+      padding: 14px 16px; margin-bottom: 16px;
       border-radius: 12px; border: 1px solid var(--border); background: var(--bg2);
     }
     .mir-current-icon {
@@ -2081,21 +2081,32 @@
     .mir-current-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
     .mir-current-name { font-size: 14px; font-weight: 600; color: var(--text); }
     .mir-current-lat { font-size: 12px; color: var(--text2); margin-top: 2px; }
-    .mir-manual-select { display: none; margin-bottom: 16px; }
-    .mir-manual-select.show { display: block; }
+    .mir-manual-select { display: none; margin-bottom: 0; }
+    .mir-manual-select.show { display: block; margin-bottom: 16px; }
     .mir-toolbar {
-      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
-      justify-content: space-between; margin-bottom: 14px;
+      display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch;
+      margin-bottom: 16px;
     }
-    .mir-toolbar-left, .mir-toolbar-right { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .mir-toolbar-left {
+      flex: 1 1 240px; min-width: 0; display: flex; align-items: center;
+    }
+    .mir-toolbar-right {
+      flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    }
     .mir-search {
-      width: 100%; max-width: 220px; padding: 8px 12px 8px 34px;
+      width: 100%; min-height: 40px; padding: 10px 14px 10px 40px;
       border-radius: 10px; border: 1px solid var(--border); background: var(--bg2);
-      color: var(--text); font-size: 12px;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23888' viewBox='0 0 24 24'%3E%3Cpath d='M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C8.01 14 6 11.99 6 9.5S8.01 5 10.5 5 15 7.01 15 9.5 12.99 14 10.5 14z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat; background-position: 10px center;
+      color: var(--text); font-size: 13px; box-sizing: border-box;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='%23888' viewBox='0 0 24 24'%3E%3Cpath d='M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C8.01 14 6 11.99 6 9.5S8.01 5 10.5 5 15 7.01 15 9.5 12.99 14 10.5 14z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: 12px center;
     }
-    .mir-progress-text { font-size: 12px; color: var(--text2); min-height: 18px; margin-bottom: 10px; }
+    .mir-search:focus { outline: none; border-color: color-mix(in srgb, var(--text) 35%, var(--border)); }
+    .mir-progress-text {
+      font-size: 12px; color: var(--text2); line-height: 1.5;
+      min-height: 0; margin: 0;
+    }
+    .mir-progress-text:not(:empty) { margin-bottom: 12px; }
+    .mir-list-wrap { margin-top: 0; }
     .mir-list {
       max-height: 320px; overflow-y: auto;
       border: 1px solid var(--border); border-radius: 12px; background: var(--bg2);
@@ -2165,7 +2176,7 @@
       .upd-ver-box .value { font-size: 18px; }
       .mir-item { flex-wrap: wrap; }
       .mir-item-meta { width: 100%; justify-content: flex-end; padding-top: 4px; }
-      .mir-search { max-width: none; flex: 1; }
+      .mir-toolbar-left { flex-basis: 100%; }
     }
     .update-progress-modal .modal-panel { max-width: 480px; }
     .update-progress-body { display: flex; flex-direction: column; gap: 16px; }
@@ -3451,7 +3462,7 @@
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span id="sidebar-version">NapCat 插件 · v2.4.2</span>
+          <span id="sidebar-version">NapCat 插件 · v2.4.3</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -5009,8 +5020,10 @@
             </div>
 
             <div class="mir-progress-text" id="mirror-progress-text"></div>
-            <div class="mir-list" id="mirror-list-body">
-              <div class="mir-list-empty">正在加载镜像列表…</div>
+            <div class="mir-list-wrap">
+              <div class="mir-list" id="mirror-list-body">
+                <div class="mir-list-empty">正在加载镜像列表…</div>
+              </div>
             </div>
           </div>
         </div>
@@ -8916,7 +8929,7 @@
       download: 'download',
       extract: 'folder_zip',
       verify: 'verified',
-      install: 'install_desktop',
+      install: 'package_2',
       cleanup: 'cleaning_services',
       reload: 'refresh',
       start: 'play_arrow',
