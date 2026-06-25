@@ -43,8 +43,92 @@ import {
   pingDebugService,
   collectPluginReloadIds
 } from './lib/plugin-reload.mjs';
+import {
+  discoverSkills,
+  skillsToApiList
+} from './lib/skills.mjs';
+import {
+  buildBuiltinTools,
+  buildAgentSystemExtras,
+  createAgentMcpHub,
+  runAgentToolLoop,
+  toolTraceToHistoryMeta
+} from './lib/agent-runtime.mjs';
+import {
+  detectSkillhubCli,
+  getSkillhubInstallDir,
+  skillhubSearch,
+  skillhubInstall,
+  skillhubRemove,
+  scanInstalledSkillhubSkills
+} from './lib/skillhub-cli.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function readPluginVersion() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf-8'));
+    return String(raw.version || '0.0.0');
+  } catch {
+    return '0.0.0';
+  }
+}
+
+const PLUGIN_VERSION = readPluginVersion();
+
+/** index 内联 Node/npm 检测（不 spawn，不依赖 lib 缓存） */
+function inlineFindNpmCmd() {
+  const nodeDir = path.dirname(process.execPath);
+  const seen = new Set();
+  const list = [];
+  const add = (p) => {
+    const n = path.normalize(String(p || '').trim());
+    if (!n || seen.has(n.toLowerCase())) return;
+    seen.add(n.toLowerCase());
+    list.push(n);
+  };
+  add(path.join(nodeDir, 'npm.cmd'));
+  add(path.join(nodeDir, 'npm.exe'));
+  add(path.join(nodeDir, 'npm'));
+  for (const dir of String(process.env.Path || process.env.PATH || '').split(path.delimiter)) {
+    const d = String(dir || '').trim();
+    if (!d) continue;
+    add(path.join(d, 'npm.cmd'));
+    add(path.join(d, 'npm'));
+  }
+  if (process.platform === 'win32') {
+    add('C:\\Program Files\\nodejs\\npm.cmd');
+    add('C:\\Program Files (x86)\\nodejs\\npm.cmd');
+  }
+  for (const c of list) {
+    try { if (fs.existsSync(c)) return c; } catch { /* ignore */ }
+  }
+  return '';
+}
+
+function inlineProbeNodeNpm() {
+  const nodeCmd = process.execPath;
+  const nodeVer = process.version || '';
+  const npmCmd = inlineFindNpmCmd();
+  let npmVer = 'ok';
+  if (npmCmd) {
+    try {
+      const pkg = path.join(path.dirname(npmCmd), 'node_modules', 'npm', 'package.json');
+      if (fs.existsSync(pkg)) {
+        npmVer = String(JSON.parse(fs.readFileSync(pkg, 'utf-8')).version || 'ok');
+      }
+    } catch { /* ignore */ }
+  }
+  return {
+    ok: !!nodeVer && !!npmCmd,
+    node: nodeVer,
+    npm: npmVer,
+    nodeCmd,
+    npmCmd: npmCmd || '(未找到 npm.cmd)',
+    nodeError: nodeVer ? '' : '无 process.version',
+    npmError: npmCmd ? '' : '未找到 npm.cmd（请安装 Node.js LTS）'
+  };
+}
 
 const DEEPSEEK_API = 'https://api.deepseek.com/v1/chat/completions';
 const SILICONFLOW_API = 'https://api.siliconflow.cn/v1/chat/completions';
@@ -306,7 +390,25 @@ const DEFAULT_CONFIG = {
   updateMirrorId: MIRROR_DIRECT_ID,
   updateMirrorBenchmark: {},
   updateMirrorBestId: '',
-  updateMirrorBestTestedAt: 0
+  updateMirrorBestTestedAt: 0,
+  agentToolsEnabled: false,
+  agentMaxToolRounds: 6,
+  skillsEnabled: true,
+  skillsInjectMode: 'auto',
+  skillsMaxHints: 4,
+  skillsDirs: [],
+  skillsAllowlist: [],
+  mcpEnabled: false,
+  mcpServers: [],
+  skillhubRegistry: 'https://skill.xfyun.cn',
+  skillhubToken: '',
+  skillhubEnvReady: false,
+  skillhubCliPath: '',
+  agentShellEnabled: false,
+  agentShellType: 'auto',
+  agentShellTimeoutMs: 120000,
+  agentBrowserEnabled: false,
+  agentBrowserUsePlaywright: true
 };
 
 const conversationHistory = new Map();
@@ -363,7 +465,8 @@ let pluginState = {
   updateProgress: null,
   updateProgressLog: [],
   autoUpdateTimer: null,
-  mirrorBenchmarkRunning: false
+  mirrorBenchmarkRunning: false,
+  mcpHub: null
 };
 let drawBotEngine = null;
 let reactionCaptureSession = null;
@@ -1818,6 +1921,10 @@ async function chatCompletionOnEndpoint(messages, options, endpoint, settings) {
       body.presence_penalty = options.presence_penalty ?? presPenalty;
     }
     if (stop && stop.length) body.stop = stop;
+    if (options.tools?.length) {
+      body.tools = options.tools;
+      body.tool_choice = options.tool_choice || 'auto';
+    }
     if (enableThinking && provider === 'siliconflow') {
       body.extra_body = body.extra_body || {};
       body.extra_body.thinking_budget = options.thinking_budget ?? thinkingBudget;
@@ -1859,19 +1966,29 @@ async function chatCompletionOnEndpoint(messages, options, endpoint, settings) {
       log('warn', '对话 API 响应 JSON 解析失败', e.message, 'api');
       return { ok: false, status: 500, text };
     }
-    const content = data?.choices?.[0]?.message?.content?.trim() || '';
+    const msg = data?.choices?.[0]?.message || {};
+    const content = (msg.content || '').trim();
+    const tool_calls = msg.tool_calls || null;
     const usage = data?.usage;
     if (usage && (usage.prompt_tokens != null || usage.completion_tokens != null)) {
       recordTokenUsage(options.usageKey, usage.prompt_tokens || 0, usage.completion_tokens || 0, useModel);
       log('info', 'Token 使用', { prompt: usage.prompt_tokens, completion: usage.completion_tokens, total: usage.total_tokens, model: useModel, endpoint: endpoint.name }, 'token');
     }
-    return { ok: true, content, usage };
+    return { ok: true, content, tool_calls, usage, rawMessage: msg };
   }
 
   let last = null;
   for (let attempt = 1; attempt <= retries; attempt++) {
     const first = await doRequest(baseModel);
-    if (first.ok) return { ok: true, content: first.content, usage: first.usage };
+    if (first.ok) {
+      return {
+        ok: true,
+        content: first.content,
+        tool_calls: first.tool_calls,
+        usage: first.usage,
+        rawMessage: first.rawMessage
+      };
+    }
     last = first;
 
     const modelRouteErr = isModelRouteError(first.status, first.text);
@@ -1892,7 +2009,15 @@ async function chatCompletionOnEndpoint(messages, options, endpoint, settings) {
         const reason = first.status === 429 ? '429' : transientErr ? 'transient' : 'model_route';
         log('info', '切换备用模型重试', { endpoint: endpoint.name, from: baseModel, to: fallbackModel, provider, reason }, 'model');
         const retry = await doRequest(fallbackModel);
-        if (retry.ok) return { ok: true, content: retry.content, usage: retry.usage };
+        if (retry.ok) {
+          return {
+            ok: true,
+            content: retry.content,
+            tool_calls: retry.tool_calls,
+            usage: retry.usage,
+            rawMessage: retry.rawMessage
+          };
+        }
         last = retry;
         if (first.status === 429 && retry.status !== 429) break;
         if (!isModelRouteError(retry.status, retry.text) && !isTransientApiError(retry.status, retry.text) && first.status !== 429) break;
@@ -1939,6 +2064,28 @@ async function chatCompletion(messages, options = {}) {
     }
   }
   throw lastErr || new Error('API_FAILOVER_EXHAUSTED');
+}
+
+async function ensureAgentMcpHub(cfg, force = false) {
+  if (!cfg?.mcpEnabled) {
+    if (pluginState.mcpHub) {
+      await pluginState.mcpHub.closeAll();
+      pluginState.mcpHub = null;
+    }
+    return null;
+  }
+  if (!pluginState.mcpHub || force) {
+    if (pluginState.mcpHub) await pluginState.mcpHub.closeAll();
+    pluginState.mcpHub = createAgentMcpHub(cfg, {
+      log: (lvl, msg, data) => log(lvl, msg, data, 'mcp')
+    });
+    await pluginState.mcpHub.reload();
+  }
+  const status = pluginState.mcpHub.getStatus();
+  if (force || !status.length || status.some((s) => !s.connected)) {
+    await pluginState.mcpHub.connectAll();
+  }
+  return pluginState.mcpHub;
 }
 
 function formatReply(template, vars) {
@@ -3508,6 +3655,12 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
 
     log('info', '聊天插件已初始化', { apiProvider: pluginState.config.apiProvider || 'siliconflow' }, 'system');
 
+    if (pluginState.config.mcpEnabled) {
+      ensureAgentMcpHub(pluginState.config).catch((e) => {
+        log('warn', 'MCP 初始化失败', e.message, 'mcp');
+      });
+    }
+
     drawBotEngine = createDrawBot({
       fetchJson,
       sendGroup: async (drawCtx, gid, m) => sendGroup(drawCtx, gid, m),
@@ -3806,7 +3959,34 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         if (body.updateMirrorBestTestedAt !== undefined) cfg.updateMirrorBestTestedAt = num('updateMirrorBestTestedAt', 0, 0, Number.MAX_SAFE_INTEGER);
         if (body.fakeHumanParseImage !== undefined) cfg.fakeHumanParseImage = Boolean(body.fakeHumanParseImage);
         if (body.fakeHumanVisionModel !== undefined) cfg.fakeHumanVisionModel = String(body.fakeHumanVisionModel || '').trim();
+        if (body.agentToolsEnabled !== undefined) cfg.agentToolsEnabled = Boolean(body.agentToolsEnabled);
+        if (body.agentMaxToolRounds !== undefined) cfg.agentMaxToolRounds = num('agentMaxToolRounds', 6, 1, 12);
+        if (body.skillsEnabled !== undefined) cfg.skillsEnabled = Boolean(body.skillsEnabled);
+        if (body.skillsInjectMode !== undefined) {
+          const sm = String(body.skillsInjectMode || 'auto').toLowerCase();
+          cfg.skillsInjectMode = ['auto', 'all', 'none', 'off'].includes(sm) ? sm : 'auto';
+        }
+        if (body.skillsMaxHints !== undefined) cfg.skillsMaxHints = num('skillsMaxHints', 4, 1, 8);
+        if (body.skillsDirs !== undefined) cfg.skillsDirs = Array.isArray(body.skillsDirs) ? body.skillsDirs.map(String) : [];
+        if (body.skillsAllowlist !== undefined) cfg.skillsAllowlist = Array.isArray(body.skillsAllowlist) ? body.skillsAllowlist.map(String) : [];
+        if (body.mcpEnabled !== undefined) cfg.mcpEnabled = Boolean(body.mcpEnabled);
+        if (body.mcpServers !== undefined) cfg.mcpServers = Array.isArray(body.mcpServers) ? body.mcpServers : [];
+        if (body.skillhubRegistry !== undefined) cfg.skillhubRegistry = String(body.skillhubRegistry || 'https://skill.xfyun.cn').trim();
+        if (body.skillhubToken !== undefined) cfg.skillhubToken = String(body.skillhubToken || '').trim();
+        if (body.skillhubEnvReady !== undefined) cfg.skillhubEnvReady = Boolean(body.skillhubEnvReady);
+        if (body.skillhubCliPath !== undefined) cfg.skillhubCliPath = String(body.skillhubCliPath || '').trim();
+        if (body.agentShellEnabled !== undefined) cfg.agentShellEnabled = Boolean(body.agentShellEnabled);
+        if (body.agentShellType !== undefined) cfg.agentShellType = String(body.agentShellType || 'auto');
+        if (body.agentShellTimeoutMs !== undefined) cfg.agentShellTimeoutMs = num('agentShellTimeoutMs', 120000, 5000, 600000);
+        if (body.agentBrowserEnabled !== undefined) cfg.agentBrowserEnabled = Boolean(body.agentBrowserEnabled);
+        if (body.agentBrowserUsePlaywright !== undefined) cfg.agentBrowserUsePlaywright = Boolean(body.agentBrowserUsePlaywright);
         saveConfig(ctx);
+        if (cfg.mcpEnabled) {
+          ensureAgentMcpHub(cfg, true).catch((e) => log('warn', 'MCP 重载失败', e.message, 'mcp'));
+        } else if (pluginState.mcpHub) {
+          pluginState.mcpHub.closeAll().catch(() => {});
+          pluginState.mcpHub = null;
+        }
         res.json({ success: true });
       });
 
@@ -4296,6 +4476,261 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         }
       });
 
+      router.getNoAuth('/agent/status', async (_, res) => {
+        try {
+          const cfg = pluginState.config || {};
+          const skills = discoverSkills(cfg, __dirname);
+          let mcpStatus = [];
+          if (cfg.mcpEnabled) {
+            await ensureAgentMcpHub(cfg);
+            mcpStatus = pluginState.mcpHub?.getStatus() || [];
+          }
+          res.json({
+            success: true,
+            agentToolsEnabled: !!cfg.agentToolsEnabled,
+            skillsEnabled: !!cfg.skillsEnabled,
+            mcpEnabled: !!cfg.mcpEnabled,
+            skills: skillsToApiList(skills),
+            mcp: mcpStatus,
+            mcpToolCount: pluginState.mcpHub?.getOpenAiTools()?.length || 0
+          });
+        } catch (e) {
+          res.json({ success: false, error: e?.message || String(e) });
+        }
+      });
+
+      router.getNoAuth('/skills/list', (_, res) => {
+        const cfg = pluginState.config || {};
+        const skills = discoverSkills(cfg, __dirname);
+        res.json({ success: true, skills: skillsToApiList(skills) });
+      });
+
+      router.postNoAuth('/agent/reload', async (_, res) => {
+        try {
+          const cfg = pluginState.config || {};
+          if (cfg.mcpEnabled) {
+            await ensureAgentMcpHub(cfg, true);
+          } else if (pluginState.mcpHub) {
+            await pluginState.mcpHub.closeAll();
+            pluginState.mcpHub = null;
+          }
+          res.json({
+            success: true,
+            mcp: pluginState.mcpHub?.getStatus() || [],
+            skills: skillsToApiList(discoverSkills(cfg, __dirname))
+          });
+        } catch (e) {
+          res.json({ success: false, error: e?.message || String(e) });
+        }
+      });
+
+      router.postNoAuth('/agent/mcp/test', async (req, res) => {
+        try {
+          const serverId = String(req.body?.serverId || req.body?.id || '').trim();
+          const cfg = pluginState.config || {};
+          const servers = Array.isArray(cfg.mcpServers) ? cfg.mcpServers : [];
+          const target = servers.find((s) => String(s.id) === serverId);
+          if (!target) {
+            res.json({ success: false, error: '未找到 MCP 服务配置' });
+            return;
+          }
+          const hub = createAgentMcpHub({ mcpServers: [target] }, {
+            log: (lvl, msg, data) => log(lvl, msg, data, 'mcp')
+          });
+          await hub.reload();
+          const [status] = await hub.connectAll();
+          await hub.closeAll();
+          res.json({ success: true, status });
+        } catch (e) {
+          res.json({ success: false, error: e?.message || String(e) });
+        }
+      });
+
+      router.getNoAuth('/skillhub/env/status', async (_, res) => {
+        try {
+          const { getSkillhubEnvStatus } = await import('./lib/skillhub-env.mjs');
+          const cfg = pluginState.config || {};
+          const status = await getSkillhubEnvStatus(cfg, __dirname);
+          res.json({ success: true, ...status });
+        } catch (e) {
+          res.json({ success: false, error: e?.message || String(e), pluginVersion: PLUGIN_VERSION });
+        }
+      });
+
+      router.getNoAuth('/skillhub/env/ping', (_, res) => {
+        res.json({
+          success: true,
+          pluginVersion: PLUGIN_VERSION,
+          node: process.version,
+          execPath: process.execPath,
+          platform: process.platform
+        });
+      });
+
+      router.getNoAuth('/skillhub/env/logs', async (req, res) => {
+        const since = parseInt(req.query?.since, 10) || 0;
+        try {
+          const setup = await import('./lib/skillhub-setup.mjs');
+          res.json({ success: true, pluginVersion: PLUGIN_VERSION, ...setup.getSkillhubSetupLogs(since) });
+        } catch (e) {
+          res.json({ success: false, error: e?.message || String(e), pluginVersion: PLUGIN_VERSION });
+        }
+      });
+
+      router.postNoAuth('/skillhub/env/setup', async (req, res) => {
+        const cfg = pluginState.config || {};
+        const body = req.body || {};
+        let setupMod;
+        try {
+          setupMod = await import('./lib/skillhub-setup.mjs');
+        } catch (e) {
+          res.json({ success: false, error: `无法加载 lib/skillhub-setup.mjs: ${e?.message || e}` });
+          return;
+        }
+        if (typeof setupMod.runSkillhubEnvSetupFromStep2 !== 'function') {
+          res.json({ success: false, error: 'lib/skillhub-setup.mjs 过旧，请完整复制 lib 目录后重启 NapCat' });
+          return;
+        }
+        if (setupMod.getSkillhubSetupLogs(0).running) {
+          res.json({ success: false, error: '配置任务进行中' });
+          return;
+        }
+        res.json({ success: true, started: true, pluginVersion: PLUGIN_VERSION });
+
+        setupMod.skillhubSetupReset();
+        setupMod.skillhubSetupPushLog('=== SkillHub 环境配置开始 ===');
+        setupMod.skillhubSetupPushLog(`平台: ${process.platform} · 插件目录: ${__dirname}`);
+        setupMod.skillhubSetupPushLog(`[index] v${PLUGIN_VERSION} · 内联检测（不 spawn 子进程）`);
+
+        const node = inlineProbeNodeNpm();
+        setupMod.skillhubSetupPushLog('[1/5] 检测 Node.js / npm…');
+        if (!node.ok) {
+          setupMod.skillhubSetupPushLog(`  Node: ${node.node || '—'} @ ${node.nodeCmd}`);
+          setupMod.skillhubSetupPushLog(`  npm: ${node.npmCmd}`);
+          setupMod.skillhubSetupPushLog(`  问题: ${node.npmError || node.nodeError}`);
+          setupMod.skillhubSetupFinishError(node.npmError || node.nodeError || '未检测到 Node.js/npm');
+          return;
+        }
+        setupMod.skillhubSetupPushLog(`  Node ${node.node} (${node.nodeCmd})`);
+        setupMod.skillhubSetupPushLog(`  npm ${node.npm} (${node.npmCmd})`);
+
+        const ctx = pluginState.runtimeCtx;
+        setupMod.runSkillhubEnvSetupFromStep2(cfg, __dirname, (partial) => {
+          Object.assign(pluginState.config, partial);
+          saveConfig(ctx);
+        }, {
+          installPlaywright: body.installPlaywright !== false,
+          installCliGlobal: body.installCliGlobal !== false
+        }).catch((e) => log('error', 'SkillHub 环境配置失败', e.message, 'skillhub'));
+      });
+
+      router.postNoAuth('/skillhub/env/playwright', async (_, res) => {
+        let setupMod;
+        try {
+          setupMod = await import('./lib/skillhub-setup.mjs');
+        } catch (e) {
+          res.json({ success: false, error: `无法加载 lib/skillhub-setup.mjs: ${e?.message || e}` });
+          return;
+        }
+        if (typeof setupMod.runPlaywrightInstallOnly !== 'function') {
+          res.json({ success: false, error: 'lib/skillhub-setup.mjs 过旧，请完整复制 lib 目录后重启 NapCat' });
+          return;
+        }
+        if (setupMod.getSkillhubSetupLogs(0).running) {
+          res.json({ success: false, error: '配置任务进行中' });
+          return;
+        }
+        res.json({ success: true, started: true, pluginVersion: PLUGIN_VERSION });
+        const ctx = pluginState.runtimeCtx;
+        setupMod.runPlaywrightInstallOnly(__dirname, (partial) => {
+          Object.assign(pluginState.config, partial);
+          saveConfig(ctx);
+        }).catch((e) => log('error', 'Playwright 安装失败', e.message, 'skillhub'));
+      });
+
+      router.getNoAuth('/skillhub/search', async (req, res) => {
+        try {
+          const cfg = pluginState.config || {};
+          if (!cfg.skillhubEnvReady) {
+            res.json({ success: false, error: '环境未配置', needSetup: true });
+            return;
+          }
+          const q = String(req.query?.q || '').trim();
+          const cli = await detectSkillhubCli(cfg);
+          const r = await skillhubSearch(cfg, cli, q);
+          if (!r.ok) {
+            const err = r.stderr || r.stdout || '搜索失败';
+            res.json({ success: false, error: err, via: r.via || 'unknown' });
+            return;
+          }
+          const payload = r.json || { items: [], total: 0 };
+          res.json({ success: true, data: payload, items: payload.items || [], total: payload.total ?? 0, via: r.via || 'http' });
+        } catch (e) {
+          res.json({ success: false, error: e?.message || String(e) });
+        }
+      });
+
+      router.getNoAuth('/skillhub/installed', async (_, res) => {
+        try {
+          const cfg = pluginState.config || {};
+          const installDir = getSkillhubInstallDir(__dirname);
+          const installed = scanInstalledSkillhubSkills(installDir);
+          res.json({ success: true, envReady: !!cfg.skillhubEnvReady, installed, installDir });
+        } catch (e) {
+          res.json({ success: false, error: e?.message || String(e) });
+        }
+      });
+
+      router.postNoAuth('/skillhub/install', async (req, res) => {
+        try {
+          const cfg = pluginState.config || {};
+          if (!cfg.skillhubEnvReady) {
+            res.json({ success: false, error: '请先一键配置环境', needSetup: true });
+            return;
+          }
+          const slug = String(req.body?.slug || '').trim();
+          if (!slug) {
+            res.json({ success: false, error: '缺少 slug' });
+            return;
+          }
+          const cli = await detectSkillhubCli(cfg);
+          const installDir = getSkillhubInstallDir(__dirname);
+          const r = await skillhubInstall(cfg, cli, slug, installDir, {
+            namespace: req.body?.namespace
+          });
+          if (!r.ok) {
+            res.json({ success: false, error: r.stderr || r.stdout || '安装失败' });
+            return;
+          }
+          const skillsDirs = Array.isArray(cfg.skillsDirs) ? [...cfg.skillsDirs] : [];
+          if (!skillsDirs.includes(installDir)) {
+            cfg.skillsDirs = [...skillsDirs, installDir];
+            cfg.skillsEnabled = true;
+            saveConfig(pluginState.runtimeCtx);
+          }
+          res.json({ success: true, data: r.json, installed: scanInstalledSkillhubSkills(installDir), installDir });
+        } catch (e) {
+          res.json({ success: false, error: e?.message || String(e) });
+        }
+      });
+
+      router.postNoAuth('/skillhub/remove', async (req, res) => {
+        try {
+          const cfg = pluginState.config || {};
+          const slug = String(req.body?.slug || '').trim();
+          if (!slug) {
+            res.json({ success: false, error: '缺少 slug' });
+            return;
+          }
+          const cli = await detectSkillhubCli(cfg);
+          const installDir = getSkillhubInstallDir(__dirname);
+          const r = await skillhubRemove(cfg, cli, slug, installDir);
+          res.json({ success: r.ok, data: r.json, error: r.ok ? '' : (r.stderr || '删除失败'), installed: scanInstalledSkillhubSkills(installDir) });
+        } catch (e) {
+          res.json({ success: false, error: e?.message || String(e) });
+        }
+      });
+
       router.getNoAuth('/history/get', (req, res) => {
         const key = (req.query?.key || '').trim();
         if (!key) {
@@ -4358,8 +4793,10 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
       scheduleAutoUpdate(ctx);
     }
   } catch (e) {
-    pluginState.logger?.error?.('[chat-bot] 插件初始化失败: ' + (e?.message || e));
-    throw e;
+    const msg = e?.message || String(e);
+    const stack = e?.stack ? String(e.stack).split('\n').slice(0, 5).join('\n') : '';
+    pluginState.logger?.error?.('[chat-bot] 插件初始化失败: ' + msg + (stack ? '\n' + stack : ''));
+    // 不向上抛出，避免 NapCat 报 "failed to load (check plugin structure)"
   }
   pluginState.logger?.info?.('[chat-bot] 聊天插件已初始化，@机器人 或 指令 即可对话');
 };
@@ -4530,7 +4967,7 @@ const plugin_onmessage = async (ctx, event) => {
     }
   }
 
-  if (cfg.webSearchEnabled && imageUrls.length === 0) {
+  if (cfg.webSearchEnabled && imageUrls.length === 0 && !cfg.agentToolsEnabled) {
     const historySummary = history.slice(-4).map((h) => h.content).join(' ').slice(0, 300);
     const smartMode = (cfg.smartSearchQueryMode || 'ai').toLowerCase();
     const triple = !!cfg.webSearchTriple;
@@ -4610,6 +5047,10 @@ const plugin_onmessage = async (ctx, event) => {
     }
   }
 
+  if (cfg.skillsEnabled) {
+    systemContent += buildAgentSystemExtras(cfg, __dirname, userText);
+  }
+
   const userMessage = userText
     || (imageAnalysis ? '请根据图片信息和上下文自然地回复用户。' : '你好');
   const messages = [
@@ -4620,13 +5061,31 @@ const plugin_onmessage = async (ctx, event) => {
 
   let replyText;
   let fromRateLimit = false;
+  let agentToolTrace = [];
   try {
-    const result = await chatCompletion(messages, { usageKey: key });
-    if (result && typeof result === 'object') {
-      replyText = result.content !== undefined ? result.content : (result.text !== undefined ? result.text : '');
-      if (result.ok === false && result.status === 429 && result.text) fromRateLimit = true;
+    if (cfg.agentToolsEnabled) {
+      await ensureAgentMcpHub(cfg);
+      const maxRounds = Math.max(1, Math.min(12, Number(cfg.agentMaxToolRounds) || 6));
+      const agentResult = await runAgentToolLoop({
+        messages,
+        chatCompletion,
+        cfg,
+        mcpHub: pluginState.mcpHub,
+        builtinTools: buildBuiltinTools(cfg, __dirname),
+        runtime: { cfg, webSearchMulti, pluginRoot: __dirname },
+        maxRounds,
+        onToolExecuted: (t) => log('info', 'Agent 工具调用', t, 'agent')
+      });
+      replyText = agentResult.content;
+      agentToolTrace = agentResult.toolTrace || [];
     } else {
-      replyText = typeof result === 'string' ? result : '';
+      const result = await chatCompletion(messages, { usageKey: key });
+      if (result && typeof result === 'object') {
+        replyText = result.content !== undefined ? result.content : (result.text !== undefined ? result.text : '');
+        if (result.ok === false && result.status === 429 && result.text) fromRateLimit = true;
+      } else {
+        replyText = typeof result === 'string' ? result : '';
+      }
     }
   } catch (err) {
     log('error', '对话生成异常', { message: err.message, hadImage: imageUrls.length > 0 }, 'chat');
@@ -4647,6 +5106,7 @@ const plugin_onmessage = async (ctx, event) => {
 
   pushHistory(key, 'user', historyLabelForUser(userText, imageUrls.length > 0));
   const assistantTools = [];
+  if (agentToolTrace.length) assistantTools.push(...toolTraceToHistoryMeta(agentToolTrace));
   if (searchResult) assistantTools.push({ type: 'web_search', queries: searchQueries, result: searchResult });
   if (imageAnalysis) assistantTools.push({ type: 'image_vision', result: imageAnalysis });
   pushHistory(key, 'assistant', replyText, assistantTools.length ? { tools: assistantTools } : {});

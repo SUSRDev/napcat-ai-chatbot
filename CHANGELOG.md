@@ -1,5 +1,38 @@
 # 更新日志
 
+## [2.6.12] — 2026-06-25
+
+### 新增
+
+- **Agent 工具循环**：AI 可在单次对话中多轮调用工具（最多 `agentMaxToolRounds` 轮），通过 `agentToolsEnabled` 开关控制。
+- **Agent Shell**：新增 `builtin_shell_exec` 内置工具，AI 可执行 PowerShell/cmd/bash 命令，支持超时配置（`agentShellTimeoutMs`）。
+- **Agent 浏览器**：新增 `builtin_browser_snapshot` / `builtin_browser_act` 内置工具，基于 Playwright 实现截图与页面操作，由 `agentBrowserEnabled` 控制。
+- **MCP 客户端**：新增 MCP stdio 客户端支持，启动时自动连接已配置的 MCP 服务器（`mcpEnabled` / `mcpServers`）。
+- **本地技能（Skills）注入**：支持从本地目录加载 `SKILL.md` 技能文件并注入到系统提示，可通过 `skillsEnabled`、`skillsInjectMode`、`skillsDirs` 等配置项控制。
+- **SkillHub 商店**：集成 `@astron-team/skillhub` CLI，支持在线搜索、安装、移除技能包，环境检测自动识别 Node/npm 路径。
+
+### 改进
+
+- **工具调用透传**：对话 API 响应新增 `tool_calls` 与 `rawMessage` 字段，主备模型切换时完整保留工具调用结果。
+- **配置项扩展**：`DEFAULT_CONFIG` 新增 Agent、Skills、MCP、SkillHub 相关配置项，均支持通过设置接口动态保存。
+
+---
+
+## [2.6.0] — 2026-06-25
+
+### 新增
+
+- **SkillHub 商店（CLI）**：侧边栏「Skills 商店」页，在 NapCat 服务器上一键配置环境（Node/npm、@astron-team/skillhub CLI、技能目录、Playwright）；配置前为空状态，配置后支持搜索/安装/移除技能。
+- **Agent Shell**：`builtin_shell_exec` 工具，AI 可执行 PowerShell/cmd/bash（可配置开关）。
+- **Agent 浏览器**：`builtin_browser_snapshot` / `builtin_browser_act`，Playwright 截图与页面操作（环境配置时安装）。
+- **Agent / MCP / Skills**：Agent 工具循环、MCP stdio 客户端、本地 SKILL.md 技能注入（见 Agent 扩展页）。
+
+### 改进
+
+- 对话管理工具折叠框支持 Shell、浏览器、MCP 工具结果展示。
+
+---
+
 ## [2.5.5] — 2026-06-25
 
 ### 修复

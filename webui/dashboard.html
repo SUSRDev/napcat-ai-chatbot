@@ -2958,6 +2958,291 @@
       display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); cursor: pointer;
     }
     .failover-list { padding: 12px 14px 16px; display: flex; flex-direction: column; gap: 10px; min-height: 48px; }
+    /* Agent / SkillHub 页 */
+    #pg-agent .form-row.form-row-top,
+    #pg-skillhub .form-row.form-row-top {
+      align-items: start;
+    }
+    #pg-agent .form-row.form-row-top .form-label,
+    #pg-skillhub .form-row.form-row-top .form-label {
+      padding-top: 2px;
+    }
+    #pg-agent .agent-field-block,
+    #pg-skillhub .agent-field-block {
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    #pg-agent .agent-field-block:last-of-type,
+    #pg-skillhub .agent-field-block:last-of-type {
+      border-bottom: none;
+    }
+    #pg-agent .agent-field-label,
+    #pg-skillhub .agent-field-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    #pg-agent .agent-field-hint,
+    #pg-skillhub .agent-field-hint {
+      font-size: 11px;
+      color: var(--text3);
+      line-height: 1.55;
+      margin: 0 0 10px;
+    }
+    #pg-agent .agent-textarea,
+    #pg-skillhub .agent-textarea {
+      width: 100%;
+      max-width: none;
+      font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    #pg-agent .agent-textarea-sm,
+    #pg-skillhub .agent-textarea-sm { min-height: 72px; }
+    #pg-agent .agent-textarea-lg,
+    #pg-skillhub .agent-textarea-lg { min-height: 200px; }
+    #pg-agent .section-body .form-row:last-child,
+    #pg-skillhub .section-body .form-row:last-child {
+      border-bottom: none;
+    }
+    #pg-agent .agent-toolbar,
+    #pg-skillhub .agent-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 8px 0 12px;
+    }
+    #pg-agent .agent-panel,
+    #pg-skillhub .agent-panel {
+      margin: 8px 0 0;
+      padding: 12px 14px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 12px;
+      line-height: 1.55;
+      color: var(--text2);
+    }
+    #pg-agent .agent-panel.mono,
+    #pg-skillhub .agent-panel.mono {
+      font-family: ui-monospace, Consolas, monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    #pg-agent .agent-skill-card,
+    #pg-skillhub .agent-skill-card {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+    }
+    #pg-agent .agent-skill-card .skill-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.35;
+    }
+    #pg-agent .agent-skill-card .skill-id {
+      font-size: 11px;
+      color: var(--text3);
+      font-family: ui-monospace, Consolas, monospace;
+    }
+    #pg-agent .agent-skill-card .skill-desc {
+      font-size: 12px;
+      color: var(--text2);
+      line-height: 1.5;
+    }
+    #pg-agent .agent-skill-card .skill-triggers {
+      font-size: 11px;
+      color: var(--text3);
+      padding-top: 4px;
+      border-top: 1px dashed var(--border);
+    }
+    #pg-agent #agent-skills-list,
+    #pg-skillhub #skillhub-search-results,
+    #pg-skillhub #skillhub-installed-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 0 0 8px;
+      min-height: 0;
+    }
+    #pg-skillhub #skillhub-setup-log {
+      min-height: 200px;
+      max-height: 320px;
+      padding: 12px 14px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.55;
+      overflow: auto;
+    }
+    #pg-skillhub .skillhub-meta {
+      font-size: 11px;
+      color: var(--text3);
+      margin-bottom: 10px;
+      font-family: ui-monospace, Consolas, monospace;
+    }
+    #pg-skillhub .skillhub-status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+      gap: 8px;
+    }
+    #pg-skillhub .skillhub-stat {
+      padding: 10px 12px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      min-width: 0;
+    }
+    #pg-skillhub .skillhub-stat-label {
+      font-size: 11px;
+      color: var(--text3);
+      margin-bottom: 4px;
+    }
+    #pg-skillhub .skillhub-stat-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    #pg-skillhub .skillhub-stat-value.ok { color: #4ade80; }
+    #pg-skillhub .skillhub-stat-value.warn { color: #fbbf24; }
+    #pg-skillhub .skillhub-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    #pg-skillhub .skillhub-search-bar {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+      margin-bottom: 12px;
+    }
+    #pg-skillhub .skillhub-search-bar .ipt {
+      flex: 1;
+      min-width: 0;
+    }
+    #pg-skillhub .skillhub-skill-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 12px;
+    }
+    #pg-skillhub .skillhub-skill-card {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+      transition: border-color 0.15s, box-shadow 0.15s;
+      min-height: 0;
+    }
+    #pg-skillhub .skillhub-skill-card:hover {
+      border-color: var(--border-hover);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+    #pg-skillhub .skillhub-skill-body {
+      flex: 1;
+      min-width: 0;
+    }
+    #pg-skillhub .skillhub-skill-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.4;
+      margin-bottom: 4px;
+      word-break: break-word;
+    }
+    #pg-skillhub .skillhub-skill-id {
+      display: inline-block;
+      font-size: 10px;
+      color: var(--text3);
+      font-family: ui-monospace, Consolas, monospace;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      margin-bottom: 8px;
+    }
+    #pg-skillhub .skillhub-skill-desc {
+      font-size: 12px;
+      color: var(--text2);
+      line-height: 1.55;
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      min-height: 3.1em;
+    }
+    #pg-skillhub .skillhub-skill-actions {
+      flex-shrink: 0;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+    }
+    #pg-skillhub .skillhub-skill-actions .btn {
+      min-width: 72px;
+    }
+    #pg-skillhub .skillhub-results-head {
+      font-size: 12px;
+      color: var(--text3);
+      margin-bottom: 10px;
+      padding: 6px 10px;
+      background: var(--bg2);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+    #pg-skillhub .skillhub-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    #pg-skillhub .skillhub-layout .section {
+      margin-bottom: 0;
+    }
+    #pg-skillhub .skillhub-empty-card {
+      padding: 28px 16px;
+      text-align: center;
+      color: var(--text3);
+      font-size: 13px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      line-height: 1.6;
+    }
+    #pg-skillhub .skillhub-setup-box {
+      max-width: 520px;
+      margin: 0 auto;
+      text-align: left;
+    }
+    #pg-skillhub .skillhub-setup-hero {
+      text-align: center;
+      padding: 32px 20px 8px;
+    }
+    #pg-skillhub .skillhub-setup-hero .material-symbols-outlined {
+      font-size: 48px;
+      opacity: 0.35;
+      display: block;
+      margin-bottom: 12px;
+    }
+    #pg-skillhub .form-hint {
+      font-size: 11px;
+      color: var(--text3);
+      margin-top: 6px;
+      line-height: 1.5;
+    }
     .failover-list-empty {
       padding: 28px 16px; text-align: center; color: var(--text3); font-size: 12px;
       border: 1px dashed var(--border); border-radius: var(--radius);
@@ -3583,7 +3868,7 @@
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span id="sidebar-version">NapCat 插件 · v2.5.5</span>
+          <span id="sidebar-version">NapCat 插件 · v2.6.12</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -3618,6 +3903,16 @@
           <span class="material-symbols-outlined nav-icon">imagesmode</span>
           图像生成
           </div>
+        <div class="nav-item" data-page="agent" data-title="Agent / MCP">
+          <span class="material-symbols-outlined nav-icon">psychology</span>
+          Agent 扩展
+        </div>
+        <!-- [hidden] Skills 商店导航 — 恢复时取消注释
+        <div class="nav-item" data-page="skillhub" data-title="Skills 商店">
+          <span class="material-symbols-outlined nav-icon">storefront</span>
+          Skills 商店
+        </div>
+        -->
 
         <div class="nav-section-label">行为控制</div>
         <div class="nav-item" data-page="trigger" data-title="触发与指令">
@@ -3896,24 +4191,24 @@
             <div class="tgl" id="tgl-advancedSamplingEnabled" onclick="toggleAdvancedSampling(this)"></div>
           </div>
           <div class="advanced-sampling-panel" id="advanced-sampling-panel">
-            <div class="param-grid">
-              <div class="param-cell">
+          <div class="param-grid">
+            <div class="param-cell">
                 <div class="param-label">温度 (temperature)</div>
-                <input type="number" class="ipt" id="cfg-temperature" min="0" max="2" step="0.1" value="0.6" />
+              <input type="number" class="ipt" id="cfg-temperature" min="0" max="2" step="0.1" value="0.6" />
                 <div class="param-hint">创造性，0.5–0.7 常用</div>
-              </div>
-              <div class="param-cell">
-                <div class="param-label">Top-P</div>
-                <input type="number" class="ipt" id="cfg-top_p" min="0" max="1" step="0.05" value="0.95" />
-                <div class="param-hint">核采样</div>
-              </div>
-              <div class="param-cell">
-                <div class="param-label">Top-K</div>
-                <input type="number" class="ipt" id="cfg-top_k" min="1" max="100" value="20" />
-              </div>
-              <div class="param-cell">
-                <div class="param-label">Freq Penalty</div>
-                <input type="number" class="ipt" id="cfg-frequency_penalty" min="-2" max="2" step="0.1" value="0" />
+            </div>
+            <div class="param-cell">
+              <div class="param-label">Top-P</div>
+              <input type="number" class="ipt" id="cfg-top_p" min="0" max="1" step="0.05" value="0.95" />
+              <div class="param-hint">核采样</div>
+            </div>
+            <div class="param-cell">
+              <div class="param-label">Top-K</div>
+              <input type="number" class="ipt" id="cfg-top_k" min="1" max="100" value="20" />
+            </div>
+            <div class="param-cell">
+              <div class="param-label">Freq Penalty</div>
+              <input type="number" class="ipt" id="cfg-frequency_penalty" min="-2" max="2" step="0.1" value="0" />
               </div>
             </div>
           </div>
@@ -3958,7 +4253,7 @@
           <div class="form-row">
               <div class="form-label">Cookies<div class="hint">可选；Kimi Code 视觉请求附加 Cookie 与 KimiCLI User-Agent</div></div>
               <textarea class="ipt" id="cfg-kimiVisionCookies" rows="2" placeholder="kimi-auth=...; 其他 cookie 键值对" style="font-family:monospace;font-size:12px"></textarea>
-          </div>
+        </div>
 
           <div class="failover-head" style="border-top:1px solid var(--border)">
             <div class="failover-head-title">
@@ -4460,6 +4755,162 @@
           <span class="save-hint">保存思考/回复表情设置</span>
         </div>
       </div>
+
+      <div id="pg-agent" class="page">
+        <h2 class="page-title">Agent / MCP</h2>
+        <p class="page-desc">Agent 模式用于多轮调用工具；MCP 用于连接外部工具服务（文件、数据库、GitHub 等）。开启 Agent 工具循环后，模型可按需调用 MCP 与内置工具。</p>
+
+        <div class="section">
+          <div class="section-title">Agent 工具循环</div>
+          <div class="section-body">
+          <div class="form-row">
+            <div class="form-label">启用 Agent 模式<div class="hint">开启后使用 OpenAI function calling 多轮调用工具；联网搜索改为由模型按需调用（需同时开启智能搜索）</div></div>
+            <div class="tgl" id="tgl-agentToolsEnabled" onclick="toggle(this,'agentToolsEnabled')"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">最大工具轮次</div>
+            <input type="number" class="ipt" id="cfg-agentMaxToolRounds" min="1" max="12" value="6" style="max-width:100px" />
+          </div>
+          </div>
+        </div>
+
+        <!-- [hidden] Agent Skills 区块 — 恢复时取消注释
+        <div class="section">
+          <div class="section-title">Skills（技能包）</div>
+          <div class="section-body">
+          <p class="section-subtitle">将 SKILL.md 放入插件目录 skills/子目录/，或配置额外路径。格式兼容 OpenClaw / Agent Skills 风格。</p>
+          <div class="form-row">
+            <div class="form-label">启用 Skills 注入</div>
+            <div class="tgl" id="tgl-skillsEnabled" onclick="toggle(this,'skillsEnabled')"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">注入模式</div>
+            <select class="ipt" id="cfg-skillsInjectMode" style="max-width:280px">
+              <option value="auto">auto — 按触发词 / 摘要</option>
+              <option value="all">all — 注入全部技能</option>
+              <option value="none">none — 不注入</option>
+            </select>
+          </div>
+          <div class="form-row form-row-top">
+            <div class="form-label">额外技能目录<div class="hint">每行一个路径，相对插件根目录或绝对路径</div></div>
+            <textarea class="ipt agent-textarea agent-textarea-sm" id="cfg-skillsDirs" rows="3" placeholder="skills/custom&#10;D:/my-skills"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-label">技能白名单<div class="hint">留空=全部；填写技能 id，逗号分隔</div></div>
+            <input type="text" class="ipt" id="cfg-skillsAllowlist" placeholder="napcat-helper, code-review" />
+          </div>
+          <div class="agent-toolbar">
+            <button type="button" class="btn btn-s" onclick="loadAgentStatus()"><span class="material-symbols-outlined">refresh</span>刷新技能列表</button>
+          </div>
+          <div id="agent-skills-list"></div>
+          </div>
+        </div>
+        -->
+
+        <div class="section">
+          <div class="section-title">MCP 服务</div>
+          <div class="section-body">
+          <p class="section-subtitle">配置 stdio 型 MCP Server（会启动子进程，请仅连接可信服务）。示例：filesystem、fetch、sqlite 等社区服务器。</p>
+          <div class="form-row">
+            <div class="form-label">启用 MCP</div>
+            <div class="tgl" id="tgl-mcpEnabled" onclick="toggle(this,'mcpEnabled')"></div>
+          </div>
+          <div class="form-row form-row-top">
+            <div class="form-label">MCP 服务器 JSON<div class="hint">JSON 数组，每项含 <code>id</code>、<code>name</code>、<code>command</code>、<code>args</code>、<code>enabled</code></div></div>
+            <textarea class="ipt agent-textarea agent-textarea-lg" id="cfg-mcpServers" rows="10" placeholder='[
+  {
+    "id": "filesystem",
+    "name": "本地文件",
+    "enabled": true,
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-filesystem", "D:/allowed"]
+  }
+]'></textarea>
+          </div>
+          <div class="agent-toolbar">
+            <button type="button" class="btn btn-s" onclick="reloadAgentHub()"><span class="material-symbols-outlined">hub</span>重载 MCP</button>
+            <button type="button" class="btn btn-s" onclick="loadAgentStatus()"><span class="material-symbols-outlined">monitoring</span>查看状态</button>
+          </div>
+          <div id="agent-mcp-status" class="agent-panel mono"></div>
+          </div>
+        </div>
+
+        <button class="btn btn-p" onclick="saveConfig()">保存配置</button>
+      </div>
+
+      <!-- [hidden] Skills 商店页面 — 恢复时取消注释
+      <div id="pg-skillhub" class="page">
+        <h2 class="page-title">Skills 商店 · SkillHub</h2>
+        <p class="page-desc">接入 <a href="https://www.skillhub.cn/" target="_blank" rel="noopener">SkillHub</a> 技能生态。在 <strong>NapCat 服务器</strong>上一键配置环境后即可搜索安装技能。</p>
+
+        <div id="skillhub-empty" class="section">
+          <div class="skillhub-setup-hero">
+            <span class="material-symbols-outlined">build_circle</span>
+            <div style="font-size:16px;font-weight:600;margin-bottom:8px">环境尚未配置</div>
+            <p class="section-subtitle" style="max-width:520px;margin:0 auto">将自动检测 Node/npm、安装 SkillHub CLI、创建技能目录，并可选安装 Playwright（浏览器自动化）。</p>
+          </div>
+          <div class="skillhub-setup-box">
+            <div class="form-row">
+              <div class="form-label">API Registry</div>
+              <input type="text" class="ipt" id="cfg-skillhubRegistry" value="https://skill.xfyun.cn" />
+              <div class="form-hint">填 API 地址 <code>https://skill.xfyun.cn</code>，不是官网 skillhub.cn</div>
+            </div>
+            <div class="form-row">
+              <div class="form-label">API Token（可选）</div>
+              <input type="password" class="ipt" id="cfg-skillhubToken" placeholder="sk_… 留空可浏览公开技能" />
+            </div>
+            <div style="text-align:center;margin-top:8px">
+              <button type="button" class="btn btn-p" id="btn-skillhub-setup" onclick="startSkillhubEnvSetup()">
+                <span class="material-symbols-outlined">rocket_launch</span> 一键配置环境
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="skillhub-setup-panel" class="section" style="display:none">
+          <div class="section-title">环境配置日志</div>
+          <div id="skillhub-setup-log"></div>
+        </div>
+
+        <div id="skillhub-shop" class="skillhub-layout" style="display:none">
+          <div class="section">
+            <div class="section-title">环境状态</div>
+            <div class="skillhub-meta" id="skillhub-status-meta"></div>
+            <div id="skillhub-status-grid" class="skillhub-status-grid"></div>
+            <div class="skillhub-actions">
+              <button type="button" class="btn btn-s" onclick="startSkillhubEnvSetup(true)">重新配置环境</button>
+              <button type="button" class="btn btn-s" id="btn-skillhub-playwright" onclick="startPlaywrightInstall()" style="display:none">安装 Playwright</button>
+              <button type="button" class="btn btn-s" onclick="loadSkillhubPage()">刷新</button>
+            </div>
+          </div>
+          <div class="section">
+            <div class="section-title">搜索技能</div>
+            <div class="skillhub-search-bar">
+              <input type="text" class="ipt" id="skillhub-search-q" placeholder="关键词，如 pdf、爬虫、openclaw" onkeydown="if(event.key==='Enter')skillhubDoSearch()" />
+              <button type="button" class="btn btn-p" id="btn-skillhub-search" onclick="skillhubDoSearch()">搜索</button>
+            </div>
+            <div id="skillhub-search-results" class="skillhub-skill-list"></div>
+          </div>
+          <div class="section">
+            <div class="section-title">已安装技能</div>
+            <div id="skillhub-installed-list" class="skillhub-skill-list"></div>
+          </div>
+          <div class="section">
+            <div class="section-title">Agent 手脚</div>
+            <p class="section-subtitle">AI 可通过 Agent 模式调用 Shell 与浏览器（Playwright）。请在「Agent 扩展」页开启 Agent 工具循环。</p>
+            <div class="form-row">
+              <div class="form-label">允许 Shell 执行</div>
+              <div class="tgl" id="tgl-agentShellEnabled" onclick="toggle(this,'agentShellEnabled')"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-label">允许浏览器自动化</div>
+              <div class="tgl" id="tgl-agentBrowserEnabled" onclick="toggle(this,'agentBrowserEnabled')"></div>
+            </div>
+            <button class="btn btn-p" onclick="saveConfig()">保存 Agent 能力开关</button>
+          </div>
+        </div>
+      </div>
+      -->
 
       <div id="pg-trigger" class="page">
         <h2 class="page-title">触发与指令</h2>
@@ -6198,6 +6649,404 @@
       return { success: true, content: remote.content, source: remote.source, version };
     }
 
+    function renderAgentSkillsList(skills) {
+      const el = document.getElementById('agent-skills-list');
+      if (!el) return;
+      if (!skills || !skills.length) {
+        el.innerHTML = '<div class="agent-panel">Skills 区块已隐藏。</div>';
+        return;
+      }
+      el.innerHTML = skills.map(function (s) {
+        const name = s.name || s.id || '未命名';
+        const id = s.id || '';
+        const triggers = (s.triggers || []).join('、');
+        const idLine = id && id !== name ? '<div class="skill-id">' + escapeHtml(id) + '</div>' : '';
+        return '<div class="agent-skill-card">' +
+          '<div class="skill-title">' + escapeHtml(name) + '</div>' +
+          idLine +
+          '<div class="skill-desc">' + escapeHtml(s.description || '无描述') + '</div>' +
+          (triggers ? '<div class="skill-triggers">触发词：' + escapeHtml(triggers) + '</div>' : '') +
+        '</div>';
+      }).join('');
+    }
+
+    function renderAgentMcpStatus(data) {
+      const el = document.getElementById('agent-mcp-status');
+      if (!el) return;
+      const lines = [];
+      lines.push('Agent 模式: ' + (data.agentToolsEnabled ? '开' : '关'));
+      lines.push('MCP: ' + (data.mcpEnabled ? '开' : '关') + ' · 工具数 ' + (data.mcpToolCount || 0));
+      if (data.mcp && data.mcp.length) {
+        data.mcp.forEach(function (m) {
+          lines.push('  - ' + m.name + ' [' + m.id + '] ' + (m.connected ? '已连接' : '未连接') + ' tools=' + m.tools + (m.lastError ? ' err=' + m.lastError : ''));
+        });
+      }
+      el.textContent = lines.join('\n');
+    }
+
+    async function loadAgentStatus() {
+      try {
+        const res = await fetch(BASE + '/agent/status');
+        const data = await res.json();
+        if (!data.success) {
+          toast(data.error || '加载 Agent 状态失败', 'error');
+          return;
+        }
+        renderAgentMcpStatus(data);
+      } catch (e) {
+        toast('加载 Agent 状态失败', 'error');
+      }
+    }
+
+    async function reloadAgentHub() {
+      try {
+        const res = await fetch(BASE + '/agent/reload', { method: 'POST' });
+        const data = await res.json();
+        if (!data.success) {
+          toast(data.error || '重载失败', 'error');
+          return;
+        }
+        toast('Agent / MCP 已重载', 'success');
+        renderAgentMcpStatus({ mcpEnabled: true, mcp: data.mcp || [], mcpToolCount: 0, agentToolsEnabled: config.agentToolsEnabled });
+        loadAgentStatus();
+      } catch (e) {
+        toast('重载失败', 'error');
+      }
+    }
+
+    let skillhubLogPoll = null;
+
+    function escapeAttr(s) {
+      return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    }
+
+    function renderSkillhubSkillCard(opts) {
+      const slug = opts.slug || '';
+      const ns = opts.namespace || 'global';
+      const ver = opts.version || '';
+      const summary = opts.summary || '';
+      const btnLabel = opts.btnLabel || '安装';
+      const btnClass = opts.btnClass || 'btn btn-s btn-p';
+      const isRemove = opts.action === 'remove';
+      const btnAttrs = isRemove
+        ? ' data-slug="' + escapeAttr(slug) + '" onclick="skillhubRemoveFromBtn(this)"'
+        : ' data-slug="' + escapeAttr(slug) + '" data-ns="' + escapeAttr(ns) + '" onclick="skillhubInstallFromBtn(this)"';
+      return '<div class="skillhub-skill-card">' +
+        '<div class="skillhub-skill-body">' +
+          '<div class="skillhub-skill-title">' + escapeHtml(opts.title || (ns + '/' + slug)) + '</div>' +
+          (ver ? '<span class="skillhub-skill-id">v' + escapeHtml(ver) + '</span>' : '') +
+          '<div class="skillhub-skill-desc">' + escapeHtml(summary || '暂无描述') + '</div>' +
+        '</div>' +
+        '<div class="skillhub-skill-actions">' +
+          '<button type="button" class="' + btnClass + '"' + btnAttrs + '>' + escapeHtml(btnLabel) + '</button>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function renderSkillhubInstalled(list) {
+      const el = document.getElementById('skillhub-installed-list');
+      if (!el) return;
+      if (!list || !list.length) {
+        el.innerHTML = '<div class="skillhub-empty-card">暂无已安装技能<br>在上方搜索并安装。</div>';
+        return;
+      }
+      el.innerHTML = list.map(function (s) {
+        const slug = s.slug || s.name || '';
+        return renderSkillhubSkillCard({
+          title: slug,
+          namespace: s.namespace || 'global',
+          slug: slug,
+          version: s.version || '?',
+          summary: s.description || '',
+          btnLabel: '移除',
+          btnClass: 'btn btn-s',
+          action: 'remove'
+        });
+      }).join('');
+    }
+
+    function renderSkillhubSearchResults(data) {
+      const el = document.getElementById('skillhub-search-results');
+      if (!el) return;
+      const items = (data && data.items) || (data && data.skills) || (Array.isArray(data) ? data : []);
+      const total = (data && data.total) || items.length;
+      if (!items.length) {
+        el.innerHTML = '<div class="skillhub-empty-card">无搜索结果，请换关键词重试。</div>';
+        return;
+      }
+      const head = total > items.length
+        ? '<div class="skillhub-results-head">共 ' + total + ' 条，显示前 ' + items.length + ' 条</div>'
+        : (total > 0 ? '<div class="skillhub-results-head">共 ' + total + ' 条结果</div>' : '');
+      el.innerHTML = head + items.map(function (item) {
+        const slug = item.slug || item.name || item.id || '';
+        const ns = item.namespace || 'global';
+        return renderSkillhubSkillCard({
+          title: ns + '/' + slug,
+          namespace: ns,
+          slug: slug,
+          version: item.version || item.latestVersion || '',
+          summary: item.summary || item.description || '',
+          btnLabel: '安装',
+          btnClass: 'btn btn-s btn-p',
+          action: 'install'
+        });
+      }).join('');
+    }
+
+    function renderSkillhubStatusGrid(st) {
+      const metaEl = document.getElementById('skillhub-status-meta');
+      const gridEl = document.getElementById('skillhub-status-grid');
+      if (!gridEl || !st) return;
+      if (metaEl) {
+        metaEl.textContent = '插件 v' + (st.pluginVersion || '—') + ' · setup v' + (st.setupModuleVer || '—');
+      }
+      const pwVal = st.hasChromium ? 'Chromium 就绪' : (st.hasPlaywright ? '未下载浏览器' : '未安装');
+      const pwCls = st.hasChromium ? 'ok' : (st.hasPlaywright ? 'warn' : '');
+      const stats = [
+        { label: '环境', value: st.envReady ? '就绪' : '未配置', cls: st.envReady ? 'ok' : 'warn' },
+        { label: 'Node', value: st.nodeOk ? st.nodeVersion : '未检测', cls: st.nodeOk ? 'ok' : 'warn' },
+        { label: 'npm', value: st.npmVersion || '—', cls: '' },
+        { label: 'CLI', value: (st.cliMode || '—') + (st.cliVersion ? ' v' + st.cliVersion : ''), cls: st.cliMode === 'missing' ? 'warn' : 'ok' },
+        { label: 'Registry', value: st.registry || '—', cls: '' },
+        { label: '已安装', value: String(st.installedCount || 0), cls: '' },
+        { label: 'Playwright', value: pwVal, cls: pwCls }
+      ];
+      gridEl.innerHTML = stats.map(function (s) {
+        return '<div class="skillhub-stat"><div class="skillhub-stat-label">' + escapeHtml(s.label) +
+          '</div><div class="skillhub-stat-value' + (s.cls ? ' ' + s.cls : '') + '">' + escapeHtml(s.value) + '</div></div>';
+      }).join('');
+      if (st.cliError) {
+        gridEl.innerHTML += '<div class="skillhub-stat" style="grid-column:1/-1"><div class="skillhub-stat-label">CLI 错误</div><div class="skillhub-stat-value warn">' + escapeHtml(st.cliError) + '</div></div>';
+      }
+    }
+
+    function updateSkillhubUiFromStatus(st) {
+      const empty = document.getElementById('skillhub-empty');
+      const shop = document.getElementById('skillhub-shop');
+      const ready = st && st.envReady;
+      if (empty) empty.style.display = ready ? 'none' : 'block';
+      if (shop) shop.style.display = ready ? 'block' : 'none';
+      renderSkillhubStatusGrid(st);
+      if (ready && st.installed) renderSkillhubInstalled(st.installed);
+      const pwBtn = document.getElementById('btn-skillhub-playwright');
+      if (pwBtn) pwBtn.style.display = (ready && !st.hasChromium) ? 'inline-flex' : 'none';
+    }
+
+    async function loadSkillhubPage() {
+      try {
+        const res = await fetch(BASE + '/skillhub/env/status');
+        const st = await res.json();
+        if (!st.success) {
+          const hint = (st.error || '').includes('没有这个参数')
+            ? '插件未加载或 API 不可用，请重启 NapCat 并确认插件目录完整'
+            : (st.error || '加载失败');
+          toast(hint, 'error');
+          const statusEl = document.getElementById('skillhub-status-grid');
+          const metaEl = document.getElementById('skillhub-status-meta');
+          if (metaEl) metaEl.textContent = '插件版本: ' + (st.pluginVersion ? ('v' + st.pluginVersion) : '—');
+          if (statusEl) {
+            statusEl.innerHTML = '<div class="skillhub-stat" style="grid-column:1/-1"><div class="skillhub-stat-label">状态</div><div class="skillhub-stat-value warn">无法连接插件 API — ' + escapeHtml(hint) + '</div></div>';
+          }
+          return;
+        }
+        updateSkillhubUiFromStatus(st);
+        if (st.envReady) {
+          const ir = await fetch(BASE + '/skillhub/installed');
+          const idata = await ir.json();
+          if (idata.success) renderSkillhubInstalled(idata.installed || []);
+        }
+      } catch (e) {
+        toast('Skills 商店加载失败', 'error');
+      }
+    }
+
+    function appendSkillhubSetupLog(lines) {
+      const el = document.getElementById('skillhub-setup-log');
+      const panel = document.getElementById('skillhub-setup-panel');
+      if (panel) panel.style.display = 'block';
+      if (!el || !lines || !lines.length) return;
+      for (const row of lines) {
+        const div = document.createElement('div');
+        div.className = 'log-stream-line';
+        div.textContent = row.line || row;
+        el.appendChild(div);
+      }
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function pollSkillhubSetupLogs(since) {
+      if (skillhubLogPoll) clearInterval(skillhubLogPoll);
+      let cursor = since || 0;
+      skillhubLogPoll = setInterval(async function () {
+        try {
+          const res = await fetch(BASE + '/skillhub/env/logs?since=' + cursor);
+          const data = await res.json();
+          if (data.logs && data.logs.length) {
+            appendSkillhubSetupLog(data.logs);
+            cursor = data.total || cursor + data.logs.length;
+          }
+          if (!data.running && data.finishedAt) {
+            clearInterval(skillhubLogPoll);
+            skillhubLogPoll = null;
+            const btn = document.getElementById('btn-skillhub-setup');
+            const pwBtn = document.getElementById('btn-skillhub-playwright');
+            if (btn) btn.disabled = false;
+            if (pwBtn) pwBtn.disabled = false;
+            if (data.ok) {
+              const isPwOnly = data.step === 'done' && (data.logs || []).some(function (r) {
+                const t = (r.line || r || '');
+                return String(t).indexOf('=== Playwright 安装 ===') >= 0;
+              });
+              toast(isPwOnly ? 'Playwright 安装完成' : 'SkillHub 环境配置完成', 'success');
+              config.skillhubEnvReady = true;
+              loadSkillhubPage();
+            } else if (data.error) {
+              const err = String(data.error);
+              const hint = err.indexOf('unexpected failure') >= 0
+                ? 'Playwright 安装被 QQ 宿主拦截，请更新插件到 v2.6.8+ 后重试'
+                : err;
+              toast('配置失败: ' + hint, 'error');
+            }
+          }
+        } catch (_) {}
+      }, 800);
+    }
+
+    async function startPlaywrightInstall() {
+      const btn = document.getElementById('btn-skillhub-playwright');
+      if (btn) btn.disabled = true;
+      const logEl = document.getElementById('skillhub-setup-log');
+      if (logEl) logEl.innerHTML = '';
+      try {
+        const res = await fetch(BASE + '/skillhub/env/playwright', { method: 'POST' });
+        const data = await res.json();
+        if (!data.success) {
+          toast(data.error || '无法启动 Playwright 安装', 'error');
+          if (btn) btn.disabled = false;
+          return;
+        }
+        toast('Playwright 安装已开始，请查看日志', 'info');
+        pollSkillhubSetupLogs(0);
+      } catch (e) {
+        toast('启动失败', 'error');
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function startSkillhubEnvSetup(isRetry) {
+      const regEl = document.getElementById('cfg-skillhubRegistry');
+      const tokEl = document.getElementById('cfg-skillhubToken');
+      if (regEl) config.skillhubRegistry = regEl.value.trim() || 'https://skill.xfyun.cn';
+      if (tokEl) config.skillhubToken = tokEl.value.trim();
+      await saveConfig();
+      const logEl = document.getElementById('skillhub-setup-log');
+      if (logEl) logEl.innerHTML = '';
+      const btn = document.getElementById('btn-skillhub-setup');
+      if (btn) btn.disabled = true;
+      try {
+        const res = await fetch(BASE + '/skillhub/env/setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ installPlaywright: true, installCliGlobal: true })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          toast(data.error || '无法启动配置', 'error');
+          if (btn) btn.disabled = false;
+          return;
+        }
+        toast(isRetry ? '正在重新配置环境…' : '环境配置已开始，请查看日志', 'info');
+        pollSkillhubSetupLogs(0);
+      } catch (e) {
+        toast('启动配置失败', 'error');
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function skillhubDoSearch() {
+      const q = (document.getElementById('skillhub-search-q') || {}).value || '';
+      if (!q.trim()) { toast('请输入搜索词', 'warn'); return; }
+      const btn = document.getElementById('btn-skillhub-search');
+      const el = document.getElementById('skillhub-search-results');
+      if (btn) btn.disabled = true;
+      if (el) el.innerHTML = '<div class="skillhub-empty-card">搜索中…</div>';
+      try {
+        const res = await fetch(BASE + '/skillhub/search?q=' + encodeURIComponent(q.trim()));
+        const data = await res.json();
+        if (data.needSetup) { updateSkillhubUiFromStatus({ envReady: false }); return; }
+        if (!data.success) {
+          toast(data.error || '搜索失败', 'error');
+          if (el) el.innerHTML = '<div class="skillhub-empty-card">' + escapeHtml(data.error || '搜索失败') + '</div>';
+          return;
+        }
+        renderSkillhubSearchResults(data.data || { items: data.items, total: data.total });
+      } catch (e) {
+        toast('搜索失败', 'error');
+        if (el) el.innerHTML = '<div class="skillhub-empty-card">网络错误，请重试。</div>';
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function skillhubInstallFromBtn(btn) {
+      if (!btn || btn.disabled) return;
+      const slug = btn.getAttribute('data-slug') || '';
+      const ns = btn.getAttribute('data-ns') || 'global';
+      if (!slug) { toast('无效技能', 'error'); return; }
+      btn.disabled = true;
+      const oldText = btn.textContent;
+      btn.textContent = '安装中…';
+      try {
+        await skillhubInstallSkill(slug, ns);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = oldText;
+      }
+    }
+
+    async function skillhubRemoveFromBtn(btn) {
+      if (!btn || btn.disabled) return;
+      const slug = btn.getAttribute('data-slug') || '';
+      if (!slug) return;
+      await skillhubRemoveSkill(slug);
+    }
+
+    async function skillhubInstallSkill(slug, namespace) {
+      try {
+        toast('正在安装 ' + slug + '…', 'info');
+        const res = await fetch(BASE + '/skillhub/install', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug: slug, namespace: namespace || 'global' })
+        });
+        const data = await res.json();
+        if (!data.success) { toast(data.error || '安装失败', 'error'); return false; }
+        toast('已安装: ' + slug, 'success');
+        renderSkillhubInstalled(data.installed || []);
+        return true;
+      } catch (e) {
+        toast('安装失败: ' + (e.message || '网络错误'), 'error');
+        return false;
+      }
+    }
+
+    async function skillhubRemoveSkill(slug) {
+      if (!confirm('移除技能 ' + slug + '？')) return;
+      try {
+        const res = await fetch(BASE + '/skillhub/remove', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug: slug })
+        });
+        const data = await res.json();
+        if (!data.success) { toast(data.error || '移除失败', 'error'); return; }
+        toast('已移除', 'success');
+        renderSkillhubInstalled(data.installed || []);
+      } catch (e) {
+        toast('移除失败', 'error');
+      }
+    }
+
     async function loadChangelogPage() {
       const stream = document.getElementById('changelogStream');
       const badge = document.getElementById('changelogCountBadge');
@@ -6560,6 +7409,36 @@
       document.getElementById('tgl-privateEnabled').classList.toggle('on', config.privateEnabled !== false);
       document.getElementById('tgl-webSearchEnabled').classList.toggle('on', config.webSearchEnabled === true);
       document.getElementById('tgl-webSearchTriple').classList.toggle('on', config.webSearchTriple === true);
+      const agentTgl = document.getElementById('tgl-agentToolsEnabled');
+      if (agentTgl) agentTgl.classList.toggle('on', config.agentToolsEnabled === true);
+      const skillsTgl = document.getElementById('tgl-skillsEnabled');
+      if (skillsTgl) skillsTgl.classList.toggle('on', config.skillsEnabled !== false);
+      const mcpTgl = document.getElementById('tgl-mcpEnabled');
+      if (mcpTgl) mcpTgl.classList.toggle('on', config.mcpEnabled === true);
+      const agentRounds = document.getElementById('cfg-agentMaxToolRounds');
+      if (agentRounds) agentRounds.value = config.agentMaxToolRounds ?? 6;
+      const skillsMode = document.getElementById('cfg-skillsInjectMode');
+      if (skillsMode) skillsMode.value = config.skillsInjectMode || 'auto';
+      const skillsDirs = document.getElementById('cfg-skillsDirs');
+      if (skillsDirs) skillsDirs.value = Array.isArray(config.skillsDirs) ? config.skillsDirs.join('\n') : '';
+      const skillsAllow = document.getElementById('cfg-skillsAllowlist');
+      if (skillsAllow) skillsAllow.value = Array.isArray(config.skillsAllowlist) ? config.skillsAllowlist.join(', ') : '';
+      const mcpServersEl = document.getElementById('cfg-mcpServers');
+      if (mcpServersEl) {
+        try {
+          mcpServersEl.value = JSON.stringify(Array.isArray(config.mcpServers) ? config.mcpServers : [], null, 2);
+        } catch (_) {
+          mcpServersEl.value = '[]';
+        }
+      }
+      const shReg = document.getElementById('cfg-skillhubRegistry');
+      if (shReg) shReg.value = config.skillhubRegistry || 'https://skill.xfyun.cn';
+      const shTok = document.getElementById('cfg-skillhubToken');
+      if (shTok) shTok.value = config.skillhubToken || '';
+      const shShell = document.getElementById('tgl-agentShellEnabled');
+      if (shShell) shShell.classList.toggle('on', config.agentShellEnabled === true);
+      const shBrowser = document.getElementById('tgl-agentBrowserEnabled');
+      if (shBrowser) shBrowser.classList.toggle('on', config.agentBrowserEnabled === true);
       document.getElementById('cfg-apiProvider').value = config.apiProvider || 'siliconflow';
       document.getElementById('cfg-deepseekApiKey').value = config.deepseekApiKey || '';
       document.getElementById('cfg-siliconflowApiKey').value = config.siliconflowApiKey || '';
@@ -7484,6 +8363,24 @@
           icon = 'visibility';
           label = '图片理解';
           bodyHtml = escapeHtml(tool.result || '（无分析结果）').replace(/\n/g, '<br>');
+        } else if (type === 'mcp_tool') {
+          icon = 'extension';
+          label = 'MCP · ' + escapeHtml(tool.name || 'tool');
+          queryHint = escapeHtml(tool.serverId || '');
+          bodyHtml = escapeHtml(tool.result || '').replace(/\n/g, '<br>');
+        } else if (type === 'shell_exec') {
+          icon = 'terminal';
+          label = 'Shell';
+          queryHint = escapeHtml((tool.args && tool.args.command) ? String(tool.args.command).slice(0, 60) : '');
+          bodyHtml = escapeHtml(tool.result || '').replace(/\n/g, '<br>');
+        } else if (type === 'browser_tool') {
+          icon = 'language';
+          label = '浏览器 · ' + escapeHtml(tool.name || '');
+          bodyHtml = escapeHtml(tool.result || '').replace(/\n/g, '<br>');
+        } else if (type === 'agent_tool') {
+          icon = 'build';
+          label = escapeHtml(tool.name || '内置工具');
+          bodyHtml = escapeHtml(tool.result || '').replace(/\n/g, '<br>');
         } else {
           label = escapeHtml(type || '工具');
           bodyHtml = escapeHtml(tool.result || tool.prompt || '').replace(/\n/g, '<br>');
@@ -9740,6 +10637,40 @@
       if (document.getElementById('cfg-uapiSearchTimeoutMs')) cfg.uapiSearchTimeoutMs = Math.max(1000, Math.min(30000, parseInt(document.getElementById('cfg-uapiSearchTimeoutMs').value, 10) || 10000));
       if (document.getElementById('cfg-smartSearchQueryMode')) cfg.smartSearchQueryMode = (document.getElementById('cfg-smartSearchQueryMode').value || 'ai').toLowerCase();
       if (document.getElementById('tgl-webSearchTriple')) cfg.webSearchTriple = document.getElementById('tgl-webSearchTriple').classList.contains('on');
+      if (document.getElementById('tgl-agentToolsEnabled')) cfg.agentToolsEnabled = document.getElementById('tgl-agentToolsEnabled').classList.contains('on');
+      if (document.getElementById('tgl-skillsEnabled')) cfg.skillsEnabled = document.getElementById('tgl-skillsEnabled').classList.contains('on');
+      if (document.getElementById('tgl-mcpEnabled')) cfg.mcpEnabled = document.getElementById('tgl-mcpEnabled').classList.contains('on');
+      if (document.getElementById('cfg-agentMaxToolRounds')) {
+        cfg.agentMaxToolRounds = Math.max(1, Math.min(12, parseInt(document.getElementById('cfg-agentMaxToolRounds').value, 10) || 6));
+      }
+      if (document.getElementById('cfg-skillsInjectMode')) cfg.skillsInjectMode = document.getElementById('cfg-skillsInjectMode').value || 'auto';
+      if (document.getElementById('cfg-skillsDirs')) {
+        cfg.skillsDirs = document.getElementById('cfg-skillsDirs').value.split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+      }
+      if (document.getElementById('cfg-skillsAllowlist')) {
+        cfg.skillsAllowlist = document.getElementById('cfg-skillsAllowlist').value.split(/[,，]/).map(function (s) { return s.trim(); }).filter(Boolean);
+      }
+      if (document.getElementById('cfg-mcpServers')) {
+        try {
+          const parsed = JSON.parse(document.getElementById('cfg-mcpServers').value || '[]');
+          cfg.mcpServers = Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          toast('MCP 服务器 JSON 格式错误', 'error');
+          return;
+        }
+      }
+      if (document.getElementById('cfg-skillhubRegistry')) {
+        cfg.skillhubRegistry = document.getElementById('cfg-skillhubRegistry').value.trim() || 'https://skill.xfyun.cn';
+      }
+      if (document.getElementById('cfg-skillhubToken')) {
+        cfg.skillhubToken = document.getElementById('cfg-skillhubToken').value.trim();
+      }
+      if (document.getElementById('tgl-agentShellEnabled')) {
+        cfg.agentShellEnabled = document.getElementById('tgl-agentShellEnabled').classList.contains('on');
+      }
+      if (document.getElementById('tgl-agentBrowserEnabled')) {
+        cfg.agentBrowserEnabled = document.getElementById('tgl-agentBrowserEnabled').classList.contains('on');
+      }
       if (document.getElementById('cfg-uapiSort')) cfg.uapiSort = (document.getElementById('cfg-uapiSort').value || '').trim();
       if (document.getElementById('cfg-uapiTimeRange')) cfg.uapiTimeRange = (document.getElementById('cfg-uapiTimeRange').value || '').trim();
       if (document.getElementById('tgl-appendStickerAfterReply')) cfg.appendStickerAfterReply = document.getElementById('tgl-appendStickerAfterReply').classList.contains('on');
@@ -10200,6 +11131,8 @@
       }
       if (page === 'reactions') updateReactionEmojiSummary();
       if (page === 'imagegen') onImageGenProviderChange();
+      if (page === 'agent') loadAgentStatus();
+      // if (page === 'skillhub') loadSkillhubPage(); // Skills 商店界面已隐藏
       if (page === 'about') refreshUpdateStatus();
       if (page === 'changelog') loadChangelogPage();
     }

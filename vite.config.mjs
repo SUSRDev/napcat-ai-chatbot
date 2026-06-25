@@ -17,7 +17,7 @@ import { napcatHmrPlugin } from 'napcat-plugin-debug-cli/vite';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SKIP_DIRS = new Set([
   'node_modules', '.git', 'dist', '.update-tmp', '.update-backup',
-  'scripts', '.cache', '.idea', '.vscode'
+  'scripts', '.cache', '.idea', '.vscode', '.agent-runtime'
 ]);
 const SKIP_FILES = new Set([
   'config.json', 'vite.config.mjs', 'release.py', '.release-local.json'
