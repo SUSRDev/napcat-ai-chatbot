@@ -2101,7 +2101,7 @@
       border: 1px solid var(--border); border-radius: 12px; background: var(--bg2);
     }
     .mir-item {
-      display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+      display: flex; align-items: center; gap: 14px; padding: 13px 16px;
       border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
       transition: background .15s var(--ease);
     }
@@ -2125,22 +2125,37 @@
     .mir-tag.best { border-color: var(--text); color: var(--text); }
     .mir-tag.active { color: var(--text); }
     .mir-item-meta {
-      display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+      display: grid;
+      grid-template-columns: 68px 32px 32px;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
     }
     .mir-item-lat {
       font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
-      min-width: 52px; text-align: right;
+      text-align: right; justify-self: end;
     }
     .mir-item-lat.ok { color: var(--text); }
-    .mir-item-lat.fail { color: #ef4444; font-weight: 500; font-size: 11px; min-width: 0; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .mir-item-status {
-      font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 999px;
-      border: 1px solid var(--border); color: var(--text3); white-space: nowrap;
+    .mir-item-lat.fail { color: #ef4444; font-weight: 500; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mir-status-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid var(--border); background: var(--bg); color: var(--text3);
     }
-    .mir-item-status.ok { color: var(--text); border-color: color-mix(in srgb, var(--text) 30%, var(--border)); }
-    .mir-item-status.fail { color: #ef4444; border-color: color-mix(in srgb, #ef4444 30%, var(--border)); }
-    .mir-item-status.testing { color: var(--text2); }
-    .mir-item .btn { padding: 5px 10px; font-size: 11px; }
+    .mir-status-icon .material-symbols-outlined { font-size: 18px; }
+    .mir-status-icon.ok { color: var(--text); border-color: color-mix(in srgb, var(--text) 28%, var(--border)); }
+    .mir-status-icon.fail { color: #ef4444; border-color: color-mix(in srgb, #ef4444 28%, var(--border)); }
+    .mir-status-icon.testing { color: var(--text2); }
+    .mir-status-icon.testing .material-symbols-outlined { animation: update-spin 1.1s linear infinite; }
+    .mir-status-icon.idle { color: var(--text3); opacity: 0.65; }
+    .mir-icon-btn {
+      width: 32px; height: 32px; padding: 0; border-radius: 8px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid var(--border); background: var(--bg); color: var(--text2);
+      cursor: pointer; transition: border-color .18s var(--ease), color .18s var(--ease);
+    }
+    .mir-icon-btn:hover { border-color: var(--text); color: var(--text); }
+    .mir-icon-btn .material-symbols-outlined { font-size: 18px; }
     .mir-list-empty {
       padding: 36px 20px; text-align: center; color: var(--text3); font-size: 13px; line-height: 1.6;
     }
@@ -2202,14 +2217,23 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
     .update-progress-log .log-line {
-      display: flex; gap: 8px; padding: 3px 0;
+      display: grid; grid-template-columns: 32px 1fr; gap: 12px; align-items: start;
+      padding: 7px 0;
       border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
     }
     .update-progress-log .log-line:last-child { border-bottom: none; color: var(--text); }
-    .update-progress-log .log-tag {
-      flex-shrink: 0; font-size: 10px; font-weight: 600; letter-spacing: 0.03em;
-      color: var(--text3); min-width: 36px;
+    .log-tag-icon {
+      width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid var(--border); background: var(--bg); color: var(--text2);
     }
+    .log-tag-icon .material-symbols-outlined { font-size: 17px; }
+    .log-tag-icon.phase-install { color: var(--text); }
+    .log-tag-icon.phase-cleanup { color: var(--text2); }
+    .log-tag-icon.phase-reload { color: var(--text); }
+    .log-tag-icon.phase-complete { color: var(--text); }
+    .log-tag-icon.phase-error { color: #ef4444; border-color: color-mix(in srgb, #ef4444 30%, var(--border)); }
+    .update-progress-log .log-msg { font-size: 12px; line-height: 1.55; padding-top: 6px; word-break: break-word; }
     .update-progress-modal.is-error .update-progress-bar { background: #ef4444; box-shadow: none; }
     .update-progress-modal.is-error .update-progress-icon-wrap { color: #ef4444; border-color: color-mix(in srgb, #ef4444 35%, var(--border)); }
     .update-progress-modal.is-success .update-progress-bar { background: var(--text); }
@@ -3364,7 +3388,7 @@
         <div class="update-progress-log" id="update-progress-log"></div>
       </div>
       <div class="modal-foot" id="update-progress-foot" style="display:none">
-        <button type="button" class="btn btn-p" id="update-progress-close-btn" onclick="closeUpdateProgressModal()">完成</button>
+        <button type="button" class="btn btn-p" id="update-progress-close-btn" onclick="closeUpdateProgressModal()"><span class="material-symbols-outlined" style="font-size:17px">check</span>完成</button>
       </div>
     </div>
   </div>
@@ -3427,7 +3451,7 @@
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span>NapCat 插件 · v2.3</span>
+          <span id="sidebar-version">NapCat 插件 · v2.4.2</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -8659,23 +8683,27 @@
         const isActive = m.id === activeId;
         let latClass = 'mir-item-lat';
         let latText = '—';
-        let statusClass = 'mir-item-status';
-        let statusText = '未测';
+        let statusIcon = 'remove';
+        let statusClass = 'mir-status-icon idle';
+        let statusTitle = '未测速';
         if (testing) {
           latText = '…';
-          statusClass += ' testing';
-          statusText = '测速中';
+          statusIcon = 'sync';
+          statusClass = 'mir-status-icon testing';
+          statusTitle = '测速中';
         } else if (bench) {
           if (bench.ok) {
             latClass += ' ok';
             latText = bench.latencyMs + ' ms';
-            statusClass += ' ok';
-            statusText = '可用';
+            statusIcon = 'check_circle';
+            statusClass = 'mir-status-icon ok';
+            statusTitle = '可用';
           } else {
             latClass += ' fail';
             latText = bench.error || '失败';
-            statusClass += ' fail';
-            statusText = '不可用';
+            statusIcon = 'cancel';
+            statusClass = 'mir-status-icon fail';
+            statusTitle = '不可用';
           }
         }
         const tags = [];
@@ -8689,8 +8717,8 @@
           '</div>' +
           '<div class="mir-item-meta">' +
             '<span class="' + latClass + '">' + escapeHtml(latText) + '</span>' +
-            '<span class="' + statusClass + '">' + statusText + '</span>' +
-            '<button type="button" class="btn btn-s" onclick="benchmarkSingleMirror(' + JSON.stringify(m.id) + ')">测速</button>' +
+            '<span class="' + statusClass + '" title="' + escapeHtml(statusTitle) + '"><span class="material-symbols-outlined">' + statusIcon + '</span></span>' +
+            '<button type="button" class="mir-icon-btn" title="测速" onclick="benchmarkSingleMirror(' + JSON.stringify(m.id) + ')"><span class="material-symbols-outlined">speed</span></button>' +
           '</div>' +
         '</div>';
       }).join('');
@@ -8831,6 +8859,8 @@
         if (curEl) curEl.textContent = 'v' + (data.currentVersion || '—');
         if (latEl) latEl.textContent = data.latestVersion ? ('v' + data.latestVersion) : '—';
         if (ovVer) ovVer.textContent = 'v' + (data.currentVersion || '—');
+        const sideVer = document.getElementById('sidebar-version');
+        if (sideVer && data.currentVersion) sideVer.textContent = 'NapCat 插件 · v' + data.currentVersion;
         const hint = data.lastResult || (data.hasUpdate ? '发现新版本' : '已是最新');
         if (hintEl) hintEl.textContent = hint;
         if (ovHint) ovHint.textContent = data.hasUpdate ? ('可更新 v' + data.latestVersion) : hint;
@@ -8879,6 +8909,32 @@
       error: '失败'
     };
 
+    const UPDATE_PHASE_ICONS = {
+      check: 'search',
+      prepare: 'hourglass_top',
+      mirror: 'public',
+      download: 'download',
+      extract: 'folder_zip',
+      verify: 'verified',
+      install: 'install_desktop',
+      cleanup: 'cleaning_services',
+      reload: 'refresh',
+      start: 'play_arrow',
+      complete: 'check_circle',
+      error: 'error'
+    };
+
+    function getUpdatePhaseIcon(phase) {
+      return UPDATE_PHASE_ICONS[phase] || 'info';
+    }
+
+    function renderUpdateLogTag(phase) {
+      const label = UPDATE_PHASE_LABELS[phase] || phase || '进度';
+      const icon = getUpdatePhaseIcon(phase);
+      const extra = phase ? (' phase-' + phase) : '';
+      return '<span class="log-tag-icon' + extra + '" title="' + escapeHtml(label) + '"><span class="material-symbols-outlined">' + icon + '</span></span>';
+    }
+
     function openUpdateProgressModal() {
       const modal = document.getElementById('update-progress-modal');
       if (!modal) return;
@@ -8902,10 +8958,9 @@
     function appendUpdateProgressLog(payload) {
       const log = document.getElementById('update-progress-log');
       if (!log || !payload?.message) return;
-      const label = UPDATE_PHASE_LABELS[payload.phase] || payload.phase || '进度';
       const line = document.createElement('div');
       line.className = 'log-line';
-      line.innerHTML = '<span class="log-tag">' + label + '</span><span class="log-msg"></span>';
+      line.innerHTML = renderUpdateLogTag(payload.phase) + '<span class="log-msg"></span>';
       line.querySelector('.log-msg').textContent = payload.message;
       log.appendChild(line);
       log.scrollTop = log.scrollHeight;
