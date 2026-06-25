@@ -14,6 +14,7 @@ import {
   checkForUpdate as checkPluginUpdate,
   applyReleaseUpdate,
   readLocalVersion,
+  UPDATE_REPO,
   UPDATE_REPO_URL
 } from './lib/self-update.mjs';
 import {
@@ -29,6 +30,8 @@ import {
   mergeBenchmarkResults,
   MIRROR_DIRECT_ID
 } from './lib/github-mirrors.mjs';
+
+const CHANGELOG_GITHUB_URL = `https://github.com/${UPDATE_REPO}/raw/master/CHANGELOG.md`;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -3141,6 +3144,36 @@ function filterConversationsList(list, query = {}) {
   return { data: out.slice(offset, offset + limit), total, offset, limit };
 }
 
+async function fetchRemoteChangelog(cfg = {}) {
+  const benchmark = getMirrorConfig(cfg).benchmark;
+  const results = Object.entries(benchmark).map(([id, v]) => ({ id, ...v }));
+  const { url, mirrorName } = resolveUpdateDownloadUrl(CHANGELOG_GITHUB_URL, cfg, results);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20000);
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'napcat-plugin-chat-bot',
+        Accept: 'text/plain, text/markdown, */*'
+      },
+      signal: ctrl.signal
+    });
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const content = await res.text();
+    if (!content.trim()) {
+      throw new Error('远程 CHANGELOG 为空');
+    }
+    return {
+      content,
+      source: mirrorName && mirrorName !== 'GitHub 原始' ? mirrorName : 'GitHub'
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function runPluginUpdateCheck(ctx, { persist = true, autoApply = false } = {}) {
   if (pluginState.updateRunning) {
     return { success: false, error: '更新正在进行中', info: pluginState.updateInfo };
@@ -4071,15 +4104,34 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         }
       });
 
-      router.getNoAuth('/changelog', (_, res) => {
+      router.getNoAuth('/changelog', async (_, res) => {
         try {
-          const file = path.join(__dirname, 'CHANGELOG.md');
-          if (!fs.existsSync(file)) {
-            res.json({ success: false, error: 'CHANGELOG.md 不存在' });
-            return;
+          const cfg = pluginState.config || {};
+          let content = '';
+          let source = 'github';
+          try {
+            const remote = await fetchRemoteChangelog(cfg);
+            content = remote.content;
+            source = remote.source;
+          } catch (remoteErr) {
+            log('warn', '远程 CHANGELOG 加载失败，尝试本地', { error: remoteErr?.message || String(remoteErr) }, 'system');
+            const file = path.join(__dirname, 'CHANGELOG.md');
+            if (!fs.existsSync(file)) {
+              res.json({
+                success: false,
+                error: `GitHub 加载失败: ${remoteErr?.message || remoteErr}；本地 CHANGELOG.md 也不存在`
+              });
+              return;
+            }
+            content = fs.readFileSync(file, 'utf-8');
+            source = 'local';
           }
-          const content = fs.readFileSync(file, 'utf-8');
-          res.json({ success: true, content, version: readLocalVersion(__dirname) });
+          res.json({
+            success: true,
+            content,
+            version: readLocalVersion(__dirname),
+            source
+          });
         } catch (e) {
           res.json({ success: false, error: e?.message || String(e) });
         }

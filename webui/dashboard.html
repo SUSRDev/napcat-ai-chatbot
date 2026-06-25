@@ -3583,7 +3583,7 @@
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span id="sidebar-version">NapCat 插件 · v2.4.6</span>
+          <span id="sidebar-version">NapCat 插件 · v2.4.7</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -5206,13 +5206,13 @@
       <div id="pg-changelog" class="page">
         <div class="page-header">
           <h2 class="page-title">更新日志</h2>
-          <p class="page-desc">插件全部版本更新记录，终端大日志流样式展示。</p>
+          <p class="page-desc">从 GitHub 仓库拉取全部版本更新记录，终端大日志流样式展示。</p>
         </div>
         <div class="changelog-panel">
           <div class="changelog-panel-head">
             <div class="changelog-panel-title">
-              <span class="material-symbols-outlined" style="font-size:18px;opacity:.7">terminal</span>
-              CHANGELOG.md
+              <span class="material-symbols-outlined" style="font-size:18px;opacity:.7">cloud_download</span>
+              GitHub · SUSRDev/napcat-ai-chatbot
             </div>
             <span class="changelog-count-badge" id="changelogCountBadge">加载中…</span>
           </div>
@@ -6115,7 +6115,8 @@
         stream.innerHTML = renderChangelogHtml(entries);
         if (badge) {
           const ver = data.version ? ('当前 v' + data.version + ' · ') : '';
-          badge.textContent = ver + entries.length + ' 个版本';
+          const src = data.source === 'local' ? '本地' : (data.source || 'GitHub');
+          badge.textContent = ver + entries.length + ' 个版本 · ' + src;
         }
       } catch (e) {
         stream.innerHTML = '<div class="changelog-empty">加载失败</div>';
