@@ -1,5 +1,23 @@
 # 更新日志
 
+## [2.7.8] — 2026-06-26
+
+### 改进
+
+- **browser-use 部分安装容错**：安装过程中若 `browser-use` 包已就绪但 Chromium 尚未下载完成，会返回 `partial` 状态并自动启用引擎，下次点击「一键部署」可继续完成浏览器下载，不再整体失败。
+
+- **Chromium 下载双源重试**：优先通过国内 `cdn.npmmirror.com` 镜像下载 Chromium，镜像失败后自动回退官方源重试，提升网络受限环境下的安装成功率。
+
+- **环境状态细化**：`getBrowserUseEnvStatus` 新增 `packageInstalled`、`importOk`、`hasChromium`、`statusText`、`importError` 字段，状态从原先的单一布尔值细化为 `ready` / `need_chromium` / `need_verify` / `need_install` / `need_python` 五档。
+
+- **跳过重复包安装**：检测到 `browser-use` 包已存在时跳过 `pip install`，仅补装缺失的 `playwright` 驱动或 Chromium，减少不必要的等待。
+
+- **任务执行前置检查**：`runBrowserUseTask` 拆分包导入与 Chromium 两项检查，分别给出针对性的错误提示，引导用户按实际缺失项操作。
+
+- **部署弹窗 UI 升级**：重新设计 browser-use 安装弹窗，新增步骤指示器、进度卡片和 LLM 配置区，视觉层次更清晰。
+
+---
+
 ## [2.7.5] — 2026-06-26
 
 ### 新增

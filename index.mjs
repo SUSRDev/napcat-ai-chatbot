@@ -5133,6 +5133,10 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
               pluginState.config.agentBrowserEnabled = true;
               pluginState.config.agentBrowserEngine = 'browser-use';
               saveConfig(ctx);
+            } else if (result.partial && result.needChromium) {
+              pluginState.config.agentBrowserEnabled = true;
+              pluginState.config.agentBrowserEngine = 'browser-use';
+              saveConfig(ctx);
             }
           }).catch((e) => log('error', 'browser-use 安装失败', e.message, 'agent'));
         } catch (e) {

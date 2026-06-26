@@ -2309,6 +2309,179 @@
     .update-progress-modal.is-success .update-progress-icon-wrap { color: var(--text); }
     .theme-toggle .theme-icon { margin-right: 4px; font-size: 13px; }
 
+    /* browser-use 部署弹窗 */
+    .browser-use-setup-modal .bu-setup-panel {
+      max-width: 500px; padding: 0; overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+      box-shadow: 0 24px 48px rgba(0,0,0,0.28);
+    }
+    .bu-setup-hero {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 20px 20px 16px;
+      background:
+        radial-gradient(ellipse 120% 80% at 100% -20%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 55%),
+        linear-gradient(165deg, color-mix(in srgb, var(--bg2) 92%, var(--accent) 8%), var(--card));
+      border-bottom: 1px solid var(--border);
+    }
+    .bu-setup-hero-icon {
+      width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: color-mix(in srgb, var(--accent) 14%, var(--bg));
+      border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+      color: var(--accent);
+    }
+    .bu-setup-hero-icon .material-symbols-outlined { font-size: 24px; }
+    .bu-setup-hero-text { flex: 1; min-width: 0; }
+    .bu-setup-hero-text h3 { margin: 0 0 4px; font-size: 16px; font-weight: 700; letter-spacing: -0.02em; }
+    .bu-setup-hero-text p { margin: 0; font-size: 12px; color: var(--text3); line-height: 1.5; }
+    .bu-setup-body { padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 14px; }
+    .bu-setup-steps {
+      display: flex; flex-wrap: wrap; gap: 6px;
+    }
+    .bu-setup-step {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 10px; border-radius: 999px; font-size: 11px; font-weight: 600;
+      border: 1px solid var(--border); background: var(--bg2); color: var(--text3);
+      transition: all 0.25s var(--ease);
+    }
+    .bu-setup-step .material-symbols-outlined { font-size: 14px; }
+    .bu-setup-step.is-active {
+      color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+      background: color-mix(in srgb, var(--accent) 10%, var(--bg2));
+    }
+    .bu-setup-step.is-done {
+      color: var(--text2); border-color: color-mix(in srgb, var(--text2) 25%, var(--border));
+    }
+    .bu-setup-step.is-done .material-symbols-outlined { font-size: 13px; }
+    .bu-setup-llm-card {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 14px; border-radius: 12px;
+      border: 1px solid var(--border); background: var(--bg2);
+    }
+    .bu-setup-llm-label { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+    .bu-setup-llm-hint { font-size: 11px; color: var(--text3); line-height: 1.45; }
+    .bu-setup-llm-toggle { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .bu-setup-llm-toggle span { font-size: 11px; color: var(--text2); white-space: nowrap; }
+    .bu-setup-progress-card {
+      padding: 14px 16px; border-radius: 14px;
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--bg2) 88%, transparent);
+    }
+    .bu-setup-progress-top {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px;
+    }
+    .bu-setup-progress-status {
+      display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;
+    }
+    .bu-setup-progress-icon {
+      width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid var(--border); background: var(--bg); color: var(--text2);
+    }
+    .bu-setup-progress-icon.is-spinning .material-symbols-outlined {
+      animation: update-spin 1.1s linear infinite;
+    }
+    .bu-setup-progress-icon .material-symbols-outlined { font-size: 20px; }
+    .bu-setup-progress-msg {
+      font-size: 13px; color: var(--text2); line-height: 1.45;
+      word-break: break-word;
+    }
+    .bu-setup-progress-pct {
+      font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums;
+      color: var(--text); line-height: 1; flex-shrink: 0;
+    }
+    .bu-setup-progress-bar-wrap {
+      height: 6px; border-radius: 999px;
+      background: color-mix(in srgb, var(--border) 70%, var(--bg));
+      overflow: hidden;
+    }
+    .bu-setup-progress-bar {
+      height: 100%; width: 0; border-radius: 999px;
+      background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 85%, var(--text)), var(--accent));
+      transition: width 0.35s var(--ease);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 35%, transparent);
+    }
+    .bu-setup-mirror-badge {
+      margin-top: 10px; font-size: 11px; color: var(--text3);
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .bu-setup-mirror-badge .material-symbols-outlined { font-size: 14px; }
+    .bu-setup-log-wrap {
+      border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+      background: color-mix(in srgb, var(--bg) 92%, #0a0a0a 8%);
+    }
+    .bu-setup-log-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px; font-size: 11px; font-weight: 600; color: var(--text3);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+    }
+    .bu-setup-log {
+      max-height: 168px; overflow-y: auto; padding: 10px 12px;
+      font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+      font-size: 11px; line-height: 1.55; color: var(--text2);
+    }
+    .bu-setup-log-line {
+      display: flex; gap: 8px; padding: 3px 0;
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 35%, transparent);
+    }
+    .bu-setup-log-line:last-child { border-bottom: none; }
+    .bu-setup-log-line .log-time { color: var(--text3); flex-shrink: 0; font-size: 10px; opacity: 0.85; }
+    .bu-setup-log-line .log-text { word-break: break-all; color: var(--text2); }
+    .bu-setup-log-line.is-head .log-text { color: var(--accent); font-weight: 600; }
+    .bu-setup-log-line.is-err .log-text { color: #f87171; }
+    .bu-setup-log-empty {
+      padding: 20px 12px; text-align: center; font-size: 12px; color: var(--text3);
+      font-family: inherit;
+    }
+    .bu-setup-foot {
+      display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+      padding: 14px 20px 18px; border-top: 1px solid var(--border);
+      background: color-mix(in srgb, var(--bg2) 50%, transparent);
+    }
+    .browser-use-setup-modal.is-running .bu-setup-foot .btn-d { opacity: 0.55; pointer-events: none; }
+    .browser-use-setup-modal.is-success .bu-setup-progress-bar { background: var(--text); box-shadow: none; }
+    .browser-use-setup-modal.is-success .bu-setup-progress-icon { color: var(--text); border-color: var(--border); }
+    .browser-use-setup-modal.is-error .bu-setup-progress-bar { background: #ef4444; box-shadow: none; }
+    .browser-use-setup-modal.is-error .bu-setup-progress-icon { color: #ef4444; }
+
+    .agent-browser-use-panel {
+      margin: 16px 0 4px;
+      padding: 0;
+      border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--border));
+      border-radius: 14px;
+      background: var(--card2);
+      overflow: hidden;
+    }
+    .agent-browser-use-panel-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--bg2) 88%, var(--accent) 12%);
+    }
+    .agent-browser-use-panel-title { font-size: 13px; font-weight: 700; color: var(--text); }
+    .agent-browser-use-status-badge {
+      font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--bg); color: var(--text3);
+      white-space: nowrap;
+    }
+    .agent-browser-use-status-badge.is-ready {
+      color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+      background: color-mix(in srgb, var(--accent) 10%, var(--bg));
+    }
+    .agent-browser-use-status-badge.is-warn {
+      color: #f59e0b; border-color: color-mix(in srgb, #f59e0b 35%, var(--border));
+      background: color-mix(in srgb, #f59e0b 8%, var(--bg));
+    }
+    .agent-browser-use-panel-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
+    .agent-browser-use-panel-body .form-row { margin: 0; padding: 0; border: none; }
+    .agent-browser-engine-status-row .form-label { align-self: center; }
+    .agent-browser-engine-status-text { font-size: 12px; color: var(--text3); line-height: 1.5; }
+    .agent-browser-use-hint {
+      font-size: 11px; color: var(--text3); margin: 0; line-height: 1.55;
+    }
+
     /* 概览页 */
     .overview-grid {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -4196,35 +4369,69 @@ npx playwright install chromium</pre>
     </div>
   </div>
 
-  <div class="modal-overlay update-progress-modal" id="browser-use-setup-modal">
-    <div class="modal-panel" role="dialog" aria-labelledby="browser-use-setup-title" onclick="event.stopPropagation()">
-      <div class="modal-head">
-        <h3 id="browser-use-setup-title">部署 browser-use 环境</h3>
+  <div class="modal-overlay browser-use-setup-modal" id="browser-use-setup-modal" onclick="closeBrowserUseSetupModal(event)">
+    <div class="modal-panel bu-setup-panel" role="dialog" aria-labelledby="browser-use-setup-title" onclick="event.stopPropagation()">
+      <div class="bu-setup-hero">
+        <div class="bu-setup-hero-icon">
+          <span class="material-symbols-outlined">travel_explore</span>
+        </div>
+        <div class="bu-setup-hero-text">
+          <h3 id="browser-use-setup-title">部署 browser-use</h3>
+          <p>自动检测 Python、选择镜像并安装 AI 浏览器环境；Cookies 与列表编辑器同步。</p>
+        </div>
+        <button type="button" class="icon-btn sm" title="关闭" onclick="closeBrowserUseSetupModal()"><span class="material-symbols-outlined">close</span></button>
       </div>
-      <div class="modal-body update-progress-body">
-        <p style="font-size:13px;color:var(--text2);margin:0 0 14px;line-height:1.6">首次使用将自动检测 Python 3.11+、选择最快 PyPI 镜像，并安装 browser-use 与 Chromium。Cookies 将与「Cookies 列表编辑器」同步注入。</p>
-        <div class="form-row" style="margin:0 0 12px">
-          <div class="form-label">浏览器能力模型</div>
-          <div class="tgl on" id="tgl-browser-use-setup-same-llm" onclick="toggle(this,'agentBrowserUseSameLlm');toggleBrowserUseLlmPanel();syncBrowserUseSetupLlmToggle()"></div>
-          <span style="font-size:11px;color:var(--text3);margin-left:8px">与主对话模型相同</span>
+      <div class="bu-setup-body">
+        <div class="bu-setup-steps" id="bu-setup-steps">
+          <span class="bu-setup-step" data-step="python"><span class="material-symbols-outlined">code</span>Python</span>
+          <span class="bu-setup-step" data-step="venv"><span class="material-symbols-outlined">folder_open</span>虚拟环境</span>
+          <span class="bu-setup-step" data-step="install"><span class="material-symbols-outlined">download</span>安装包</span>
+          <span class="bu-setup-step" data-step="chromium"><span class="material-symbols-outlined">language</span>Chromium</span>
+          <span class="bu-setup-step" data-step="done"><span class="material-symbols-outlined">check_circle</span>完成</span>
         </div>
-        <div class="update-progress-hero">
-          <div class="update-progress-icon-wrap is-spinning" id="browser-use-progress-icon-wrap">
-            <span class="material-symbols-outlined">download</span>
+        <div class="bu-setup-llm-card">
+          <div>
+            <div class="bu-setup-llm-label">浏览器能力模型</div>
+            <div class="bu-setup-llm-hint">browser-use 需 LLM 规划页面操作；可与主对话模型共用。</div>
           </div>
-          <div class="update-progress-hero-text">
-            <div class="update-progress-step" id="browser-use-progress-step">等待开始…</div>
-            <div class="update-progress-pct-big" id="browser-use-progress-pct">0%</div>
+          <div class="bu-setup-llm-toggle">
+            <span>与主模型相同</span>
+            <div class="tgl on" id="tgl-browser-use-setup-same-llm" onclick="toggle(this,'agentBrowserUseSameLlm');toggleBrowserUseLlmPanel();syncBrowserUseSetupLlmToggle()"></div>
           </div>
         </div>
-        <div class="update-progress-bar-wrap">
-          <div class="update-progress-bar" id="browser-use-progress-bar"></div>
+        <div class="bu-setup-progress-card">
+          <div class="bu-setup-progress-top">
+            <div class="bu-setup-progress-status">
+              <div class="bu-setup-progress-icon" id="browser-use-progress-icon-wrap">
+                <span class="material-symbols-outlined" id="browser-use-progress-icon">hourglass_empty</span>
+              </div>
+              <div class="bu-setup-progress-msg" id="browser-use-progress-step">准备就绪，点击下方开始部署</div>
+            </div>
+            <div class="bu-setup-progress-pct" id="browser-use-progress-pct">0%</div>
+          </div>
+          <div class="bu-setup-progress-bar-wrap">
+            <div class="bu-setup-progress-bar" id="browser-use-progress-bar"></div>
+          </div>
+          <div class="bu-setup-mirror-badge" id="browser-use-mirror-badge" style="display:none">
+            <span class="material-symbols-outlined">dns</span>
+            <span id="browser-use-mirror-text">镜像：自动选择</span>
+          </div>
         </div>
-        <div class="update-progress-log" id="browser-use-progress-log"></div>
+        <div class="bu-setup-log-wrap">
+          <div class="bu-setup-log-head">
+            <span>安装日志</span>
+            <span id="browser-use-log-count">0 条</span>
+          </div>
+          <div class="bu-setup-log" id="browser-use-progress-log">
+            <div class="bu-setup-log-empty" id="browser-use-log-empty">部署开始后将在此显示实时输出</div>
+          </div>
+        </div>
       </div>
-      <div class="modal-foot" id="browser-use-setup-foot">
+      <div class="bu-setup-foot" id="browser-use-setup-foot">
         <button type="button" class="btn btn-d" onclick="closeBrowserUseSetupModal()">取消</button>
-        <button type="button" class="btn btn-p" id="btn-browser-use-setup-start" onclick="startBrowserUseInstall(true)"><span class="material-symbols-outlined">rocket_launch</span>开始部署</button>
+        <button type="button" class="btn btn-p" id="btn-browser-use-setup-start" onclick="startBrowserUseInstall(true)">
+          <span class="material-symbols-outlined">rocket_launch</span>开始部署
+        </button>
       </div>
     </div>
   </div>
@@ -4361,7 +4568,7 @@ npx playwright install chromium</pre>
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span id="sidebar-version">NapCat 插件 · v2.7.5</span>
+          <span id="sidebar-version">NapCat 插件 · v2.7.8</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -5349,9 +5556,9 @@ npx playwright install chromium</pre>
                 <option value="browser-use">browser-use（AI 驱动）</option>
               </select>
             </div>
-            <div class="form-row" id="agent-browser-engine-status-row">
+            <div class="form-row agent-browser-engine-status-row" id="agent-browser-engine-status-row">
               <div class="form-label">引擎环境状态</div>
-              <span id="agent-browser-engine-status" style="font-size:12px;color:var(--text3)">检测中…</span>
+              <span id="agent-browser-engine-status" class="agent-browser-engine-status-text">检测中…</span>
             </div>
             <div class="form-row" id="agent-browser-playwright-actions" style="display:none">
               <div class="form-label">Playwright 部署</div>
@@ -5360,9 +5567,13 @@ npx playwright install chromium</pre>
                 <button type="button" class="btn btn-s" onclick="startPlaywrightInstall()"><span class="material-symbols-outlined">download</span>一键安装 Playwright</button>
               </div>
             </div>
-            <div id="agent-browser-use-panel" style="display:none;border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin:0 16px 12px;background:var(--card2)">
-              <div style="font-size:12px;font-weight:600;margin-bottom:10px;color:var(--text2)">browser-use 配置</div>
-              <div class="form-row" style="margin:0 0 10px">
+            <div id="agent-browser-use-panel" class="agent-browser-use-panel" style="display:none">
+              <div class="agent-browser-use-panel-head">
+                <span class="agent-browser-use-panel-title">browser-use 配置</span>
+                <span id="agent-browser-use-env-badge" class="agent-browser-use-status-badge">检测中…</span>
+              </div>
+              <div class="agent-browser-use-panel-body">
+              <div class="form-row">
                 <div class="form-label">浏览器能力模型<div class="hint">browser-use 需要独立 LLM 推理页面操作；可与主对话模型相同。</div></div>
                 <div class="tgl on" id="tgl-agentBrowserUseSameLlm" onclick="toggle(this,'agentBrowserUseSameLlm');toggleBrowserUseLlmPanel()"></div>
               </div>
@@ -5405,9 +5616,9 @@ npx playwright install chromium</pre>
               </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                 <button type="button" class="btn btn-p" id="btn-browser-use-install" onclick="startBrowserUseInstall()"><span class="material-symbols-outlined">rocket_launch</span>一键部署 browser-use</button>
-                <span id="agent-browser-use-env-badge" style="font-size:12px;color:var(--text3)">环境未检测</span>
               </div>
-              <p style="font-size:11px;color:var(--text3);margin:10px 0 0;line-height:1.55">需要 Python 3.11+。部署将自动创建虚拟环境、安装 browser-use[core] 与 Chromium。Cookies 使用下方「Cookies 列表编辑器」配置，执行时自动注入。</p>
+              <p class="agent-browser-use-hint">需要 Python 3.11+。将自动创建虚拟环境、安装 browser-use[core]、Python Playwright 与 Chromium。Cookies 使用下方编辑器配置，执行时自动注入。</p>
+              </div>
             </div>
             <div class="form-row" id="agent-browser-playwright-only">
               <div class="form-label">优先 Playwright<div class="hint">关闭后快照回退为 HTTP 抓取（无截图）。</div></div>
@@ -7797,31 +8008,47 @@ npx playwright install chromium</pre>
       const pwPanel = document.getElementById('agent-browser-playwright-actions');
       const pwOnly = document.getElementById('agent-browser-playwright-only');
       const buPanel = document.getElementById('agent-browser-use-panel');
+      const statusRow = document.getElementById('agent-browser-engine-status-row');
       if (pwPanel) pwPanel.style.display = eng === 'playwright' ? 'flex' : 'none';
       if (pwOnly) pwOnly.style.display = eng === 'playwright' ? 'flex' : 'none';
       if (buPanel) buPanel.style.display = eng === 'browser-use' ? 'block' : 'none';
+      if (statusRow) statusRow.style.display = eng === 'browser-use' ? 'none' : 'flex';
       toggleBrowserUseLlmPanel();
+    }
+
+    function setBrowserUseEnvBadge(text, kind) {
+      const badge = document.getElementById('agent-browser-use-env-badge');
+      if (!badge) return;
+      badge.textContent = text;
+      badge.classList.remove('is-ready', 'is-warn');
+      if (kind === 'ready') badge.classList.add('is-ready');
+      else if (kind === 'warn') badge.classList.add('is-warn');
     }
 
     async function refreshBrowserEngineStatus() {
       const statusEl = document.getElementById('agent-browser-engine-status');
-      const badge = document.getElementById('agent-browser-use-env-badge');
       const eng = document.getElementById('cfg-agentBrowserEngine')?.value || 'playwright';
       try {
         if (eng === 'browser-use') {
           const res = await fetch(BASE + '/browser-use/env/status');
           const data = await res.json();
           const st = data.data || {};
-          const ready = st.installed || st.envReady;
-          if (statusEl) {
-            statusEl.textContent = ready
-              ? 'browser-use 已就绪 · Python ' + (st.pythonVersion || '?')
-              : (st.pythonOk ? 'browser-use 未安装（可一键部署）' : '缺少 Python 3.11+');
-            statusEl.style.color = ready ? 'var(--accent)' : 'var(--text3)';
+          if (st.installed) {
+            setBrowserUseEnvBadge('已就绪 · Python ' + (st.pythonVersion || '?'), 'ready');
+          } else if (st.importOk && !st.hasChromium) {
+            setBrowserUseEnvBadge('包已安装 · 待下载 Chromium', 'warn');
+          } else if (st.packageInstalled) {
+            setBrowserUseEnvBadge('包已安装 · 待验证', 'warn');
+          } else if (st.pythonOk) {
+            setBrowserUseEnvBadge('待部署', 'warn');
+          } else {
+            setBrowserUseEnvBadge('需要 Python 3.11+', 'warn');
           }
-          if (badge) {
-            badge.textContent = ready ? '环境已就绪' : (st.pythonOk ? '待部署' : '需要 Python 3.11+');
-            badge.style.color = ready ? 'var(--accent)' : 'var(--text3)';
+          const installBtn = document.getElementById('btn-browser-use-install');
+          if (installBtn) {
+            installBtn.innerHTML = st.importOk && !st.hasChromium
+              ? '<span class="material-symbols-outlined">download</span>安装 Chromium'
+              : '<span class="material-symbols-outlined">rocket_launch</span>一键部署 browser-use';
           }
         } else {
           const res = await fetch(BASE + '/skillhub/env/status');
@@ -7854,40 +8081,114 @@ npx playwright install chromium</pre>
       }
     }
 
+    const BU_SETUP_STEP_ORDER = ['python', 'mirror', 'venv', 'pip', 'install', 'chromium', 'verify', 'done'];
+    const BU_STEP_UI_MAP = {
+      python: 'python', mirror: 'python', venv: 'venv', pip: 'install', install: 'install',
+      chromium: 'chromium', verify: 'done', done: 'done', error: 'done'
+    };
+    const BU_MIRROR_NAMES = { tsinghua: '清华大学', aliyun: '阿里云', ustc: '中科大', douban: '豆瓣', official: 'PyPI 官方', auto: '自动选择' };
+
+    function updateBrowserUseStepPills(stepKey, percent) {
+      const container = document.getElementById('bu-setup-steps');
+      if (!container) return;
+      const uiStep = BU_STEP_UI_MAP[stepKey] || 'python';
+      const order = ['python', 'venv', 'install', 'chromium', 'done'];
+      const uiIdx = order.indexOf(uiStep);
+      container.querySelectorAll('.bu-setup-step').forEach(function (el) {
+        const key = el.getAttribute('data-step');
+        const idx = order.indexOf(key);
+        el.classList.remove('is-active', 'is-done');
+        if (percent >= 100 && key === 'done') {
+          el.classList.add('is-done');
+          const icon = el.querySelector('.material-symbols-outlined');
+          if (icon) icon.textContent = 'check_circle';
+        } else if (idx < uiIdx) {
+          el.classList.add('is-done');
+          const icon = el.querySelector('.material-symbols-outlined');
+          if (icon) icon.textContent = 'check';
+        } else if (idx === uiIdx && percent > 0 && percent < 100) {
+          el.classList.add('is-active');
+        }
+      });
+    }
+
     function openBrowserUseSetupModal() {
       syncBrowserUseSetupLlmToggle();
       browserUseLogCursor = 0;
       const log = document.getElementById('browser-use-progress-log');
-      if (log) log.innerHTML = '';
-      setBrowserUseProgressUi({ percent: 0, message: '等待开始…' });
+      if (log) {
+        log.innerHTML = '<div class="bu-setup-log-empty" id="browser-use-log-empty">部署开始后将在此显示实时输出</div>';
+      }
+      const countEl = document.getElementById('browser-use-log-count');
+      if (countEl) countEl.textContent = '0 条';
+      const mirrorBadge = document.getElementById('browser-use-mirror-badge');
+      if (mirrorBadge) mirrorBadge.style.display = 'none';
+      const startBtn = document.getElementById('btn-browser-use-setup-start');
+      if (startBtn) {
+        startBtn.disabled = false;
+        startBtn.innerHTML = '<span class="material-symbols-outlined">rocket_launch</span>开始部署';
+      }
+      setBrowserUseProgressUi({ percent: 0, message: '准备就绪，点击下方开始部署', step: 'init', phase: 'idle' });
+      document.getElementById('browser-use-setup-modal')?.classList.remove('is-running', 'is-error', 'is-success');
       document.getElementById('browser-use-setup-modal')?.classList.add('open');
     }
-    function closeBrowserUseSetupModal() {
+    function closeBrowserUseSetupModal(ev) {
+      if (ev && ev.target !== ev.currentTarget) return;
+      const modal = document.getElementById('browser-use-setup-modal');
+      if (modal?.classList.contains('is-running')) return;
       clearInterval(browserUsePollTimer);
-      document.getElementById('browser-use-setup-modal')?.classList.remove('open', 'is-error', 'is-success');
+      modal?.classList.remove('open', 'is-error', 'is-success', 'is-running');
     }
     function setBrowserUseProgressUi(payload) {
       const pct = Math.max(0, Math.min(100, Number(payload?.percent) || 0));
       const bar = document.getElementById('browser-use-progress-bar');
       const pctEl = document.getElementById('browser-use-progress-pct');
       const stepEl = document.getElementById('browser-use-progress-step');
+      const iconWrap = document.getElementById('browser-use-progress-icon-wrap');
+      const iconEl = document.getElementById('browser-use-progress-icon');
       const modal = document.getElementById('browser-use-setup-modal');
+      const stepKey = payload?.step || '';
       if (bar) bar.style.width = pct + '%';
       if (pctEl) pctEl.textContent = pct + '%';
       if (stepEl) stepEl.textContent = payload?.message || '处理中…';
+      updateBrowserUseStepPills(stepKey, pct);
+      if (iconWrap && iconEl) {
+        const running = payload?.phase === 'running' || (pct > 0 && pct < 100);
+        iconWrap.classList.toggle('is-spinning', running);
+        if (payload?.phase === 'complete') iconEl.textContent = 'check_circle';
+        else if (payload?.phase === 'error') iconEl.textContent = 'error';
+        else if (running) iconEl.textContent = 'sync';
+        else iconEl.textContent = 'hourglass_empty';
+      }
       if (modal) {
         modal.classList.toggle('is-error', payload?.phase === 'error');
         modal.classList.toggle('is-success', payload?.phase === 'complete');
+        modal.classList.toggle('is-running', payload?.phase === 'running');
+      }
+      if (payload?.mirror) {
+        const badge = document.getElementById('browser-use-mirror-badge');
+        const text = document.getElementById('browser-use-mirror-text');
+        if (badge) badge.style.display = 'inline-flex';
+        if (text) text.textContent = '镜像：' + (BU_MIRROR_NAMES[payload.mirror] || payload.mirror);
       }
     }
     function appendBrowserUseLog(item) {
       const log = document.getElementById('browser-use-progress-log');
       if (!log || !item) return;
+      const empty = document.getElementById('browser-use-log-empty');
+      if (empty) empty.remove();
       const line = document.createElement('div');
-      line.className = 'update-progress-log-line';
-      line.textContent = item.line || String(item);
+      const text = item.line || String(item);
+      const isHead = /^===/.test(text);
+      const isErr = /^\[错误\]|错误:|失败/i.test(text);
+      line.className = 'bu-setup-log-line' + (isHead ? ' is-head' : '') + (isErr ? ' is-err' : '');
+      const ts = item.ts ? new Date(item.ts) : new Date();
+      const timeStr = ts.toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      line.innerHTML = '<span class="log-time">' + escapeHtml(timeStr) + '</span><span class="log-text">' + escapeHtml(text) + '</span>';
       log.appendChild(line);
       log.scrollTop = log.scrollHeight;
+      const countEl = document.getElementById('browser-use-log-count');
+      if (countEl) countEl.textContent = log.querySelectorAll('.bu-setup-log-line').length + ' 条';
     }
     function pollBrowserUseSetupProgress() {
       clearInterval(browserUsePollTimer);
@@ -7898,16 +8199,32 @@ npx playwright install chromium</pre>
           if (!data.success) return;
           (data.logs || []).forEach(appendBrowserUseLog);
           browserUseLogCursor = data.total || browserUseLogCursor;
-          setBrowserUseProgressUi({ percent: data.percent, message: data.message || data.step, phase: data.running ? 'running' : (data.ok ? 'complete' : 'error') });
+          setBrowserUseProgressUi({
+            percent: data.percent,
+            message: data.message || data.step,
+            step: data.step,
+            mirror: data.mirror,
+            phase: data.running ? 'running' : (data.ok ? 'complete' : 'error')
+          });
           if (!data.running) {
             clearInterval(browserUsePollTimer);
+            const modal = document.getElementById('browser-use-setup-modal');
+            if (modal) modal.classList.remove('is-running');
             const startBtn = document.getElementById('btn-browser-use-setup-start');
             const installBtn = document.getElementById('btn-browser-use-install');
-            if (startBtn) startBtn.disabled = false;
+            if (startBtn) {
+              startBtn.disabled = false;
+              startBtn.innerHTML = data.ok
+                ? '<span class="material-symbols-outlined">check</span>部署完成'
+                : '<span class="material-symbols-outlined">rocket_launch</span>重新部署';
+            }
             if (installBtn) installBtn.disabled = false;
             if (data.ok) {
               toast('browser-use 环境部署完成', 'success');
               config.agentBrowserUseEnvReady = true;
+              refreshBrowserEngineStatus();
+            } else if (data.error && data.step === 'need_chromium') {
+              toast('browser-use 已安装，请再次点击安装 Chromium', 'warn');
               refreshBrowserEngineStatus();
             } else if (data.error) {
               toast(data.error, 'error');
@@ -7922,6 +8239,9 @@ npx playwright install chromium</pre>
       const btn = document.getElementById(fromModal ? 'btn-browser-use-setup-start' : 'btn-browser-use-install');
       if (btn) btn.disabled = true;
       if (!fromModal) openBrowserUseSetupModal();
+      const modal = document.getElementById('browser-use-setup-modal');
+      if (modal) modal.classList.add('is-running');
+      setBrowserUseProgressUi({ percent: 2, message: '正在启动部署任务…', step: 'python', phase: 'running' });
       browserUseLogCursor = 0;
       const log = document.getElementById('browser-use-progress-log');
       if (log) log.innerHTML = '';
