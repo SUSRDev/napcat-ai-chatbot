@@ -1,5 +1,22 @@
 # 更新日志
 
+## [2.7.9] — 2026-06-26
+
+### 新增
+
+- **QQ Agent 工具集**：新增 `agentQqToolsEnabled`、`agentToolQqUserInfoEnabled`、`agentToolQqGroupInfoEnabled`、`agentToolQqGroupContextEnabled` 等配置项，支持在 Agent 模式下查询 QQ 用户信息、群信息及群聊上下文。
+- **群上下文自动注入**：新增 `agentQqGroupContextEnabled` / `agentQqGroupContextAuto` / `agentQqGroupContextLines` 配置，Agent 回复时可自动将群最近消息作为上下文前置注入，条数上限可调（1–50 条）。
+- **群成员信息查询**：新增 `fetchGroupMemberProfile` 接口，返回成员群昵称、群名片、角色、头衔、入群时间等字段；支持按昵称/群名片模糊解析成员 ID。
+- **群资料字段扩展**：`fetchGroupProfile` 返回结果新增 `maxMemberCount`（人数上限）、`groupCreateTime`（建群时间）、`groupLevel`（群等级）字段。
+
+### 改进
+
+- **`agentMaxToolRounds` 上限放开**：最大工具调用轮次从 12 提升至 999，满足长流程 Agent 任务需求。
+- **历史记录保留 `name` 字段**：工具调用历史现在会保存 `name` 字段（最长 120 字符），便于追踪工具调用来源。
+- **群消息格式统一**：`getRecentGroupMessages` 内部复用新的 `getFormattedRecentGroupContext`，显示格式从 `用户{id}` 升级为 `{昵称}({id})`，信息更清晰。
+
+---
+
 ## [2.7.8] — 2026-06-26
 
 ### 改进

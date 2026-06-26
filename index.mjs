@@ -56,6 +56,10 @@ import {
   toolTraceToHistoryMeta
 } from './lib/agent-runtime.mjs';
 import {
+  buildQqSessionContextBlock,
+  buildQqGroupContextBlock
+} from './lib/agent-qq.mjs';
+import {
   detectSkillhubCli,
   getSkillhubInstallDir,
   skillhubSearch,
@@ -444,6 +448,14 @@ const DEFAULT_CONFIG = {
   agentBrowserUseMaxSteps: 30,
   agentBrowserUseTimeoutMs: 300000,
   agentToolBrowserUseTaskEnabled: true,
+  agentQqToolsEnabled: true,
+  agentQqContextEnabled: true,
+  agentQqGroupContextEnabled: true,
+  agentQqGroupContextAuto: true,
+  agentQqGroupContextLines: 10,
+  agentToolQqUserInfoEnabled: true,
+  agentToolQqGroupInfoEnabled: true,
+  agentToolQqGroupContextEnabled: true,
   agentBrowserAdvancedEnabled: true,
   agentBrowserUserAgent: '',
   agentBrowserExtraHeaders: {},
@@ -1178,6 +1190,7 @@ function pushHistory(key, role, content, extra = {}) {
       if (t.queries) tool.queries = t.queries.map((q) => String(q).slice(0, 200));
       else if (t.query) tool.query = String(t.query).slice(0, 200);
       if (t.prompt) tool.prompt = String(t.prompt).slice(0, 500);
+      if (t.name) tool.name = String(t.name).slice(0, 120);
       if (t.url) tool.url = String(t.url).slice(0, 2000);
       if (t.result) tool.result = String(t.result).slice(0, 6000);
       return tool;
@@ -2267,12 +2280,169 @@ async function fetchGroupProfile(groupId) {
       groupId: gid,
       groupName: String(data.group_name ?? data.name ?? '').trim(),
       memberCount: Number(data.member_count ?? data.memberCount ?? 0) || 0,
+      maxMemberCount: Number(data.max_member_count ?? data.maxMemberCount ?? 0) || 0,
+      groupCreateTime: data.group_create_time ?? data.create_time ?? '',
+      groupLevel: data.group_level ?? data.level ?? '',
       avatar
     };
   } catch (e) {
     log('debug', '获取群信息失败', { groupId: gid, err: e.message }, 'config');
     return { groupId: gid, groupName: '', memberCount: 0, avatar: buildGroupAvatarUrl(gid) };
   }
+}
+
+async function fetchGroupMemberProfile(groupId, userId) {
+  const gid = String(groupId || '').trim();
+  const uid = String(userId || '').trim();
+  if (!gid || !uid) return null;
+  try {
+    const res = await callAction('get_group_member_info', { group_id: gid, user_id: uid });
+    const data = res?.data ?? res ?? {};
+    return {
+      userId: uid,
+      groupNickname: String(data.nickname ?? data.nick ?? '').trim(),
+      card: String(data.card ?? data.group_card ?? '').trim(),
+      role: String(data.role ?? '').trim(),
+      title: String(data.title ?? '').trim(),
+      joinTime: data.join_time ?? data.joinTime ?? '',
+      lastSentTime: data.last_sent_time ?? data.lastSentTime ?? ''
+    };
+  } catch (e) {
+    log('debug', '获取群成员信息失败', { groupId: gid, userId: uid, err: e.message }, 'config');
+    return null;
+  }
+}
+
+async function resolveGroupMemberIdByName(groupId, query) {
+  const q = String(query || '').trim().replace(/^@+/, '');
+  if (!q || !groupId) return null;
+  if (/^\d{5,12}$/.test(q)) return q;
+  try {
+    const raw = await callAction('get_group_member_list', { group_id: String(groupId) });
+    const list = Array.isArray(raw) ? raw : (raw?.data || raw?.result || []);
+    const lq = q.toLowerCase();
+    const exact = [];
+    const partial = [];
+    for (const m of list) {
+      const uid = m.user_id != null ? String(m.user_id) : (m.userId != null ? String(m.userId) : '');
+      if (!uid) continue;
+      const card = String(m.card ?? m.group_card ?? '').trim();
+      const nick = String(m.nickname ?? m.nick ?? '').trim();
+      const names = [card, nick].filter(Boolean).map((s) => s.toLowerCase());
+      if (names.some((n) => n === lq)) exact.push(uid);
+      else if (names.some((n) => n.includes(lq))) partial.push(uid);
+    }
+    return exact[0] || partial[0] || null;
+  } catch (e) {
+    log('debug', '群成员昵称解析失败', { groupId, query: q, err: e.message }, 'config');
+    return null;
+  }
+}
+
+async function resolveQqUserQuery(query, groupId) {
+  const q = String(query || '').trim().replace(/^@+/, '');
+  if (!q) return { error: '查询内容为空' };
+
+  let userId = null;
+  if (/^\d{5,12}$/.test(q)) {
+    userId = q;
+  } else if (groupId) {
+    userId = await resolveGroupMemberIdByName(groupId, q);
+  }
+
+  if (!userId) {
+    const matches = await searchUsersByQuery(q, 8);
+    if (matches.length === 1) userId = matches[0].userId;
+    else if (matches.length > 1) {
+      return {
+        multiple: true,
+        candidates: matches.map((m) => ({ userId: m.userId, nickname: m.nickname || m.userName || '' }))
+      };
+    } else {
+      return { error: `未找到用户：${q}${groupId ? '（已在当前群成员中搜索）' : ''}` };
+    }
+  }
+
+  const strangerRes = await callAction('get_stranger_info', { user_id: userId }).catch(() => null);
+  const strangerData = strangerRes?.data ?? strangerRes ?? {};
+  const stranger = normalizeUserProfile(strangerData, userId);
+  touchUserProfileCache(pluginState.config, stranger);
+
+  const member = groupId ? await fetchGroupMemberProfile(groupId, userId) : null;
+  return {
+    userId,
+    nickname: stranger.nickname || member?.groupNickname || member?.card || '',
+    card: member?.card || '',
+    groupNickname: member?.groupNickname || '',
+    qid: strangerData.qid ?? strangerData.QID ?? '',
+    sex: strangerData.sex ?? strangerData.gender ?? '',
+    age: strangerData.age ?? '',
+    level: strangerData.level ?? strangerData.qq_level ?? '',
+    sign: String(strangerData.sign ?? strangerData.signature ?? '').trim(),
+    regTime: strangerData.reg_time ?? strangerData.regTime ?? '',
+    role: member?.role || '',
+    title: member?.title || '',
+    avatar: stranger.avatar || ''
+  };
+}
+
+function extractAtQqFromMessage(rawMessage, event) {
+  const ids = [];
+  const re = /\[CQ:at,qq=(\d+)\]/gi;
+  let m;
+  while ((m = re.exec(String(rawMessage || '')))) ids.push(m[1]);
+  if (Array.isArray(event?.message)) {
+    for (const seg of event.message) {
+      if (seg?.type === 'at' && seg.data?.qq && String(seg.data.qq) !== 'all') {
+        ids.push(String(seg.data.qq));
+      }
+    }
+  }
+  return [...new Set(ids.filter(Boolean))];
+}
+
+function getFormattedRecentGroupContext(groupId, limit, cfg = pluginState.config) {
+  const n = Math.max(1, Math.min(50, Number(limit) || Number(cfg?.agentQqGroupContextLines) || 10));
+  const list = recentGroupMessages.get(String(groupId)) || [];
+  return list.slice(-n).map((item) => {
+    const label = item.userName ? `${item.userName}(${item.userId})` : `用户${item.userId}`;
+    return `${label}: ${item.text}`;
+  }).join('\n');
+}
+
+function createQqApi(session) {
+  const cfg = pluginState.config || {};
+  return {
+    getSession: () => session,
+    async fetchUserProfile(userId) {
+      return fetchStrangerProfile(userId);
+    },
+    async fetchGroupProfile(groupId) {
+      const profile = await fetchGroupProfile(groupId);
+      if (profile) touchGroupProfileCache(cfg, profile);
+      return profile;
+    },
+    async resolveUserQuery(query) {
+      return resolveQqUserQuery(query, session.groupId);
+    },
+    getGroupRecentContext(limit) {
+      if (!session.groupId) return '';
+      return getFormattedRecentGroupContext(session.groupId, limit, cfg);
+    }
+  };
+}
+
+function buildAgentQqContextExtras(cfg, session) {
+  let extra = buildQqSessionContextBlock(cfg, session);
+  let groupContextMeta = null;
+  if (session.groupId && cfg.agentQqGroupContextEnabled !== false && cfg.agentQqGroupContextAuto !== false) {
+    const lines = getFormattedRecentGroupContext(session.groupId, cfg.agentQqGroupContextLines, cfg);
+    if (lines) {
+      extra += buildQqGroupContextBlock(cfg, lines);
+      groupContextMeta = { type: 'qq_group_context', name: 'builtin_qq_group_context', result: lines.slice(0, 4000) };
+    }
+  }
+  return { extra, groupContextMeta };
 }
 
 async function searchUsersByQuery(query, limit = 20) {
@@ -2995,10 +3165,9 @@ async function getRandomGroupMember(groupId, selfId) {
   }
 }
 
-/** 获取群最近几条消息文本（用于伪人上下文） */
+/** 获取群最近几条消息文本（用于伪人/群上下文） */
 function getRecentGroupMessages(groupId, limit = 5) {
-  const list = recentGroupMessages.get(String(groupId)) || [];
-  return list.slice(-Math.max(1, limit)).map((m) => `用户${m.userId}: ${m.text}`).join('\n');
+  return getFormattedRecentGroupContext(groupId, limit);
 }
 
 /** 伪人：AI 在 回复(1)/@(2)/戳一戳(3) 中选一种 */
@@ -4110,7 +4279,7 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         if (body.fakeHumanParseImage !== undefined) cfg.fakeHumanParseImage = Boolean(body.fakeHumanParseImage);
         if (body.fakeHumanVisionModel !== undefined) cfg.fakeHumanVisionModel = String(body.fakeHumanVisionModel || '').trim();
         if (body.agentToolsEnabled !== undefined) cfg.agentToolsEnabled = Boolean(body.agentToolsEnabled);
-        if (body.agentMaxToolRounds !== undefined) cfg.agentMaxToolRounds = num('agentMaxToolRounds', 6, 1, 12);
+        if (body.agentMaxToolRounds !== undefined) cfg.agentMaxToolRounds = num('agentMaxToolRounds', 6, 1, 999);
         if (body.skillsEnabled !== undefined) cfg.skillsEnabled = Boolean(body.skillsEnabled);
         if (body.skillsInjectMode !== undefined) {
           const sm = String(body.skillsInjectMode || 'auto').toLowerCase();
@@ -4165,6 +4334,14 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         if (body.agentBrowserUseMaxSteps !== undefined) cfg.agentBrowserUseMaxSteps = num('agentBrowserUseMaxSteps', 30, 5, 80);
         if (body.agentBrowserUseTimeoutMs !== undefined) cfg.agentBrowserUseTimeoutMs = num('agentBrowserUseTimeoutMs', 300000, 60000, 900000);
         if (body.agentToolBrowserUseTaskEnabled !== undefined) cfg.agentToolBrowserUseTaskEnabled = Boolean(body.agentToolBrowserUseTaskEnabled);
+        if (body.agentQqToolsEnabled !== undefined) cfg.agentQqToolsEnabled = Boolean(body.agentQqToolsEnabled);
+        if (body.agentQqContextEnabled !== undefined) cfg.agentQqContextEnabled = Boolean(body.agentQqContextEnabled);
+        if (body.agentQqGroupContextEnabled !== undefined) cfg.agentQqGroupContextEnabled = Boolean(body.agentQqGroupContextEnabled);
+        if (body.agentQqGroupContextAuto !== undefined) cfg.agentQqGroupContextAuto = Boolean(body.agentQqGroupContextAuto);
+        if (body.agentQqGroupContextLines !== undefined) cfg.agentQqGroupContextLines = num('agentQqGroupContextLines', 10, 1, 50);
+        if (body.agentToolQqUserInfoEnabled !== undefined) cfg.agentToolQqUserInfoEnabled = Boolean(body.agentToolQqUserInfoEnabled);
+        if (body.agentToolQqGroupInfoEnabled !== undefined) cfg.agentToolQqGroupInfoEnabled = Boolean(body.agentToolQqGroupInfoEnabled);
+        if (body.agentToolQqGroupContextEnabled !== undefined) cfg.agentToolQqGroupContextEnabled = Boolean(body.agentToolQqGroupContextEnabled);
         if (body.agentBrowserAdvancedEnabled !== undefined) cfg.agentBrowserAdvancedEnabled = Boolean(body.agentBrowserAdvancedEnabled);
         if (body.agentBrowserUserAgent !== undefined) cfg.agentBrowserUserAgent = String(body.agentBrowserUserAgent || '').trim();
         if (body.agentBrowserExtraHeaders !== undefined) cfg.agentBrowserExtraHeaders = body.agentBrowserExtraHeaders && typeof body.agentBrowserExtraHeaders === 'object' && !Array.isArray(body.agentBrowserExtraHeaders) ? body.agentBrowserExtraHeaders : {};
@@ -4852,6 +5029,17 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
           if (cfg.skillsEnabled) {
             systemContent += buildAgentSystemExtras(cfg, __dirname, text);
           }
+          const qqSession = {
+            userId,
+            userName,
+            userCard: '',
+            groupId: groupId || '',
+            groupName: groupId ? groupName : '',
+            atUserIds: []
+          };
+          const qqExtras = buildAgentQqContextExtras(cfg, qqSession);
+          systemContent += qqExtras.extra;
+          const qqContextMeta = qqExtras.groupContextMeta;
           const messages = [
             { role: 'system', content: systemContent },
             ...history.map((h) => ({ role: h.role, content: h.content })),
@@ -4875,7 +5063,7 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
           let agentToolTrace = [];
           if (cfg.agentToolsEnabled) {
             await ensureAgentMcpHub(cfg);
-            const maxRounds = Math.max(1, Math.min(12, Number(cfg.agentMaxToolRounds) || 6));
+            const maxRounds = Math.max(1, Math.min(999, Number(cfg.agentMaxToolRounds) || 6));
             const agentChatCompletion = (msgList, opts = {}) => chatCompletion(msgList, { ...opts, usageKey: key, usageSource: 'agent' });
             const agentResult = await runAgentToolLoop({
               messages,
@@ -4887,6 +5075,7 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
                 cfg,
                 webSearchMulti,
                 pluginRoot: __dirname,
+                qqApi: createQqApi(qqSession),
                 requestRiskApproval: async (risk) => {
                   if (cfg.agentDangerGuardEnabled === false) return { approved: true };
                   if (cfg.agentDangerRequireAdmin !== false && !isAdminUser(userId, cfg)) {
@@ -4950,6 +5139,7 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
 
           pushHistory(key, 'user', text || (attachments.length ? '[仅附件消息]' : ''));
           const assistantTools = [];
+          if (qqContextMeta) assistantTools.push(qqContextMeta);
           if (agentToolTrace.length) assistantTools.push(...toolTraceToHistoryMeta(agentToolTrace));
           if (imageAnalysis) assistantTools.push({ type: 'image_vision', result: imageAnalysis });
           pushHistory(key, 'assistant', replyText, assistantTools.length ? { tools: assistantTools } : {});
@@ -5119,12 +5309,11 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
       router.postNoAuth('/browser-use/env/install', async (req, res) => {
         try {
           const bu = await import('./lib/agent-browser-use.mjs');
-          const state = bu.getBrowserUseSetupState(0);
-          if (state.running) {
+          const mirror = String(req.body?.mirror || 'auto').trim();
+          if (!bu.armBrowserUseInstall(mirror)) {
             res.json({ success: false, error: 'browser-use 安装任务进行中' });
             return;
           }
-          const mirror = String(req.body?.mirror || 'auto').trim();
           res.json({ success: true, started: true });
           const ctx = pluginState.runtimeCtx;
           bu.installAgentBrowserUse(__dirname, { mirror }).then((result) => {
@@ -5139,6 +5328,22 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
               saveConfig(ctx);
             }
           }).catch((e) => log('error', 'browser-use 安装失败', e.message, 'agent'));
+        } catch (e) {
+          res.json({ success: false, error: e?.message || String(e) });
+        }
+      });
+
+      router.postNoAuth('/browser-use/env/verify', async (_, res) => {
+        try {
+          const bu = await import('./lib/agent-browser-use.mjs');
+          const result = await bu.verifyAgentBrowserUseEnv(__dirname);
+          if (result.ok) {
+            pluginState.config.agentBrowserUseEnvReady = true;
+            pluginState.config.agentBrowserEnabled = true;
+            pluginState.config.agentBrowserEngine = 'browser-use';
+            saveConfig(pluginState.runtimeCtx);
+          }
+          res.json({ success: true, data: result, rev: bu.BROWSER_USE_REV });
         } catch (e) {
           res.json({ success: false, error: e?.message || String(e) });
         }
@@ -5321,9 +5526,14 @@ const plugin_onmessage = async (ctx, event) => {
   const hasImages = extractImageFromEvent(event).length > 0;
 
   if (isGroup && (plainText.length > 0 || hasImages) && (!selfId || userId !== selfId)) {
+    const senderName = event.sender?.card || event.sender?.nickname || event.sender?.nick || '';
     const list = recentGroupMessages.get(String(groupId)) || [];
-    list.push({ userId, text: plainText.length > 0 ? plainText.slice(0, 500) : '[图片]', ts: Date.now() });
-    const maxLines = Math.max(5, Math.min(50, Number(pluginState.config.fakeHumanContextLines) || 5));
+    list.push({ userId, userName: senderName, text: plainText.length > 0 ? plainText.slice(0, 500) : '[图片]', ts: Date.now() });
+    const cfgLines = pluginState.config || {};
+    const maxLines = Math.max(5, Math.min(50, Math.max(
+      Number(cfgLines.fakeHumanContextLines) || 5,
+      Number(cfgLines.agentQqGroupContextLines) || 10
+    )));
     if (list.length > maxLines) list.splice(0, list.length - maxLines);
     recentGroupMessages.set(String(groupId), list);
   }
@@ -5385,7 +5595,8 @@ const plugin_onmessage = async (ctx, event) => {
 
   const key = getConversationKey(groupId, userId);
   const userName = event.sender?.nickname || event.sender?.nick || event.sender?.card || '';
-  const groupName = event.group_name || event.group_name || '';
+  const groupName = event.group_name || '';
+  const userCard = event.sender?.card || '';
 
   const imageGen = isImageGenTrigger(plainText, userText, cfg);
   if (imageGen) {
@@ -5547,6 +5758,31 @@ const plugin_onmessage = async (ctx, event) => {
     systemContent += buildAgentSystemExtras(cfg, __dirname, userText);
   }
 
+  let resolvedGroupName = groupName;
+  if (isGroup && groupId && !resolvedGroupName) {
+    const cached = cfg.groupProfileCache?.[String(groupId)];
+    if (cached?.groupName) resolvedGroupName = cached.groupName;
+    else {
+      const gp = await fetchGroupProfile(groupId);
+      if (gp?.groupName) {
+        resolvedGroupName = gp.groupName;
+        touchGroupProfileCache(cfg, gp);
+      }
+    }
+  }
+
+  const qqSession = {
+    userId,
+    userName,
+    userCard,
+    groupId: groupId || '',
+    groupName: resolvedGroupName,
+    atUserIds: isGroup ? extractAtQqFromMessage(event.raw_message, event) : []
+  };
+  const qqExtras = buildAgentQqContextExtras(cfg, qqSession);
+  systemContent += qqExtras.extra;
+  const qqContextMeta = qqExtras.groupContextMeta;
+
   const userMessage = userText
     || (imageAnalysis ? '请根据图片信息和上下文自然地回复用户。' : '你好');
   const messages = [
@@ -5561,7 +5797,7 @@ const plugin_onmessage = async (ctx, event) => {
   try {
     if (cfg.agentToolsEnabled) {
       await ensureAgentMcpHub(cfg);
-      const maxRounds = Math.max(1, Math.min(12, Number(cfg.agentMaxToolRounds) || 6));
+      const maxRounds = Math.max(1, Math.min(999, Number(cfg.agentMaxToolRounds) || 6));
       const agentChatCompletion = (msgList, opts = {}) => chatCompletion(msgList, { ...opts, usageKey: key, usageSource: 'agent' });
       const agentResult = await runAgentToolLoop({
         messages,
@@ -5573,6 +5809,7 @@ const plugin_onmessage = async (ctx, event) => {
           cfg,
           webSearchMulti,
           pluginRoot: __dirname,
+          qqApi: createQqApi(qqSession),
           requestRiskApproval: async (risk) => {
             if (cfg.agentDangerGuardEnabled === false) return { approved: true };
             if (cfg.agentDangerRequireAdmin !== false && !isAdminUser(userId, cfg)) {
@@ -5620,6 +5857,7 @@ const plugin_onmessage = async (ctx, event) => {
 
   pushHistory(key, 'user', historyLabelForUser(userText, imageUrls.length > 0));
   const assistantTools = [];
+  if (qqContextMeta) assistantTools.push(qqContextMeta);
   if (agentToolTrace.length) assistantTools.push(...toolTraceToHistoryMeta(agentToolTrace));
   if (searchResult) assistantTools.push({ type: 'web_search', queries: searchQueries, result: searchResult });
   if (imageAnalysis) assistantTools.push({ type: 'image_vision', result: imageAnalysis });
