@@ -4728,7 +4728,7 @@ npx playwright install chromium</pre>
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span id="sidebar-version">NapCat 插件 · v2.9.5</span>
+          <span id="sidebar-version">NapCat 插件 · v3.0.0</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -5536,7 +5536,7 @@ npx playwright install chromium</pre>
 
       <div id="pg-emoji-library" class="page">
         <h2 class="page-title">表情库</h2>
-          <p class="page-desc">群聊缓存 + VLM 打标。流程（MaiBot）：<strong>待处理</strong> → 添加标签 → <strong>已认识</strong> → <strong>占为己有</strong>（进入发送池）。</p>
+          <p class="page-desc">群聊缓存 + VLM 打标。流程（MaiBot）：<strong>待处理</strong> → 添加标签 → <strong>已认识</strong> → <strong>占为己有</strong>（进入发送池）。需配置 <strong>视觉 API</strong> 或支持识图的多模态<strong>对话 API</strong>；「不认识」可点工具栏 <strong>VLM 识别</strong> 后台重试。</p>
         <div class="mai-layout">
           <div class="mai-sidebar">
             <div class="mai-sidebar-title">来源群聊</div>
@@ -5551,6 +5551,7 @@ npx playwright install chromium</pre>
                 <input type="text" class="ipt" id="elib-search" placeholder="搜索描述、标签、hash…" oninput="debounceEmojiLibLoad()" />
               </div>
               <button type="button" class="btn btn-s" onclick="loadEmojiLibraryPage()"><span class="material-symbols-outlined">refresh</span></button>
+              <button type="button" class="btn btn-p btn-s" onclick="reprocessEmojiLibrary()" title="对「不认识」条目后台 VLM 识别"><span class="material-symbols-outlined">auto_awesome</span> VLM 识别</button>
             </div>
             <div class="mai-filter-bar" id="elib-filters">
               <button type="button" class="mai-filter-btn" data-elib-status="all" onclick="setEmojiLibStatus(this,'all')">全部<span class="cnt" id="elib-c-all"></span></button>
@@ -10002,6 +10003,24 @@ npx playwright install chromium</pre>
       } catch (e) { toast(e.message, 'error'); }
     }
 
+    async function reprocessEmojiLibrary(ids) {
+      const status = Array.isArray(ids) && ids.length ? '' : (emojiLibStatus === 'unknown' ? 'unknown' : 'unknown');
+      try {
+        const body = Array.isArray(ids) && ids.length ? { ids } : { status };
+        const res = await fetch(BASE + '/emoji-library/reprocess', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || '识别失败');
+        toast(data.message || `已加入识别队列（${data.queued || 0} 张）`, 'success');
+        setTimeout(loadEmojiLibraryPage, 8000);
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function reprocessEmojiLibItem(id) {
+      await reprocessEmojiLibrary([id]);
+    }
+
     async function loadEmojiLibraryPage() {
       const grid = document.getElementById('emoji-lib-grid');
       const empty = document.getElementById('emoji-lib-empty');
@@ -10050,6 +10069,9 @@ npx playwright install chromium</pre>
           let actions = '';
           if (e.status === 'pending' || e.status === 'unknown') {
             actions += `<button type="button" class="btn btn-s" onclick="editEmojiLibTags('${id}')">编辑标签</button>`;
+            if (e.status === 'unknown') {
+              actions += `<button type="button" class="btn btn-s" onclick="reprocessEmojiLibItem('${id}')" title="VLM 重新识别">识别</button>`;
+            }
             actions += `<button type="button" class="btn btn-s${hasTags ? ' btn-p' : ''}" onclick="setEmojiLibItemStatus('${id}','recognized')" ${hasTags ? '' : 'disabled title="请先编辑标签"'}">已认识</button>`;
           } else if (e.status === 'recognized') {
             actions += `<button type="button" class="btn btn-s btn-p" onclick="setEmojiLibItemStatus('${id}','owned')">占为己有</button>`;
@@ -10390,6 +10412,12 @@ npx playwright install chromium</pre>
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ content: text, format, groupId: slangGroupId || '', skipDuplicate: true })
           });
+          if (!res.ok) {
+            const hint = res.status === 404 || res.status === 502 || res.status === 503
+              ? '插件 API 不可用，请先在 NapCat 插件列表启用「聊天机器人」'
+              : ('HTTP ' + res.status);
+            throw new Error(hint);
+          }
           const data = await res.json();
           if (!data.success) throw new Error(data.error || '导入失败');
           totalImported += data.imported || 0;

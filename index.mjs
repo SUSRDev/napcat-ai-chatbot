@@ -161,6 +161,8 @@ import {
   pickRegisteredEmojiWithGrid,
   registeredEmojisToStickerCandidates,
   getRegisteredEmojis,
+  runEmojiVlmOnRecord,
+  applyEmojiVlmToRecord,
   DEFAULT_EMOJI_VLM_PROMPT,
   ensureEmojiRegistry
 } from './lib/emoji/emoji-manager.mjs';
@@ -176,6 +178,7 @@ import {
   clearEmojiByStatus,
   findEmojiRecord,
   serializeEmojiItem,
+  resolveEmojiStatus,
   EMOJI_STATUSES
 } from './lib/emoji/emoji-library.mjs';
 import {
@@ -726,11 +729,15 @@ function getMaisakaStore(ctx) {
 
 function persistMaisakaStore(ctx) {
   if (!maisakaStoreCache) return;
-  if (sqliteDbRef) {
-    persistStoreToDb(sqliteDbRef, maisakaStoreCache);
-    return;
+  try {
+    if (sqliteDbRef) {
+      persistStoreToDb(sqliteDbRef, maisakaStoreCache);
+      return;
+    }
+    saveMaisakaStore(getMaisakaStorePath(ctx), maisakaStoreCache);
+  } catch (e) {
+    log('warn', 'Maisaka 数据持久化失败', e.message, 'system');
   }
-  saveMaisakaStore(getMaisakaStorePath(ctx), maisakaStoreCache);
 }
 
 function appendRecentGroupBotMessage(groupId, selfId, botName, text) {
@@ -855,8 +862,17 @@ function makeBiliQrPollHandler(ctx, userId, groupId, isGroup) {
       qqUserId: userId,
       db: sqliteDbRef,
       onConfirmed: async (st) => {
-        const name = st.biliUname || st.session?.biliUname || '已绑定';
-        const msg = `B 站登录成功！账号：${name}（mid ${st.biliMid || st.session?.biliMid || ''}）\n此后你的 B 站 API 请求将使用你的 Cookie。`;
+        const mid = st.biliMid || st.session?.biliMid || '';
+        const name = st.biliUname || st.session?.biliUname || (mid ? `UID ${mid}` : '');
+        if (!mid && !name) {
+          const fail = 'B 站登录未完成：未获取到账号信息，请再说「登录 B 站」重新扫码并在 App 内确认。';
+          try {
+            if (isGroup && groupId) await sendGroup(ctx, groupId, formatReply(cfg.replyPrefix || '', { user_id: userId }) + fail);
+            else await sendPrivate(ctx, userId, fail);
+          } catch { /* ignore */ }
+          return;
+        }
+        const msg = `B 站登录成功！账号：${name || '已绑定'}（mid ${mid}）\n此后你的 B 站 API 请求将使用你的 Cookie。`;
         try {
           if (isGroup && groupId) await sendGroup(ctx, groupId, formatReply(cfg.replyPrefix || '', { user_id: userId }) + msg);
           else await sendPrivate(ctx, userId, msg);
@@ -1987,6 +2003,25 @@ function buildVisionEndpointList(cfg = pluginState.config) {
       list.push(resolved);
     }
   }
+  // 未单独配置视觉 API 时，回退到对话 API（多模态模型可识别图片）
+  if (!list.length) {
+    const visionModel = String(cfg.chatVisionModel || cfg.kimiVisionModel || '').trim();
+    for (const ep of buildChatEndpointList(cfg)) {
+      if (!ep.apiKey) continue;
+      list.push({
+        id: ep.id,
+        name: `${ep.name || '对话API'} (视觉回退)`,
+        provider: ep.provider,
+        apiKey: ep.apiKey,
+        apiUrl: ep.apiUrl,
+        modelsUrl: ep.modelsUrl || '',
+        model: visionModel || ep.model,
+        kimiCode: ep.kimiCode,
+        cookies: ep.cookies || '',
+        isPrimary: ep.isPrimary
+      });
+    }
+  }
   return list.slice(0, settings.maxEndpoints);
 }
 
@@ -2050,6 +2085,9 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 60000) {
 }
 
 function visionHeadersForEndpoint(endpoint, extra = {}) {
+  if (endpoint?.provider) {
+    return chatHeadersForEndpoint(endpoint, pluginState.config, extra);
+  }
   if (endpoint?.kimiCode) {
     return kimiCodeRequestHeaders({
       apiKey: endpoint.apiKey,
@@ -3967,41 +4005,125 @@ function getEmojiCacheDir(ctx) {
   return path.join(path.dirname(getMaisakaStorePath(ctx)), 'emoji-cache');
 }
 
-/** 伪人 LLM tool_calls 调用 */
+/** 伪人 LLM tool_calls 调用（支持 API 池 failover；不支持 tools 时回退纯文本） */
 async function callFakeHumanLlmWithTools(cfg, { messages, tools, maxTokens = 400, temperature = 0.7 }) {
-  const { apiUrl, apiKey, model } = getApiConfig();
-  if (!apiKey) return { content: '', tool_calls: [] };
-  try {
-    const res = await fetch(apiUrl, {
-      method: 'POST',
-      headers: chatHeadersFromApiConfig({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(buildAuxiliaryChatBody(cfg, {
-        model,
-        messages,
-        tools,
-        tool_choice: 'auto',
-        max_tokens: maxTokens,
-        temperature
-      }))
-    });
-    if (!res.ok) {
-      const errBody = await readApiErrorBody(res);
-      log('warn', '伪人 Planner LLM HTTP 失败', { status: res.status, body: errBody.slice(0, 200) });
-      return { content: '', tool_calls: [] };
+  const endpoints = buildChatEndpointList(cfg);
+  if (!endpoints.length) return { content: '', tool_calls: [] };
+  const settings = getChatFailoverSettings(cfg);
+
+  for (let ei = 0; ei < endpoints.length; ei++) {
+    const endpoint = endpoints[ei];
+    const model = String(endpoint.model || cfg.model || '').trim() || 'deepseek-ai/DeepSeek-V3';
+    for (let attempt = 0; attempt < settings.retries; attempt++) {
+      try {
+        const res = await fetchWithTimeout(endpoint.apiUrl, {
+          method: 'POST',
+          headers: chatHeadersForEndpoint(endpoint, cfg, { 'Content-Type': 'application/json' }),
+          body: JSON.stringify(buildAuxiliaryChatBody(cfg, {
+            model,
+            messages,
+            tools,
+            tool_choice: 'auto',
+            max_tokens: maxTokens,
+            temperature
+          }))
+        }, settings.timeoutMs);
+        const text = await res.text();
+        if (!res.ok) {
+          if (shouldRotateApiFailure(res.status, text, null, settings) && ei < endpoints.length - 1) break;
+          if (res.status === 400 && /tool/i.test(text)) {
+            const plain = await callFakeHumanLlm(cfg, {
+              systemPrompt: messages.find((m) => m.role === 'system')?.content || '',
+              userPrompt: messages.filter((m) => m.role === 'user').map((m) => m.content).join('\n\n'),
+              maxTokens,
+              temperature
+            });
+            return { content: plain, tool_calls: [] };
+          }
+          log('warn', '伪人 Planner LLM HTTP 失败', { status: res.status, endpoint: endpoint.name, body: text.slice(0, 200) });
+          continue;
+        }
+        const data = text ? JSON.parse(text) : {};
+        const msg = data?.choices?.[0]?.message || {};
+        return {
+          content: msg.content || '',
+          tool_calls: Array.isArray(msg.tool_calls) ? msg.tool_calls : []
+        };
+      } catch (e) {
+        log('warn', '伪人 Planner LLM 失败', { endpoint: endpoint.name, err: e.message });
+        if (shouldRotateApiFailure(0, '', e, settings) && ei < endpoints.length - 1) break;
+      }
     }
-    const data = await res.json();
-    const msg = data?.choices?.[0]?.message || {};
-    return {
-      content: msg.content || '',
-      tool_calls: Array.isArray(msg.tool_calls) ? msg.tool_calls : []
-    };
-  } catch (e) {
-    log('warn', '伪人 Planner LLM 失败', e.message);
-    return { content: '', tool_calls: [] };
   }
+  return { content: '', tool_calls: [] };
 }
 
 /** 从群消息缓存表情并 VLM 打标 */
+let emojiVlmWorkerRunning = false;
+const emojiVlmRetryQueue = new Set();
+
+function getEmojiVisionModel(cfg) {
+  const c = cfg || pluginState.config || {};
+  return String(c.chatVisionModel || c.kimiVisionModel || KIMI_CODE_DEFAULT_MODEL).trim() || KIMI_CODE_DEFAULT_MODEL;
+}
+
+function makeEmojiVisionCaller(cfg) {
+  const model = getEmojiVisionModel(cfg);
+  return ({ systemPrompt, userText, imageUrls }) => callVisionChatRaw({ systemPrompt, userText, imageUrls, model });
+}
+
+function scheduleEmojiVlmBackground(ctx, ids = null) {
+  setImmediate(() => {
+    runEmojiVlmBackgroundWorker(ctx, ids).catch((e) => log('warn', '表情后台识别失败', e.message, 'sticker'));
+  });
+}
+
+async function runEmojiVlmBackgroundWorker(ctx, ids = null) {
+  if (emojiVlmWorkerRunning) {
+    if (ids?.length) for (const id of ids) emojiVlmRetryQueue.add(String(id));
+    return { processed: 0, skipped: true };
+  }
+  const cfg = pluginState.config || {};
+  if (!buildVisionEndpointList(cfg).length) {
+    log('warn', '表情 VLM 跳过：未配置视觉/对话 API Key', null, 'sticker');
+    return { processed: 0, error: 'no_vision_api' };
+  }
+  emojiVlmWorkerRunning = true;
+  const callVision = makeEmojiVisionCaller(cfg);
+  const promptTemplate = (cfg.emojiVlmPrompt || DEFAULT_EMOJI_VLM_PROMPT).trim();
+  let processed = 0;
+  try {
+    const store = getMaisakaStore(ctx);
+    ensureEmojiRegistry(store);
+    let targets = [];
+    if (Array.isArray(ids) && ids.length) {
+      targets = ids.map((id) => findEmojiRecord(store, id)).filter(Boolean);
+    } else if (emojiVlmRetryQueue.size) {
+      targets = [...emojiVlmRetryQueue].map((id) => findEmojiRecord(store, id)).filter(Boolean);
+      emojiVlmRetryQueue.clear();
+    } else {
+      targets = (store.emojiRegistry || []).filter((rec) => resolveEmojiStatus(rec) === 'unknown' && rec.localPath);
+    }
+    for (const rec of targets.slice(0, 40)) {
+      if (rec.vlmProcessed && resolveEmojiStatus(rec) !== 'unknown') continue;
+      const vlmRes = await runEmojiVlmOnRecord(rec, { callVision, promptTemplate });
+      if (vlmRes.ok) {
+        applyEmojiVlmToRecord(store, rec, vlmRes.vlm);
+        processed += 1;
+        log('info', '表情 VLM 识别完成', { id: rec.id, emotions: rec.emotions || [] }, 'sticker');
+      } else {
+        log('warn', '表情 VLM 识别失败', { id: rec.id, reason: vlmRes.reason }, 'sticker');
+      }
+      await new Promise((res) => setTimeout(res, 600));
+    }
+    if (processed) persistMaisakaStore(ctx);
+    return { processed, total: targets.length };
+  } finally {
+    emojiVlmWorkerRunning = false;
+    if (emojiVlmRetryQueue.size) scheduleEmojiVlmBackground(ctx);
+  }
+}
+
 async function queueCaptureGroupEmojis(ctx, event, groupId) {
   const cfg = pluginState.config;
   if (cfg.emojiCacheEnabled === false) return;
@@ -4013,7 +4135,10 @@ async function queueCaptureGroupEmojis(ctx, event, groupId) {
   const store = getMaisakaStore(ctx);
   ensureEmojiRegistry(store);
   const cacheDir = getEmojiCacheDir(ctx);
-  const visionModel = (cfg.kimiVisionModel || KIMI_CODE_DEFAULT_MODEL).trim();
+  const visionModel = getEmojiVisionModel(cfg);
+  if (!buildVisionEndpointList(cfg).length) {
+    log('warn', '群聊表情已下载但未配置视觉 API，将全部标记为「不认识」', { groupId, count: urls.length }, 'sticker');
+  }
   for (const url of urls) {
     try {
       const r = await captureAndRegisterEmoji({
@@ -4027,13 +4152,25 @@ async function queueCaptureGroupEmojis(ctx, event, groupId) {
         callVision: ({ systemPrompt, userText, imageUrls }) => callVisionChatRaw({ systemPrompt, userText, imageUrls, model: visionModel })
       });
       if (r.status === 'cached' || r.status === 'registered') {
-        log('info', '群聊表情已缓存', { groupId, hash: r.emoji?.hash?.slice(0, 12), status: r.emoji?.status || r.status, emotions: r.emoji?.emotions || [] }, 'sticker');
+        const st = r.emoji?.emojiStatus || (r.emoji?.vlmProcessed ? 'pending' : 'unknown');
+        log('info', '群聊表情已缓存', {
+          groupId,
+          hash: r.emoji?.hash?.slice(0, 12),
+          status: st,
+          vlm: !!r.emoji?.vlmProcessed,
+          emotions: r.emoji?.emotions || [],
+          vlmReason: r.vlmReason || ''
+        }, 'sticker');
+        if (r.vlmReason && r.emoji) {
+          emojiVlmRetryQueue.add(String(r.emoji.id || r.emoji.hash));
+        }
       }
     } catch (e) {
       log('debug', '群聊表情缓存失败', e.message, 'sticker');
     }
   }
   persistMaisakaStore(ctx);
+  if (emojiVlmRetryQueue.size) scheduleEmojiVlmBackground(ctx);
 }
 
 /** 对话与伪人共用的视觉模型 */
@@ -4085,17 +4222,11 @@ async function deliverFakeHumanOutbound(ctx, groupId, replyMsgId, outbound, { cf
         callVisionChat: (opts) => callVisionChatRaw({ ...opts, model: getChatVisionModel(cfg) })
       });
       let faceId = pick?.id || (await pickStickerFaceId(cfg, plainText, ob.emotion || '', recentContext, store));
-      if (!faceId) {
-        const qqId = resolveQqFaceId(ob.emotion || '微笑');
-        await deliverFakeHumanMessage(ctx, groupId, rid, {
-          messageArray: [{ type: 'face', data: { id: String(qqId) } }]
-        });
-        sentCount += 1;
-      } else {
-        const arr = [{ type: isFaceIdUrl(faceId) ? 'image' : 'face', data: isFaceIdUrl(faceId) ? { file: faceId } : { id: String(faceId) } }];
-        await deliverFakeHumanMessage(ctx, groupId, rid, { messageArray: arr });
-        sentCount += 1;
-      }
+      const qqId = resolveQqFaceId(ob.emotion || '微笑');
+      if (!faceId) faceId = String(qqId);
+      const arr = [{ type: isFaceIdUrl(faceId) ? 'image' : 'face', data: isFaceIdUrl(faceId) ? { file: faceId } : { id: String(faceId) } }];
+      await deliverFakeHumanMessage(ctx, groupId, rid, { messageArray: arr });
+      sentCount += 1;
     }
   }
   return sentCount;
@@ -4280,6 +4411,10 @@ async function tryFakeHumanReply(ctx, event, groupId, userId, plainText) {
     const r = Math.random();
     pickMode = r < 0.75 ? 'ai' : ['random_text', 'emoji', 'sticker'][Math.floor(Math.random() * 3)];
   }
+  // AI 三选一选了「文字回复」时，强制走 Planner，不被 mixed 随机 emoji/sticker 短路
+  if (actionMode === 'ai_choose' && chosenAction === 1 && cfg.fakeHumanMaisakaMode !== false) {
+    pickMode = 'ai';
+  }
   log('info', '伪人回复模式', { configured: mode, effective: getEffectiveFakeHumanPickMode(cfg, pickMode), pickMode, useMaisaka: cfg.fakeHumanMaisakaMode !== false && pickMode === 'ai' });
 
   const useMaisaka = cfg.fakeHumanMaisakaMode !== false && pickMode === 'ai';
@@ -4294,31 +4429,39 @@ async function tryFakeHumanReply(ctx, event, groupId, userId, plainText) {
   if (useMaisaka) {
     recordObservePlannerStart(g, { source: 'fakehuman', userId, trigger: (plainText || '').slice(0, 120) });
     const plannerT0 = Date.now();
-    const result = await runMaisakaFakeHumanChat({
-      cfg,
-      groupId: g,
-      userId,
-      recentContext,
-      plainText: plainText || '',
-      personaContext,
-      imageDesc: imageDesc ? imageDesc.slice(0, 200) : '',
-      store,
-      db: sqliteDbRef,
-      llmText: (opts) => callFakeHumanLlm(cfg, opts),
-      llmWithTools: (opts) => callFakeHumanLlmWithTools(cfg, opts),
-      onPlannerRound: async (round) => {
-        recordObservePlannerRound(g, round);
-      },
-      executePlannerTool: async (name, args) => {
-        if (name === 'reply') return `已排程回复：${String(args.message || '').slice(0, 40)}`;
-        if (name === 'send_qq_face') return `已排程小黄脸：${args.face_id || args.emotion || '默认'}`;
-        if (name === 'send_emoji') return `已排程表情：${args.emotion || '自动'}`;
-        if (name === 'send_file') return `已排程文件：${args.path || ''}`;
-        if (name === 'no_action') return '本轮不发言';
-        return 'ok';
-      },
-      buildReplySystemPrompt: (vars) => buildFakeHumanSystemPrompt({ ...cfg, fakeHumanIdentity: vars.identity, fakeHumanReplyStyle: vars.replyStyle, _groupAttention: vars.groupChatAttentionBlock, _replyInstruction: vars.replyerOutputInstruction })
-    });
+    log('info', '伪人 Planner 开始', { groupId: g, pickMode, userId });
+    let result;
+    try {
+      result = await runMaisakaFakeHumanChat({
+        cfg,
+        groupId: g,
+        userId,
+        recentContext,
+        plainText: plainText || '',
+        personaContext,
+        imageDesc: imageDesc ? imageDesc.slice(0, 200) : '',
+        store,
+        db: sqliteDbRef,
+        llmText: (opts) => callFakeHumanLlm(cfg, opts),
+        llmWithTools: (opts) => callFakeHumanLlmWithTools(cfg, opts),
+        onPlannerRound: async (round) => {
+          recordObservePlannerRound(g, round);
+          log('info', '伪人 Planner 轮次', { groupId: g, round: round.round, tools: (round.tools || []).map((t) => t.name) });
+        },
+        executePlannerTool: async (name, args) => {
+          if (name === 'reply') return `已排程回复：${String(args.message || '').slice(0, 40)}`;
+          if (name === 'send_qq_face') return `已排程小黄脸：${args.face_id || args.emotion || '默认'}`;
+          if (name === 'send_emoji') return `已排程表情：${args.emotion || '自动'}`;
+          if (name === 'send_file') return `已排程文件：${args.path || ''}`;
+          if (name === 'no_action') return '本轮不发言';
+          return 'ok';
+        },
+        buildReplySystemPrompt: (vars) => buildFakeHumanSystemPrompt({ ...cfg, fakeHumanIdentity: vars.identity, fakeHumanReplyStyle: vars.replyStyle, _groupAttention: vars.groupChatAttentionBlock, _replyInstruction: vars.replyerOutputInstruction })
+      });
+    } catch (e) {
+      log('error', '伪人 Planner 异常', { groupId: g, err: e.message });
+      result = { action: 'skip', outbound: [], reasoning: e.message };
+    }
     persistMaisakaStore(ctx);
     recordObservePlannerEnd(g, {
       source: 'fakehuman',
@@ -4336,7 +4479,7 @@ async function tryFakeHumanReply(ctx, event, groupId, userId, plainText) {
         recentContext, plainText, personaContext, imageDesc: imageDesc ? imageDesc.slice(0, 200) : ''
       });
       if (!fallbackMsg) {
-        log('debug', '伪人跳过发言', { groupId: g, reason: 'planner_skip', mode: pickMode });
+        log('warn', '伪人跳过发言', { groupId: g, reason: 'planner_skip', mode: pickMode });
         return;
       }
       const replyMsgId = event.message_id ?? event.message?.id ?? null;
@@ -4357,7 +4500,7 @@ async function tryFakeHumanReply(ctx, event, groupId, userId, plainText) {
           recentContext, plainText, personaContext, imageDesc: imageDesc ? imageDesc.slice(0, 200) : ''
         });
         if (!fallbackMsg) {
-          log('debug', '伪人跳过发言', { groupId: g, reason: 'outbound_empty', mode: pickMode });
+          log('warn', '伪人跳过发言', { groupId: g, reason: 'outbound_empty', mode: pickMode });
           return;
         }
         await deliverFakeHumanMessage(ctx, groupId, replyMsgId, { message: fallbackMsg });
@@ -4460,7 +4603,7 @@ async function tryFakeHumanReply(ctx, event, groupId, userId, plainText) {
   } else if (message) {
     await deliverFakeHumanMessage(ctx, groupId, replyMsgId, { atUserId, message });
   } else {
-    log('debug', '伪人跳过发言', { groupId: g, mode: useMaisaka ? 'maisaka' : pickMode, reason: 'empty_message' });
+    log('warn', '伪人跳过发言', { groupId: g, mode: useMaisaka ? 'maisaka' : pickMode, reason: 'empty_message' });
     return;
   }
 
@@ -5070,7 +5213,27 @@ function shouldTrigger(ctx, event, plainText, selfId) {
   return null;
 }
 
+/** 启动前校验插件包是否完整（缺 lib/ 或 webui 时 NapCat 会报 check plugin structure） */
+function assertPluginBundleComplete() {
+  const required = [
+    'package.json',
+    'index.mjs',
+    'icon.png',
+    'webui/dashboard.html',
+    'lib/maisaka/maisaka-planner-loop.mjs',
+    'lib/maisaka/slang-library.mjs',
+    'lib/maisaka/maisaka-fakehuman.mjs',
+    'lib/emoji/emoji-manager.mjs',
+    'lib/core/cq-message.mjs'
+  ];
+  const missing = required.filter((rel) => !fs.existsSync(path.join(__dirname, rel)));
+  if (missing.length) {
+    throw new Error(`插件包不完整，缺少: ${missing.join(', ')}。请解压完整 Release zip 到 plugins/napcat-plugin-chat-bot/，不要只复制 index.mjs`);
+  }
+}
+
 const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
+  assertPluginBundleComplete();
   try {
     const c = typeof ctxOrCore === 'object' && ctxOrCore !== null ? ctxOrCore : (_instance || {});
     const ctx = { ...c, ...(typeof _instance === 'object' && _instance !== null ? _instance : {}), ...(typeof _obContext === 'object' && _obContext !== null ? _obContext : {}) };
@@ -5090,6 +5253,10 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
     }
 
     log('info', '聊天插件已初始化', { apiProvider: pluginState.config.apiProvider || 'siliconflow', sqlite: !!sqliteDbRef }, 'system');
+
+    if (pluginState.config.emojiCacheEnabled !== false) {
+      setTimeout(() => scheduleEmojiVlmBackground(ctx), 12000);
+    }
 
     if (pluginState.config.mcpEnabled) {
       ensureAgentMcpHub(pluginState.config).catch((e) => {
@@ -5709,6 +5876,32 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         }
       });
 
+      router.postNoAuth('/emoji-library/reprocess', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          ensureEmojiRegistry(store);
+          const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(String).filter(Boolean) : [];
+          const status = String(req.body?.status || 'unknown').trim();
+          let targetIds = ids;
+          if (!targetIds.length) {
+            targetIds = (store.emojiRegistry || [])
+              .filter((rec) => resolveEmojiStatus(rec) === status && rec.localPath)
+              .map((rec) => rec.id || rec.hash);
+          }
+          if (!targetIds.length) {
+            return res.json({ success: false, error: '没有需要识别的表情' });
+          }
+          if (!buildVisionEndpointList(pluginState.config).length) {
+            return res.json({ success: false, error: '未配置视觉/对话 API Key，请在 Dashboard 填写 Kimi 视觉 API 或主对话 API' });
+          }
+          scheduleEmojiVlmBackground(rtCtx, targetIds);
+          res.json({ success: true, queued: targetIds.length, message: `已加入后台识别队列（${targetIds.length} 张）` });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
       router.postNoAuth('/emoji-registry/toggle', (req, res) => {
         try {
           const rtCtx = pluginState.runtimeCtx || ctx;
@@ -5914,7 +6107,12 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
           }
           const result = importSlangs(store, parsed.items, { groupId, skipDuplicate: req.body?.skipDuplicate !== false });
           persistMaisakaStore(rtCtx);
-          res.json({ success: true, ...result, errors: parsed.errors });
+          res.json({
+            success: true,
+            ...result,
+            errors: parsed.errors,
+            hint: parsed.errors.length ? `已导入 ${result.imported} 条，${parsed.errors.length} 行解析跳过` : undefined
+          });
         } catch (e) {
           res.json({ success: false, error: e.message });
         }

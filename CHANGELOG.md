@@ -1,5 +1,38 @@
 # 更新日志
 
+## [3.0.0] — 2026-06-28
+
+### 新增
+
+- **表情 VLM 后台识别**：未配置 Kimi 视觉 API 时自动回退到对话 API 识图；插件启动 12 秒后后台自动处理所有状态为「不认识」的表情条目，Dashboard 新增「VLM 识别」批量触发按钮。
+- **伪人 Planner API 池 failover**：`callFakeHumanLlmWithTools` 现遍历 `buildChatEndpointList` 配置的全部端点，单端点失败时自动切换下一个，HTTP 400 且响应含 `tool` 字样时降级为纯文本调用。
+
+### 改进
+
+- **视觉 API 回退**：`buildVisionEndpointList` 在未单独配置视觉端点时，自动将对话 API 端点加入列表（支持多模态模型直接识图），不再因缺少 `kimiVisionModel` 而静默跳过。
+- **B 站扫码登录校验**：确认回调中增加 `mid` 与用户名双重校验，两者均为空时主动通知用户重新扫码，避免假成功提示。
+
+### 修复
+
+- **Maisaka 数据持久化容错**：`persistMaisakaStore` 用 `try/catch` 包裹，持久化失败时仅记 `warn` 日志，不再阻断伪人出站消息。
+- **Planner 不支持 `tool_calls` 时静默跳过**：模型返回 400 且报错涉及 `tool` 时，现回退为纯文本 reply 并记 warn 日志，不再丢失回复。
+
+---
+
+## [2.9.6] — 2026-06-28
+
+### 修复
+
+- **伪人 AI 崩溃**：`node:sqlite` 的 `DatabaseSync` 无 `db.transaction()`，导致 `persistStoreToDb` 抛错、Planner 已跑但消息发不出；新增 `runInTransaction` 兼容 better-sqlite3 与 node:sqlite。
+- **Maisaka 持久化容错**：`persistMaisakaStore` 失败时仅记 warn 日志，不再阻断伪人出站。
+- **B 站登录假成功**：改用官方 Web 端 `getLoginUrl` + `getLoginInfo`（oauthKey 轮询）；轮询 Cookie 持久化到 pending 表；`-4/-5/-2` 状态码正确映射；仅 SESSDATA+mid 有效时才 confirmed。
+- **表情库全部「不认识」**：未配置 Kimi 视觉 API 时 VLM 静默失败；现回退到对话 API 识图，插件启动 12 秒后自动后台识别「不认识」条目，Dashboard 新增「VLM 识别」批量按钮。
+- **伪人选 action=1 不发消息**：Planner 在模型不支持 tool_calls 时空跑并静默跳过；现纯文本回退为 reply、首轮有出站即结束、记忆块不阻塞 Planner；Planner 支持 API 池 failover；异常时走 Replyer 兜底并记 warn 日志。
+- **插件导入后 failed to load**：NapCat 新导入插件默认「已禁用」，需手动打开启用开关；新增启动时包完整性自检（缺 `lib/`、`webui/` 等会给出明确错误）。
+- **黑话导入失败**：插件未启用时 Dashboard 提示「请先启用聊天机器人」；TXT 去除 BOM；新增 `scripts/pack-plugin.mjs` 生成可正确导入的 zip。
+
+---
+
 ## [2.9.5] — 2026-06-28
 
 ### 改进
