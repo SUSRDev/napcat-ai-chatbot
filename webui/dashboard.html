@@ -4728,7 +4728,7 @@ npx playwright install chromium</pre>
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span id="sidebar-version">NapCat 插件 · v3.1.6</span>
+          <span id="sidebar-version">NapCat 插件 · v3.1.7</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -6728,6 +6728,25 @@ npx playwright install chromium</pre>
           </div>
         </div>
         <div class="section">
+          <div class="section-title">颜文字</div>
+          <div class="form-row">
+            <div class="form-label">伪人颜文字<div class="hint">伪人插话 / Planner 回复时注入颜文字表达习惯</div></div>
+            <div class="tgl on" id="tgl-fakeHumanKaomojiEnabled" onclick="toggle(this,'fakeHumanKaomojiEnabled')"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">主对话颜文字<div class="hint">@机器人 / 触发词 等主对话回复时注入颜文字习惯</div></div>
+            <div class="tgl on" id="tgl-chatKaomojiEnabled" onclick="toggle(this,'chatKaomojiEnabled')"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">颜文字触发概率 (0–1)<div class="hint">每条消息向 AI 注入颜文字提示的概率（默认 0.35，避免每句都加）</div></div>
+            <input type="number" class="ipt" id="cfg-kaomojiUseChance" min="0" max="1" step="0.05" value="0.35" style="max-width:100px" />
+          </div>
+          <div class="form-row">
+            <div class="form-label">自定义颜文字池<div class="hint">每行一个或逗号分隔，会混入随机选取与 AI 示例，如 awa、qwq、(＾∀＾)</div></div>
+            <textarea class="ipt" id="cfg-kaomojiExtraList" rows="2" placeholder="awa&#10;qwq&#10;(＾∀＾)" style="max-width:360px"></textarea>
+          </div>
+        </div>
+        <div class="section">
           <div class="section-title">小黄脸 / 表情</div>
           <div class="form-row">
             <div class="form-label">优先表情库<div class="hint">发 QQ 小黄脸前先尝试从已收录表情库选取</div></div>
@@ -7927,6 +7946,8 @@ npx playwright install chromium</pre>
       if (key === 'fakeHumanStickerBattleEnabled') config.fakeHumanStickerBattleEnabled = on;
       if (key === 'fakeHumanHumanizeEnabled') config.fakeHumanHumanizeEnabled = on;
       if (key === 'fakeHumanTypoEnabled') config.fakeHumanTypoEnabled = on;
+      if (key === 'fakeHumanKaomojiEnabled') config.fakeHumanKaomojiEnabled = on;
+      if (key === 'chatKaomojiEnabled') config.chatKaomojiEnabled = on;
       if (key === 'fakeHumanQqFacePreferSticker') config.fakeHumanQqFacePreferSticker = on;
       if (key === 'fakeHumanSyncPersona') config.fakeHumanSyncPersona = on;
       if (key === 'fakeHumanWebSearch') config.fakeHumanWebSearch = on;
@@ -11155,6 +11176,12 @@ npx playwright install chromium</pre>
       document.getElementById('tgl-fakeHumanTypoEnabled')?.classList.toggle('on', config.fakeHumanTypoEnabled !== false);
       const fhTypoCh = document.getElementById('cfg-fakeHumanTypoChance');
       if (fhTypoCh) fhTypoCh.value = config.fakeHumanTypoChance ?? 0.14;
+      document.getElementById('tgl-fakeHumanKaomojiEnabled')?.classList.toggle('on', config.fakeHumanKaomojiEnabled !== false);
+      document.getElementById('tgl-chatKaomojiEnabled')?.classList.toggle('on', config.chatKaomojiEnabled !== false);
+      const kmUseCh = document.getElementById('cfg-kaomojiUseChance');
+      if (kmUseCh) kmUseCh.value = config.kaomojiUseChance ?? 0.35;
+      const kmExtra = document.getElementById('cfg-kaomojiExtraList');
+      if (kmExtra) kmExtra.value = Array.isArray(config.kaomojiExtraList) ? config.kaomojiExtraList.join('\n') : (config.kaomojiExtraList || '');
       document.getElementById('tgl-fakeHumanQqFacePreferSticker')?.classList.toggle('on', config.fakeHumanQqFacePreferSticker !== false);
       const fhQqPool = document.getElementById('cfg-fakeHumanQqFaceIds');
       if (fhQqPool) fhQqPool.value = Array.isArray(config.fakeHumanQqFaceIds) ? config.fakeHumanQqFaceIds.join(', ') : (config.fakeHumanQqFaceIds || '13,28,22,89,5,31,76,14,3,0');
@@ -15718,6 +15745,10 @@ npx playwright install chromium</pre>
         fakeHumanAtOnlyChance: Math.max(0, Math.min(1, parseFloat(document.getElementById('cfg-fakeHumanAtOnlyChance')?.value) ?? 0.08)),
         fakeHumanTypoEnabled: document.getElementById('tgl-fakeHumanTypoEnabled')?.classList.contains('on') !== false,
         fakeHumanTypoChance: Math.max(0, Math.min(1, parseFloat(document.getElementById('cfg-fakeHumanTypoChance')?.value) ?? 0.14)),
+        fakeHumanKaomojiEnabled: document.getElementById('tgl-fakeHumanKaomojiEnabled')?.classList.contains('on') !== false,
+        chatKaomojiEnabled: document.getElementById('tgl-chatKaomojiEnabled')?.classList.contains('on') !== false,
+        kaomojiUseChance: Math.max(0, Math.min(1, parseFloat(document.getElementById('cfg-kaomojiUseChance')?.value) ?? 0.35)),
+        kaomojiExtraList: (document.getElementById('cfg-kaomojiExtraList')?.value || '').split(/[\n,，]/).map((s) => s.trim()).filter(Boolean),
         fakeHumanQqFacePreferSticker: document.getElementById('tgl-fakeHumanQqFacePreferSticker')?.classList.contains('on') !== false,
         fakeHumanQqFaceIds: (document.getElementById('cfg-fakeHumanQqFaceIds')?.value || '').split(/[\n,，\s]+/).map((s) => s.trim()).filter((x) => /^\d+$/.test(x)),
         fakeHumanContextLines: Math.max(1, Math.min(50, parseInt(document.getElementById('cfg-fakeHumanContextLines').value, 10) || 5)),

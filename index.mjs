@@ -607,6 +607,8 @@ const DEFAULT_CONFIG = {
   chatTypoChance: 0.18,
   fakeHumanKaomojiEnabled: true,
   chatKaomojiEnabled: true,
+  kaomojiUseChance: 0.35,
+  kaomojiExtraList: [],
   slangObserveEnabled: true,
   slangAutoPassInferred: true,
   fakeHumanReplyStyleChance: 0.4,
@@ -6016,6 +6018,16 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         if (body.fakeHumanHumanizeEnabled !== undefined) cfg.fakeHumanHumanizeEnabled = Boolean(body.fakeHumanHumanizeEnabled);
         if (body.fakeHumanTypoEnabled !== undefined) cfg.fakeHumanTypoEnabled = Boolean(body.fakeHumanTypoEnabled);
         if (body.fakeHumanTypoChance !== undefined) cfg.fakeHumanTypoChance = Math.max(0, Math.min(1, parseFloat(body.fakeHumanTypoChance) ?? 0.14));
+        if (body.chatTypoEnabled !== undefined) cfg.chatTypoEnabled = Boolean(body.chatTypoEnabled);
+        if (body.chatTypoChance !== undefined) cfg.chatTypoChance = Math.max(0, Math.min(1, parseFloat(body.chatTypoChance) ?? 0.18));
+        if (body.fakeHumanKaomojiEnabled !== undefined) cfg.fakeHumanKaomojiEnabled = Boolean(body.fakeHumanKaomojiEnabled);
+        if (body.chatKaomojiEnabled !== undefined) cfg.chatKaomojiEnabled = Boolean(body.chatKaomojiEnabled);
+        if (body.kaomojiUseChance !== undefined) cfg.kaomojiUseChance = Math.max(0, Math.min(1, parseFloat(body.kaomojiUseChance) ?? 0.35));
+        if (body.kaomojiExtraList !== undefined) {
+          cfg.kaomojiExtraList = Array.isArray(body.kaomojiExtraList)
+            ? body.kaomojiExtraList.map(String).map((s) => s.trim()).filter(Boolean).slice(0, 30)
+            : String(body.kaomojiExtraList || '').split(/[\n,，]/).map((s) => s.trim()).filter(Boolean).slice(0, 30);
+        }
         if (body.fakeHumanReplyStyleChance !== undefined) cfg.fakeHumanReplyStyleChance = Math.max(0, Math.min(1, parseFloat(body.fakeHumanReplyStyleChance) ?? 0.4));
         if (body.fakeHumanAtMessageChance !== undefined) cfg.fakeHumanAtMessageChance = Math.max(0, Math.min(1, parseFloat(body.fakeHumanAtMessageChance) ?? 0.35));
         if (body.fakeHumanInterjectChance !== undefined) cfg.fakeHumanInterjectChance = Math.max(0, Math.min(1, parseFloat(body.fakeHumanInterjectChance) ?? 0.35));
@@ -7629,6 +7641,8 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
                 pluginRoot: __dirname,
                 db: sqliteDbRef,
                 qqUserId: userId,
+                userText: text || '',
+                log,
                 qqApi: createQqApi(qqSession),
                 onBiliQrLoginStarted: makeBiliQrPollHandler(ctx, userId, groupId || '', !!groupId),
                 requestRiskApproval: async (risk) => {
@@ -8270,7 +8284,7 @@ const plugin_onmessage = async (ctx, event) => {
       const slangStore = getMaisakaStore(ctx);
       const slangBlock = buildSlangBlock(slangStore, groupId, recentCtx, cfg);
       if (slangBlock) systemContent += `\n\n${slangBlock}`;
-      const kmHint = buildKaomojiHint(cfg, `${userText}\n${recentCtx}`);
+      const kmHint = buildKaomojiHint(cfg, `${userText}\n${recentCtx}`, 'chat');
       if (kmHint) systemContent += `\n\n${kmHint}`;
     } catch (e) {
       log('debug', '群黑话/颜文字注入跳过', e.message, 'slang');
@@ -8463,6 +8477,8 @@ const plugin_onmessage = async (ctx, event) => {
           pluginRoot: __dirname,
           db: sqliteDbRef,
           qqUserId: userId,
+          userText: userText || '',
+          log,
           qqApi: createQqApi(qqSession),
           onBiliQrLoginStarted: makeBiliQrPollHandler(ctx, userId, groupId || '', isGroup),
           requestRiskApproval: async (risk) => {
