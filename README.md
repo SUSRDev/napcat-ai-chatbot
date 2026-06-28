@@ -5,7 +5,7 @@ NapCatQQ 多轮对话插件 · 智能搜索 · 黑白风 WebUI 仪表盘 · 多 
 ![NapCat](https://img.shields.io/badge/NapCat-%3E%3D4.14.0-000?style=flat-square&labelColor=111&color=eee)
 ![Tested](https://img.shields.io/badge/测试版本-4.17.17-000?style=flat-square&labelColor=111&color=eee)
 ![License](https://img.shields.io/badge/license-MIT-000?style=flat-square&labelColor=111&color=eee)
-![Version](https://img.shields.io/badge/version-3.1.5-000?style=flat-square&labelColor=111&color=eee)
+![Version](https://img.shields.io/badge/version-3.1.6-000?style=flat-square&labelColor=111&color=eee)
 
 ![banner](docs/images/banner.png)
 
@@ -15,7 +15,7 @@ NapCatQQ 多轮对话插件 · 智能搜索 · 黑白风 WebUI 仪表盘 · 多 
 
 面向 [NapCatQQ](https://github.com/NapNeko/NapCatQQ) 的全功能聊天机器人插件。支持 @ 触发与自定义指令、多轮上下文与人设、群/用户黑白名单、联网智能搜索、图片理解与生成、伪人插话、表情回应，以及黑白极简风格的 **WebUI 仪表盘**（配置、统计、对话管理、运行日志、一键更新）。
 
-> 当前版本：**v3.1.5** · 完整更新记录见仪表盘「更新日志」或 [CHANGELOG.md](CHANGELOG.md)
+> 当前版本：**v3.1.6** · 完整更新记录见仪表盘「更新日志」或 [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
