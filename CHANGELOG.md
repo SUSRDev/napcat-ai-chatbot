@@ -1,51 +1,23 @@
 # 更新日志
 
-## [3.1.3] — 2026-06-28
-
-### 改进
-
-- **表情仅发「占为己有」**：新增 `emojiOwnedOnly` 配置项（默认开启），发送表情时只从已通过 VLM 注册的图片中按场景匹配选取，不再随机从配置池回退。
-- **场景最低评分阈值**：新增 `emojiSceneMinScore` 配置项（默认 `2`），过滤掉场景相关度不足的表情候选，避免发出不合语境的图片。
-- **斗图检测走场景匹配**：斗图趋势触发时改用 `pickRegisteredEmojiWithGrid` 进行视觉场景匹配，替代原先的随机抽取逻辑，匹配更准确。
-- **伪人回复携带上文**：表情和 QQ 小黄脸发送时传入最近一条机器人回复作为 `replyText`，场景判断更贴近对话语境。
-- **无匹配时静默跳过**：`emojiOwnedOnly` 开启时，若无场景匹配表情则跳过发送并记录日志，不再回退到配置池或随机文字。
+## [3.1.5] — 2026-06-28
 
 ### 新增
 
-- **`emojiOwnedOnly` / `emojiSceneMinScore` 支持热更新**：两个新配置项已接入运行时配置 API，修改后无需重启即可生效。
-
----
-
-## [3.1.1] — 2026-06-28
-
-### 改进
-
-- **API 故障转移提速**：新增 `isGatewayOrNetworkError` 检测，遇到 502/503/504、超时及网络连接错误时立即切换下一端点，不再等待重试耗尽。
-- **错误日志可读性**：新增 `summarizeApiErrorBody`，将 HTML 错误页提取 `<title>`、JSON 错误体截取 `message` 字段，避免大段原始响应刷屏。
-- **端点配置校验**：API 池中 `custom` 类型端点若缺少 `apiUrl` 或 `apiKey`，启动时输出警告并跳过，不再静默忽略。
-- **故障转移状态提示**：故障转移开启但仅有 1 个可用端点时，主动提示用户补充备用端点；多端点就绪时记录端点列表便于排查。
-- **切换原因记录**：端点切换日志新增 `reason` 字段，显示触发切换的 HTTP 状态码或错误信息。
-
----
-
-## [3.1.0] — 2026-06-28
-
-### 新增
-
-- **伪人复读跟发**：群内 ≥2 人连续发送相同文字时，伪人自动参与复读；通过 `fakeHumanRepeatEnabled`、`fakeHumanRepeatMinUsers`、`fakeHumanRepeatMaxLen` 配置触发条件。
-- **伪人斗图跟发**：群内 ≥2 人连续发表情/图片时，伪人自动跟发斗图，优先从已收录表情库中选取；通过 `fakeHumanStickerBattleEnabled`、`fakeHumanStickerBattleMinUsers` 配置。
-- **伪人拟人化行为**：新增随机回复风格（引用/插话/@）、随机概率错别字并撤回更正，通过 `fakeHumanHumanizeEnabled`、`fakeHumanTypoChance` 等参数细粒度控制。
-- **梗指北 txt 导入**：支持 `词条: 含义` 逐行格式、MaiBot 多段落词库、`.txt` 内嵌 OpenIE JSON 自动识别；Dashboard 大文件自动分批导入；库容量上限提升至 5000 条，失败时显示具体解析错误。
-- **表达方式库默认种子**：库为空时自动注入 MaiBot 风格默认表达，学习到的表达默认通过 AI 审核并参与伪人回复。
+- **群黑话自动观察**：新增 `slangObserveEnabled` 配置项，启用后自动收集群内高频词并通过 LLM 批量推断含义，插件启动 45 秒后首次运行，之后每 8 分钟定时执行一次。
+- **群黑话自动通过**：新增 `slangAutoPassInferred` 配置项，LLM 推断成功的黑话可自动入库，无需人工审核。
+- **颜文字提示支持**：新增 `fakeHumanKaomojiEnabled` / `chatKaomojiEnabled` 配置项，伪人回复和普通聊天回复可在提示词中注入颜文字风格引导。
+- **聊天回复错字撤回**：新增 `chatTypoEnabled` / `chatTypoChance` 配置项，普通聊天回复也支持随机错字后撤回更正，与伪人行为保持一致。
 
 ### 改进
 
-- **伪人表情发送**：`qq_face` 与 `emoji` 出站统一走 `buildFakeHumanFaceSegments`，优先匹配表情库已收录内容，兜底随机小黄脸；`fakeHumanQqFacePreferSticker` 控制优先级。
-- **表情库缩略图**：修复插件迁移后 `localPath` 失效问题，新增 webp 格式支持；VLM 识别出标签后自动标记「已认识」；二次「再次确认收录」自动归为己有。
+- **错字撤回逻辑统一**：伪人消息与聊天回复的错字撤回更正均改走 `deliverWithTypoRecall`，逻辑统一，不再各自维护独立实现。
+- **默认错字概率上调**：`fakeHumanTypoChance` 默认值从 `0.14` 调整为 `0.18`，让拟人行为更自然。
+- **黑话统计 API 扩展**：Dashboard 黑话统计接口返回值新增 `getSlangObserveStats` 数据，展示观察器累计状态。
 
 ### 修复
 
-- **`sendGroupStructured` 返回值缺失**：现返回 `message_id`，供错别字撤回更正等后续操作使用。
+- **`sendGroupStructured` 消息 ID 兼容性**：补充 `ret?.result?.message_id` 取值路径，修复部分适配器返回格式不同导致撤回操作失败的问题。
 
 ---
 

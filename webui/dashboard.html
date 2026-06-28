@@ -4728,7 +4728,7 @@ npx playwright install chromium</pre>
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span id="sidebar-version">NapCat 插件 · v3.1.3</span>
+          <span id="sidebar-version">NapCat 插件 · v3.1.5</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -6972,7 +6972,7 @@ npx playwright install chromium</pre>
         </div>
         <div class="mai-main" style="border-radius:0 0 14px 14px;margin-top:0">
           <div class="mai-toolbar">
-            <span class="mai-stat">总数 <strong id="slang-stat-all">0</strong> · 待审核 <strong id="slang-stat-pending">0</strong> · 近7天 <strong id="slang-stat-7d">0</strong></span>
+            <span class="mai-stat">总数 <strong id="slang-stat-all">0</strong> · 已确认 <strong id="slang-stat-confirmed">0</strong> · 无黑话 <strong id="slang-stat-notSlang">0</strong> · 待推断 <strong id="slang-stat-pendingInfer">0</strong> · 待审核 <strong id="slang-stat-pending">0</strong></span>
             <div class="form-row" style="margin:0;gap:12px">
               <div class="form-label" style="margin:0;font-size:12px">开启学习</div>
               <div class="tgl on" id="tgl-slangLearning" onclick="toggleSlangSetting('learningEnabled', this)"></div>
@@ -6981,6 +6981,7 @@ npx playwright install chromium</pre>
               <div class="form-label" style="margin:0;font-size:12px">AI 自动通过</div>
               <div class="tgl" id="tgl-slangAutoAiPass" onclick="toggleSlangSetting('autoAiPass', this)"></div>
             </div>
+            <button type="button" class="btn btn-s btn-s" onclick="triggerSlangInfer()"><span class="material-symbols-outlined">psychology</span>推断待处理</button>
             <button type="button" class="btn btn-p btn-s" onclick="openSlangCreateModal()"><span class="material-symbols-outlined">add</span>新增词条</button>
             <button type="button" class="btn btn-s" onclick="triggerSlangImport()"><span class="material-symbols-outlined">upload_file</span>导入 TXT/JSON</button>
             <input type="file" id="slang-import-file" accept=".txt,.json,.md" multiple style="display:none" onchange="onSlangImportFile(this)" />
@@ -7008,7 +7009,7 @@ npx playwright install chromium</pre>
             </div>
             <div class="mai-content" style="border:none">
               <div id="slang-list-panel">
-                <table class="mai-table"><thead><tr><th>词条</th><th>含义</th><th>类型</th><th>标签</th><th>审核</th><th>操作</th></tr></thead><tbody id="slang-table-body"></tbody></table>
+                <table class="mai-table"><thead><tr><th>词条</th><th>含义</th><th>群</th><th>遇见</th><th>推断</th><th>审核</th><th>操作</th></tr></thead><tbody id="slang-table-body"></tbody></table>
               </div>
               <div id="slang-review-panel" style="display:none">
                 <div id="slang-review-card-wrap"></div>
@@ -10226,6 +10227,30 @@ npx playwright install chromium</pre>
       return '<span class="badge-pass">人工通过</span>';
     }
 
+    function slangInferenceBadge(s) {
+      const inf = String(s?.inferenceStatus || '');
+      const label = s?.inferenceLabel || '';
+      if (inf === 'not_slang') return '<span class="badge-reject">无黑话 AI</span>';
+      if (inf === 'is_slang' && s?.meaning) return '<span class="badge-pass">已推断</span>';
+      if ((Number(s?.count) || 0) >= 2 && !s?.meaning) return '<span class="badge-pending">待推断</span>';
+      return `<span class="badge-pending">${escapeHtml(label || '观察中')}</span>`;
+    }
+
+    async function triggerSlangInfer() {
+      try {
+        toast('正在推断待处理黑话…', 'info');
+        const res = await fetch(BASE + '/slangs/infer-pending', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ groupId: slangGroupId || '' })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || '推断失败');
+        toast(`推断完成：处理 ${data.count || 0} 条（${data.groups || 0} 个群）${data.skipped === 'no_api' ? '，未配置 API' : ''}`, data.count ? 'success' : 'info');
+        loadSlangPage();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
     async function reviewExpressionItem(id, action) {
       try {
         const res = await fetch(BASE + '/expressions/review', {
@@ -10496,9 +10521,14 @@ npx playwright install chromium</pre>
           throw new Error(hint);
         }
         const data = await res.json();
-        if (!data.success) throw new Error(data.error || data.errors?.slice?.(0, 3)?.join('；') || '导入失败');
+        if (!data.success) {
+          const detail = [data.error, ...(data.errors || []).slice(0, 3)].filter(Boolean).join('；');
+          throw new Error(detail || '导入失败');
+        }
         return data;
       }
+
+      const importDetails = [];
 
       for (const file of files) {
         try {
@@ -10512,22 +10542,35 @@ npx playwright install chromium</pre>
             for (let i = 0; i < lines.length; i += batchLines) {
               const chunk = lines.slice(i, i + batchLines).join('\n');
               if (!chunk.trim()) continue;
-              const data = await postSlangImport({ content: chunk, format: 'auto' });
+              const data = await postSlangImport({ content: chunk, format: 'auto', fileName: file.name });
               totalImported += data.imported || 0;
               totalSkipped += data.skipped || 0;
+              importDetails.push({ file: file.name, ...data });
             }
           } else {
-            const data = await postSlangImport({ content: text, format });
+            const data = await postSlangImport({ content: text, format, fileName: file.name });
             totalImported += data.imported || 0;
             totalSkipped += data.skipped || 0;
-            if (data.hint) console.info('[slang import]', file.name, data.hint);
+            importDetails.push({ file: file.name, ...data });
+            console.info('[slang import]', file.name, {
+              imported: data.imported,
+              skipped: data.skipped,
+              sampleTerms: data.sampleTerms,
+              errors: data.errors,
+              parseFormat: data.parseFormat
+            });
           }
         } catch (e) {
           failNames.push(file.name + '（' + (e.message || '失败') + '）');
         }
       }
       if (totalImported > 0 || totalSkipped > 0) {
-        toast('导入完成：新增 ' + totalImported + ' 条，跳过 ' + totalSkipped + ' 条' + (files.length > 1 ? '（' + files.length + ' 个文件）' : ''), 'success');
+        const last = importDetails[importDetails.length - 1];
+        const sample = (last?.importedTerms || last?.sampleTerms?.map((x) => x.term || x) || []).slice(0, 5).join('、');
+        const errHint = (last?.errors || []).slice(0, 2).join('；');
+        toast('导入完成：新增 ' + totalImported + ' 条，跳过 ' + totalSkipped + ' 条'
+          + (sample ? '；样例：' + sample : '')
+          + (errHint ? '；跳过行：' + errHint : ''), 'success');
         loadSlangPage();
       }
       if (failNames.length) {
@@ -10593,8 +10636,10 @@ npx playwright install chromium</pre>
         const st = data.stats || {};
         const set = data.settings || {};
         document.getElementById('slang-stat-all').textContent = st.all || 0;
+        document.getElementById('slang-stat-confirmed').textContent = st.confirmed || 0;
+        document.getElementById('slang-stat-notSlang').textContent = st.notSlang || 0;
+        document.getElementById('slang-stat-pendingInfer').textContent = st.pendingInfer || 0;
         document.getElementById('slang-stat-pending').textContent = st.pending || 0;
-        document.getElementById('slang-stat-7d').textContent = st.recent7d || 0;
         document.getElementById('tgl-slangLearning')?.classList.toggle('on', set.learningEnabled !== false);
         document.getElementById('tgl-slangUsage')?.classList.toggle('on', set.usageEnabled !== false);
         document.getElementById('tgl-slangAutoAiPass')?.classList.toggle('on', set.autoAiPass === true);
@@ -10607,18 +10652,18 @@ npx playwright install chromium</pre>
         const tbody = document.getElementById('slang-table-body');
         if (tbody && slangTab === 'list') {
           tbody.innerHTML = slangListCache.map((s) => {
-            const tags = (s.tags || []).map((t) => `<span class="tag-chip">${escapeHtml(t)}</span>`).join('') || '—';
             return `<tr>
-              <td><strong>${escapeHtml(s.term)}</strong></td>
+              <td><strong>${escapeHtml(s.term)}</strong><div style="font-size:11px;color:var(--text3)">${escapeHtml(SLANG_TYPE_LABEL[s.type] || s.type)}</div></td>
               <td>${escapeHtml(s.meaning || '—')}</td>
-              <td>${escapeHtml(SLANG_TYPE_LABEL[s.type] || s.type)}</td>
-              <td>${tags}</td>
+              <td>${escapeHtml(s.groupId || '全局')}</td>
+              <td>${Number(s.count) || 0}</td>
+              <td>${slangInferenceBadge(s)}</td>
               <td>${reviewBadge(s.reviewStatus)}</td>
               <td>
                 ${s.reviewStatus === 'pending' ? `<button type="button" class="btn btn-s btn-p" onclick="reviewSlangItem('${escapeHtml(s.id)}','pass')">通过</button>` : ''}
                 <button type="button" class="btn btn-s" onclick="deleteSlangItem('${escapeHtml(s.id)}')">删</button>
               </td></tr>`;
-          }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text3)">暂无数据</td></tr>';
+          }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text3)">暂无数据</td></tr>';
         }
         if (slangTab === 'review') renderSlangReviewCard();
       } catch (e) { toast(e.message, 'error'); }

@@ -154,7 +154,10 @@ import {
   saveMaisakaStore
 } from './lib/maisaka/maisaka-fakehuman.mjs';
 import { expandBurstReplies, pickFakeHumanRandomText, shouldUseFakeHumanTextList, getEffectiveFakeHumanPickMode, buildFakeHumanReplyerInstruction } from './lib/maisaka/fakehuman-burst.mjs';
-import { pickFakeHumanSendStyle, maybeMakeTypo, sleepMs as fakeHumanSleepMs } from './lib/maisaka/fakehuman-humanize.mjs';
+import { pickFakeHumanSendStyle, deliverWithTypoRecall, sleepMs as fakeHumanSleepMs } from './lib/maisaka/fakehuman-humanize.mjs';
+import { observeGroupSlangFromMessage, inferPendingGroupSlangs, getSlangObserveStats } from './lib/maisaka/group-slang-observer.mjs';
+import { buildKaomojiHint } from './lib/maisaka/kaomoji.mjs';
+import { buildSlangBlock } from './lib/maisaka/maisaka-fakehuman.mjs';
 import {
   detectGroupRepeatTrend,
   detectStickerBattleTrend,
@@ -599,7 +602,13 @@ const DEFAULT_CONFIG = {
   fakeHumanTrendMinInterval: 12,
   fakeHumanHumanizeEnabled: true,
   fakeHumanTypoEnabled: true,
-  fakeHumanTypoChance: 0.14,
+  fakeHumanTypoChance: 0.18,
+  chatTypoEnabled: true,
+  chatTypoChance: 0.18,
+  fakeHumanKaomojiEnabled: true,
+  chatKaomojiEnabled: true,
+  slangObserveEnabled: true,
+  slangAutoPassInferred: true,
   fakeHumanReplyStyleChance: 0.4,
   fakeHumanAtMessageChance: 0.35,
   fakeHumanInterjectChance: 0.35,
@@ -3772,7 +3781,7 @@ async function sendGroupStructured(ctx, groupId, replyMessageId, segments) {
     message.push(...flattenMessageSegments(segments));
     if (!message.length) return null;
     const ret = await callAction('send_group_msg', { group_id: String(groupId), message });
-    const mid = ret?.data?.message_id ?? ret?.message_id ?? ret?.data?.messageId;
+    const mid = ret?.data?.message_id ?? ret?.message_id ?? ret?.data?.messageId ?? ret?.result?.message_id;
     return mid != null ? mid : null;
   } catch (e) {
     pluginState.logger?.warn?.('[chat-bot] 发送群结构化消息失败: ' + e.message);
@@ -3789,6 +3798,48 @@ async function recallGroupMessage(ctx, messageId) {
     log('warn', '撤回消息失败', { messageId, err: e.message });
     return false;
   }
+}
+
+/** 批量推断待处理群黑话（启动定时 + 手动触发） */
+async function runBatchSlangInference(ctx, groupIdFilter = '') {
+  const cfg = pluginState.config;
+  if (cfg.slangObserveEnabled === false) return { count: 0, groups: 0 };
+  const store = getMaisakaStore(ctx);
+  const groupSet = new Set();
+  for (const s of store.slangs || []) {
+    if (s.meaning) continue;
+    const inf = String(s.inferenceStatus || '');
+    if (inf === 'not_slang' || inf === 'is_slang') continue;
+    if ((Number(s.count) || 0) < 2) continue;
+    const gid = String(s.groupId || '').trim();
+    if (!gid) continue;
+    if (groupIdFilter && gid !== groupIdFilter) continue;
+    groupSet.add(gid);
+  }
+  if (!groupSet.size) return { count: 0, groups: 0 };
+  if (!buildChatEndpointList(cfg).length) {
+    log('warn', '群黑话推断跳过：未配置可用 API', { pendingGroups: groupSet.size }, 'slang');
+    return { count: 0, groups: groupSet.size, skipped: 'no_api' };
+  }
+  let total = 0;
+  for (const gid of groupSet) {
+    const ctxLines = getFormattedRecentGroupContext(gid, 12, cfg);
+    const results = await inferPendingGroupSlangs({
+      cfg,
+      store,
+      groupId: gid,
+      contextLines: ctxLines,
+      llmText: (opts) => callFakeHumanLlm(cfg, opts),
+      minCount: 2,
+      limit: 8
+    });
+    total += results.filter((r) => r.ok).length;
+    if (results.length) {
+      log('info', '群黑话批量推断', { groupId: gid, results }, 'slang');
+    }
+  }
+  if (total) persistMaisakaStore(ctx);
+  return { count: total, groups: groupSet.size };
 }
 
 /** 发送群回复（回复某条消息，支持 CQ 码转 segment） */
@@ -3818,10 +3869,23 @@ async function sendPrivate(ctx, userId, message) {
   }
 }
 
-/** 分条发送文本/图片/文件（支持回复中的 URL 与 [发送文件:路径]） */
-async function deliverChatReply(ctx, { isGroup, groupId, userId, prefix, replyText }) {
+/** 分条发送文本/图片/文件（支持群聊错字撤回重发） */
+async function deliverChatReply(ctx, { isGroup, groupId, userId, prefix, replyText, replyMsgId, cfg = pluginState.config }) {
   const segments = parseOutboundMediaSegments(replyText);
   if (!segments.length) return;
+
+  const sendPlainGroup = async (text, rid) => {
+    let msg = text;
+    if (prefix) {
+      const needSpace = prefix && !/[\s\u3000]$/.test(prefix) && !text.startsWith('[CQ:');
+      msg = prefix.trimEnd() + (needSpace ? ' ' : '') + text;
+    }
+    if (/\[CQ:/i.test(msg)) {
+      return sendGroupStructured(ctx, groupId, rid, parseCqTextToSegments(msg));
+    }
+    return sendGroupStructured(ctx, groupId, rid, parseCqTextToSegments(msg));
+  };
+
   for (let i = 0; i < segments.length; i++) {
     const body = segmentToOutboundMessage(segments[i]);
     if (!body) {
@@ -3835,8 +3899,22 @@ async function deliverChatReply(ctx, { isGroup, groupId, userId, prefix, replyTe
       const needSpace = prefix && !/[\s\u3000]$/.test(prefix) && !body.startsWith('[CQ:');
       msg = prefix.trimEnd() + (needSpace ? ' ' : '') + body;
     }
-    if (isGroup) await sendGroup(ctx, groupId, msg);
-    else await sendPrivate(ctx, userId, msg);
+    if (isGroup && i === 0 && !/\[CQ:/i.test(msg) && !msg.includes('http') && (cfg?.chatTypoEnabled !== false || cfg?.fakeHumanTypoEnabled !== false)) {
+      await deliverWithTypoRecall({
+        text: msg,
+        cfg,
+        buildBadSegments: (typoText) => parseCqTextToSegments(typoText),
+        buildGoodSegments: (goodText) => parseCqTextToSegments(goodText),
+        send: (segs) => sendGroupStructured(ctx, groupId, i === 0 ? replyMsgId : null, segs),
+        recall: (id) => recallGroupMessage(ctx, id),
+        log,
+        label: 'chat'
+      });
+    } else if (isGroup) {
+      await sendPlainGroup(msg, i === 0 ? replyMsgId : null);
+    } else {
+      await sendPrivate(ctx, userId, msg);
+    }
   }
 }
 
@@ -4544,19 +4622,24 @@ async function deliverFakeHumanMessage(ctx, groupId, replyMsgId, { atUserId, mes
   }
   if (style === 'at_message' && !uid) uid = defaultAtUserId || '';
 
-  if (text && !messageArray?.length && cfg?.fakeHumanTypoEnabled !== false) {
-    const typo = maybeMakeTypo(text, cfg);
-    if (typo) {
-      const badSegments = [
-        ...(uid ? buildAtSegments(uid, '') : []),
-        ...parseCqTextToSegments(typo.typo)
-      ];
-      const badId = await sendGroupStructured(ctx, groupId, useReplyId, badSegments);
-      await fakeHumanSleepMs(600 + Math.floor(Math.random() * 1200));
-      if (badId) await recallGroupMessage(ctx, badId);
-      text = typo.correct;
-      useReplyId = style === 'interject' ? null : replyMsgId;
-    }
+  if (text && !messageArray?.length) {
+    const buildSegs = (body) => {
+      const segs = [];
+      if (uid) segs.push(...buildAtSegments(uid, body ? ' ' : ''));
+      if (body) segs.push(...parseCqTextToSegments(body));
+      return segs;
+    };
+    await deliverWithTypoRecall({
+      text,
+      cfg,
+      buildBadSegments: buildSegs,
+      buildGoodSegments: buildSegs,
+      send: (segs) => sendGroupStructured(ctx, groupId, useReplyId, segs),
+      recall: (id) => recallGroupMessage(ctx, id),
+      log,
+      label: 'fakehuman'
+    });
+    return;
   }
 
   const segments = [];
@@ -5591,6 +5674,15 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
       });
     }
 
+    if (pluginState.config.slangObserveEnabled !== false) {
+      setTimeout(() => {
+        runBatchSlangInference(ctx).catch((e) => log('warn', '启动黑话推断失败', e.message, 'slang'));
+      }, 45000);
+      setInterval(() => {
+        runBatchSlangInference(ctx).catch((e) => log('warn', '定时黑话推断失败', e.message, 'slang'));
+      }, 8 * 60 * 1000);
+    }
+
     drawBotEngine = createDrawBot({
       fetchJson,
       sendGroup: async (drawCtx, gid, m) => sendGroup(drawCtx, gid, m),
@@ -6415,7 +6507,7 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
           const store = getMaisakaStore(rtCtx);
           res.json({
             success: true,
-            stats: getSlangStats(store),
+            stats: { ...getSlangStats(store), ...getSlangObserveStats(store) },
             settings: getSlangSettings(store),
             groups: listSlangGroups(store)
           });
@@ -6438,7 +6530,7 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
           });
           res.json({
             success: true,
-            stats: getSlangStats(store),
+            stats: { ...getSlangStats(store), ...getSlangObserveStats(store) },
             settings: getSlangSettings(store),
             groups: listSlangGroups(store),
             total: result.total,
@@ -6467,28 +6559,53 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
           const store = getMaisakaStore(rtCtx);
           const groupId = String(req.body?.groupId || req.body?.group_id || '').trim();
           const skipDuplicate = req.body?.skipDuplicate !== false;
+          const fileName = String(req.body?.fileName || req.body?.filename || '').trim();
 
           if (Array.isArray(req.body?.items) && req.body.items.length) {
+            log('info', '黑话导入开始(batch items)', { groupId, count: req.body.items.length, fileName }, 'slang');
             const result = importSlangs(store, req.body.items, { groupId, skipDuplicate });
             persistMaisakaStore(rtCtx);
-            return res.json({ success: true, ...result, batched: true });
+            log('info', '黑话导入完成', { ...result, groupId, fileName }, 'slang');
+            return res.json({ success: true, ...result, batched: true, parseFormat: 'items' });
           }
 
           const raw = String(req.body?.content || req.body?.text || '').trim();
           const format = String(req.body?.format || 'auto').trim();
+          log('info', '黑话导入开始', { groupId, format, bytes: raw.length, fileName, preview: raw.slice(0, 80).replace(/\n/g, ' ') }, 'slang');
           const parsed = parseSlangImport(raw, format);
+          log('info', '黑话导入解析结果', {
+            groupId,
+            fileName,
+            format,
+            parsed: parsed.items.length,
+            errors: parsed.errors.slice(0, 8),
+            sampleTerms: parsed.items.slice(0, 5).map((x) => x.term)
+          }, 'slang');
           if (!parsed.items.length) {
-            return res.json({ success: false, error: parsed.errors.join('；') || '未解析到词条', errors: parsed.errors });
+            log('warn', '黑话导入失败：未解析到词条', { groupId, fileName, errors: parsed.errors }, 'slang');
+            return res.json({ success: false, error: parsed.errors.join('；') || '未解析到词条', errors: parsed.errors, parseFormat: format });
           }
           const result = importSlangs(store, parsed.items, { groupId, skipDuplicate });
           persistMaisakaStore(rtCtx);
+          log('info', '黑话导入完成', {
+            groupId,
+            fileName,
+            imported: result.imported,
+            skipped: result.skipped,
+            importedTerms: result.importedTerms,
+            skippedTerms: result.skippedTerms,
+            parseErrors: parsed.errors.slice(0, 5)
+          }, 'slang');
           res.json({
             success: true,
             ...result,
             errors: parsed.errors,
+            parseFormat: format,
+            sampleTerms: parsed.items.slice(0, 8).map((x) => ({ term: x.term, meaning: x.meaning })),
             hint: parsed.errors.length ? `已导入 ${result.imported} 条，${parsed.errors.length} 行解析跳过` : undefined
           });
         } catch (e) {
+          log('error', '黑话导入异常', { err: e.message, stack: e.stack?.slice(0, 200) }, 'slang');
           res.json({ success: false, error: e.message });
         }
       });
@@ -6544,6 +6661,19 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
           persistMaisakaStore(rtCtx);
           res.json({ success: true, cleared: n });
         } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.postNoAuth('/slangs/infer-pending', async (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const groupId = String(req.body?.groupId || req.body?.group_id || '').trim();
+          log('info', '手动触发群黑话推断', { groupId: groupId || 'all' }, 'slang');
+          const result = await runBatchSlangInference(rtCtx, groupId);
+          res.json({ success: true, ...result });
+        } catch (e) {
+          log('error', '群黑话推断异常', { err: e.message }, 'slang');
           res.json({ success: false, error: e.message });
         }
       });
@@ -7995,6 +8125,34 @@ const plugin_onmessage = async (ctx, event) => {
         } catch { /* ignore */ }
       });
     }
+    if (plainText.length >= 2 && cfg.slangObserveEnabled !== false) {
+      setImmediate(() => {
+        try {
+          const store = getMaisakaStore(ctx);
+          const touched = observeGroupSlangFromMessage(store, groupId, plainText);
+          const needInfer = touched.some((t) => (Number(t.count) || 0) >= 2 && !t.meaning && t.inferenceStatus === 'pending');
+          if (needInfer && buildChatEndpointList(cfg).length) {
+            const ctxLines = getFormattedRecentGroupContext(groupId, 10, cfg);
+            inferPendingGroupSlangs({
+              cfg,
+              store,
+              groupId,
+              contextLines: ctxLines,
+              llmText: (opts) => callFakeHumanLlm(cfg, opts),
+              minCount: 2,
+              limit: 4
+            }).then((results) => {
+              persistMaisakaStore(ctx);
+              log('info', '群黑话 AI 推断完成', { groupId, count: results.length, results }, 'slang');
+            }).catch((e) => log('warn', '群黑话推断失败', { groupId, err: e.message }, 'slang'));
+          } else if (touched.length) {
+            persistMaisakaStore(ctx);
+          }
+        } catch (e) {
+          log('warn', '群黑话观察失败', { groupId, err: e.message }, 'slang');
+        }
+      });
+    }
   }
 
   if (isGroup) {
@@ -8106,6 +8264,18 @@ const plugin_onmessage = async (ctx, event) => {
   const history = getHistory(key);
   log('debug', '当前对话历史条数', { key, count: history.length }, 'chat');
   let systemContent = (cfg.systemPrompt || DEFAULT_CONFIG.systemPrompt).trim() || '你是友好助手。';
+  if (isGroup && groupId) {
+    const recentCtx = getFormattedRecentGroupContext(groupId, 12, cfg);
+    try {
+      const slangStore = getMaisakaStore(ctx);
+      const slangBlock = buildSlangBlock(slangStore, groupId, recentCtx, cfg);
+      if (slangBlock) systemContent += `\n\n${slangBlock}`;
+      const kmHint = buildKaomojiHint(cfg, `${userText}\n${recentCtx}`);
+      if (kmHint) systemContent += `\n\n${kmHint}`;
+    } catch (e) {
+      log('debug', '群黑话/颜文字注入跳过', e.message, 'slang');
+    }
+  }
 
   let imageUrls = [];
   let imageAnalysis = '';
@@ -8363,7 +8533,7 @@ const plugin_onmessage = async (ctx, event) => {
   pushHistory(key, 'assistant', replyText, assistantTools.length ? { tools: assistantTools } : {});
 
   const prefix = isGroup ? formatReply(cfg.replyPrefix || '', { user_id: userId }) : '';
-  await deliverChatReply(ctx, { isGroup, groupId, userId, prefix, replyText });
+  await deliverChatReply(ctx, { isGroup, groupId, userId, prefix, replyText, replyMsgId: userMessageId, cfg });
   log('info', '消息已发送', { key, groupId: groupId || 'private', userId, replyLength: replyText.length }, 'chat');
 
   if (userMessageId) await applyAfterReplyReaction(cfg, userMessageId);
