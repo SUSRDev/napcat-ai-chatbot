@@ -1588,7 +1588,7 @@ async function callVisionChatRaw({ systemPrompt, userText, imageUrls, model }) {
               { role: 'user', content: userContent }
             ],
             stream: false,
-            temperature: 0.6,
+            temperature: 1,
             max_tokens: 400
           })
         }, settings.timeoutMs);
