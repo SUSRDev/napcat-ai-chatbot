@@ -769,10 +769,10 @@
     }
     .conv-item:hover { background: var(--card-hover); border-color: var(--border); }
     .conv-item.active { background: var(--accent-glow); border-color: var(--border-hover); }
-    .conv-item-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-    .conv-item-user { font-size: 13px; font-weight: 600; }
-    .conv-item-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: var(--bg2); color: var(--text2); border: 1px solid var(--border); }
-    .conv-item-actions { display: inline-flex; align-items: center; gap: 6px; }
+    .conv-item-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; min-width: 0; margin-bottom: 4px; }
+    .conv-item-user { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .conv-item-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: var(--bg2); color: var(--text2); border: 1px solid var(--border); white-space: nowrap; flex-shrink: 0; }
+    .conv-item-actions { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: nowrap; }
     .conv-item-delete {
       width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--border);
       background: transparent; color: var(--text3); display: inline-flex; align-items: center; justify-content: center;
@@ -800,6 +800,7 @@
       border: 1px solid var(--border); border-bottom-left-radius: 4px;
     }
     .chat-bubble-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; opacity: 0.6; }
+    .chat-msg-attachments { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
     .chat-bubble.user .chat-bubble-label { color: var(--bg); opacity: 0.5; }
     .conv-detail-actions { display: flex; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--border); }
     .log-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -2881,7 +2882,7 @@
       font-size: 9px; padding: 2px 5px; border-radius: 4px;
       background: color-mix(in srgb, var(--accent) 12%, transparent);
       color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
-      margin-left: 4px; font-weight: 600;
+      font-weight: 600; white-space: nowrap; flex-shrink: 0; line-height: 1.2;
     }
     .admin-cmd-grid {
       display: grid;
@@ -4568,7 +4569,7 @@ npx playwright install chromium</pre>
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span id="sidebar-version">NapCat 插件 · v2.7.9</span>
+          <span id="sidebar-version">NapCat 插件 · v2.8.0</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -4741,7 +4742,7 @@ npx playwright install chromium</pre>
               <button type="button" class="btn btn-s" onclick="insertOverviewChatCommand()">/ 指令</button>
               <button type="button" class="btn btn-s" onclick="document.getElementById('ov-chat-image-input').click()"><span class="material-symbols-outlined">image</span>图片</button>
               <button type="button" class="btn btn-s" onclick="document.getElementById('ov-chat-file-input').click()"><span class="material-symbols-outlined">attach_file</span>文件</button>
-              <div class="ov-chat-dropzone" id="ov-chat-dropzone">拖拽图片/文件到这里上传（单文件 ≤ 10MB）</div>
+              <div class="ov-chat-dropzone" id="ov-chat-dropzone">拖拽图片/文件到这里上传（单文件 ≤ 5MB，文本/代码类可预览）</div>
             </div>
             <div class="ov-chat-attachments" id="ov-chat-attachments"></div>
             <textarea class="ipt" id="ov-chat-input" placeholder="输入问题，例如：帮我查一下今天上海天气，并给出穿衣建议（会按需调用MCP）" onkeydown="onOverviewChatKeydown(event)"></textarea>
@@ -9963,11 +9964,11 @@ npx playwright install chromium</pre>
       const safeKey = escapeHtml(c.key).replace(/'/g, "\\'");
       const nestedClass = nested ? ' conv-item-nested' : '';
       const topLine = nested
-        ? '<span class="conv-item-user">' + groupLine + isoBadge + '</span>'
-        : '<span class="conv-item-user">' + displayName + isoBadge + '</span>';
+        ? '<span class="conv-item-user" title="' + escapeHtml(groupLine) + '">' + groupLine + '</span>'
+        : '<span class="conv-item-user" title="' + escapeHtml(c.userName || c.userId || '') + '">' + displayName + '</span>';
       const metaGroup = nested ? '' : '<span>' + groupLine + '</span>';
       return '<div class="conv-item' + nestedClass + (isActive ? ' active' : '') + '" style="animation-delay:' + (i * 0.025) + 's" onclick="loadConvDetail(\'' + safeKey + '\')">' +
-        '<div class="conv-item-top">' + topLine + '<span class="conv-item-actions"><span class="conv-item-badge">' + typeLabel + '</span><button type="button" class="conv-item-delete" title="删除该会话" onclick="event.stopPropagation();deleteConversationFromList(\'' + safeKey + '\')"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button></span></div>' +
+        '<div class="conv-item-top">' + topLine + '<span class="conv-item-actions">' + isoBadge + '<span class="conv-item-badge">' + typeLabel + '</span><button type="button" class="conv-item-delete" title="删除该会话" onclick="event.stopPropagation();deleteConversationFromList(\'' + safeKey + '\')"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button></span></div>' +
         '<div class="conv-item-meta">' + metaGroup + '<span>' + (c.messageCount || 0) + ' 条</span><span>' + escapeHtml(last) + '</span></div>' +
         '<div class="conv-item-preview">' + preview + '</div></div>';
     }
@@ -10165,6 +10166,20 @@ npx playwright install chromium</pre>
       }).join('') + '</div>';
     }
 
+    function renderMessageAttachments(atts, role) {
+      if (!atts || !atts.length) return '';
+      return '<div class="chat-msg-attachments">' + atts.map(function (a, ai) {
+        const imgSrc = a.previewUrl || a.dataUrl || (a.url || '');
+        if ((a.kind === 'image' || a.mime && /^image\//i.test(a.mime)) && imgSrc) {
+          return '<details class="ov-attach-preview"' + (role === 'user' ? ' open' : '') + '><summary>图片 · ' + escapeHtml(a.name || ('image-' + (ai + 1))) + '</summary><div class="ov-attach-preview-body"><img class="ov-attach-thumb" src="' + escapeHtml(imgSrc) + '" alt="' + escapeHtml(a.name || 'image') + '" /></div></details>';
+        }
+        const snippet = String(a.textSnippet || '').slice(0, 4000);
+        return '<details class="ov-attach-preview"><summary>文件 · ' + escapeHtml(a.name || ('file-' + (ai + 1))) + '</summary><div class="ov-attach-preview-body">' +
+          (snippet ? ('<textarea readonly>' + escapeHtml(snippet) + '</textarea>') : '<div style="font-size:12px;color:var(--text3)">无可预览文本内容</div>') +
+          '</div></details>';
+      }).join('') + '</div>';
+    }
+
     function renderChatBubbles(messages) {
       if (!messages || !messages.length) {
         return '<div class="conv-empty-state"><span>此会话暂无消息</span></div>';
@@ -10176,17 +10191,7 @@ npx playwright install chromium</pre>
         const content = escapeHtml(m.content || '').replace(/\n/g, '<br>');
         const toolsHtml = role === 'assistant' ? renderToolBlocks(m.tools) : '';
         const atts = Array.isArray(m.attachments) ? m.attachments : [];
-        const attHtml = role === 'user' && atts.length
-          ? '<div style="margin-top:8px">' + atts.map(function (a, ai) {
-            if (a.kind === 'image' && a.previewUrl) {
-              return '<details class="ov-attach-preview" open><summary>图片 · ' + escapeHtml(a.name || ('image-' + (ai + 1))) + '</summary><div class="ov-attach-preview-body"><img class="ov-attach-thumb" src="' + escapeHtml(a.previewUrl) + '" alt="' + escapeHtml(a.name || 'image') + '" /></div></details>';
-            }
-            const snippet = String(a.textSnippet || '').slice(0, 4000);
-            return '<details class="ov-attach-preview"><summary>文件 · ' + escapeHtml(a.name || ('file-' + (ai + 1))) + '</summary><div class="ov-attach-preview-body">' +
-              (snippet ? ('<textarea readonly>' + escapeHtml(snippet) + '</textarea>') : '<div style="font-size:12px;color:var(--text3)">无可预览文本内容</div>') +
-              '</div></details>';
-          }).join('') + '</div>'
-          : '';
+        const attHtml = atts.length ? renderMessageAttachments(atts, role) : '';
         return '<div class="chat-bubble ' + role + '" style="animation-delay:' + (i * 0.04) + 's"><div class="chat-bubble-label">' + label + '</div>' + content + attHtml + toolsHtml + '</div>';
       }).join('');
     }
@@ -10509,12 +10514,12 @@ npx playwright install chromium</pre>
     }
 
     async function addOverviewFiles(files) {
-      const maxSize = 10 * 1024 * 1024;
+      const maxSize = 5 * 1024 * 1024;
       const list = Array.from(files || []);
       for (const f of list) {
         if (!f) continue;
         if (f.size > maxSize) {
-          toast('文件过大（>10MB）：' + f.name, 'error');
+          toast('文件过大（>5MB）：' + f.name, 'error');
           continue;
         }
         const isImage = /^image\//i.test(f.type || '');
@@ -10529,11 +10534,17 @@ npx playwright install chromium</pre>
               rd.readAsDataURL(f);
             });
           } catch (_) {}
-        } else if (/^(text\/|application\/json)/i.test(f.type || '') || /\.(txt|md|json|csv|log|yaml|yml|xml|js|ts|py|java|go|rs|cpp|c|h)$/i.test(f.name || '')) {
+        } else if (/^(text\/|application\/json)/i.test(f.type || '') || /\.(txt|md|json|csv|log|yaml|yml|xml|js|ts|py|java|go|rs|cpp|c|h|html|css|vue|jsx|tsx|mjs|sql|ini|cfg|conf|toml|sh|bat|ps1)$/i.test(f.name || '')) {
           try {
             const text = await f.text();
-            item.textSnippet = text.slice(0, 3000);
-          } catch (_) {}
+            item.textSnippet = text.slice(0, 12000);
+          } catch (_) {
+            toast('无法读取文件：' + f.name, 'warn');
+            continue;
+          }
+        } else {
+          toast('不支持预览的文件类型：' + f.name, 'warn');
+          continue;
         }
         overviewChatState.attachments.push(item);
       }

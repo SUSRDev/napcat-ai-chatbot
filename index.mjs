@@ -60,6 +60,17 @@ import {
   buildQqGroupContextBlock
 } from './lib/agent-qq.mjs';
 import {
+  MAX_CHAT_FILE_BYTES,
+  extractFileFromEvent,
+  resolveEventFiles,
+  buildFileContextBlock,
+  buildWebAttachmentContextBlock,
+  historyLabelForUserMedia,
+  parseOutboundMediaSegments,
+  segmentToOutboundMessage,
+  isPreviewableTextFile
+} from './lib/media-files.mjs';
+import {
   detectSkillhubCli,
   getSkillhubInstallDir,
   skillhubSearch,
@@ -997,10 +1008,8 @@ function buildMultimodalUserContent(text, imageUrls) {
   ];
 }
 
-function historyLabelForUser(text, hasImages) {
-  const t = String(text || '').trim();
-  if (hasImages) return t ? `[图片] ${t}` : '[图片]';
-  return t;
+function historyLabelForUser(text, hasImages, hasFiles = false) {
+  return historyLabelForUserMedia(text, hasImages, hasFiles);
 }
 
 function extractKimiMessageText(message) {
@@ -1195,6 +1204,16 @@ function pushHistory(key, role, content, extra = {}) {
       if (t.result) tool.result = String(t.result).slice(0, 6000);
       return tool;
     });
+  }
+  if (extra.attachments && Array.isArray(extra.attachments) && extra.attachments.length) {
+    entry.attachments = extra.attachments.map((a) => ({
+      kind: String(a.kind || 'file').slice(0, 16),
+      name: String(a.name || '').slice(0, 120),
+      size: Math.max(0, Number(a.size) || 0),
+      mime: String(a.mime || '').slice(0, 80),
+      textSnippet: a.textSnippet ? String(a.textSnippet).slice(0, 6000) : '',
+      dataUrl: a.dataUrl && String(a.dataUrl).length <= 500000 ? String(a.dataUrl) : ''
+    }));
   }
   arr.push(entry);
   const max = Math.min(MAX_HISTORY, Math.max(4, (pluginState.config?.maxHistoryMessages ?? 12) * 2 + 4));
@@ -2878,6 +2897,23 @@ async function sendPrivate(ctx, userId, message) {
     await callAction('send_private_msg', { user_id: String(userId), message: String(message) });
   } catch (e) {
     pluginState.logger?.error?.('[chat-bot] 发送私聊失败: ' + e.message);
+  }
+}
+
+/** 分条发送文本/图片/文件（支持回复中的 URL 与 [发送文件:路径]） */
+async function deliverChatReply(ctx, { isGroup, groupId, userId, prefix, replyText }) {
+  const segments = parseOutboundMediaSegments(replyText);
+  if (!segments.length) return;
+  for (let i = 0; i < segments.length; i++) {
+    const body = segmentToOutboundMessage(segments[i]);
+    if (!body) continue;
+    let msg = body;
+    if (i === 0 && prefix) {
+      const needSpace = prefix && !/[\s\u3000]$/.test(prefix) && !body.startsWith('[CQ:');
+      msg = prefix.trimEnd() + (needSpace ? ' ' : '') + body;
+    }
+    if (isGroup) await sendGroup(ctx, groupId, msg);
+    else await sendPrivate(ctx, userId, msg);
   }
 }
 
@@ -4978,7 +5014,7 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
               textSnippet: String(a?.textSnippet || '').slice(0, 3000),
               dataUrl: String(a?.dataUrl || '')
             }))
-            .filter((a) => a.name && a.size <= 10 * 1024 * 1024)
+            .filter((a) => a.name && a.size <= MAX_CHAT_FILE_BYTES)
             .slice(0, 8);
           if (!text && attachments.length === 0) {
             res.json({ success: false, error: '请输入消息内容或上传附件' });
@@ -5029,6 +5065,8 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
           if (cfg.skillsEnabled) {
             systemContent += buildAgentSystemExtras(cfg, __dirname, text);
           }
+          const fileAttachBlock = buildWebAttachmentContextBlock(attachments.filter((a) => a.kind === 'file' && a.textSnippet));
+          if (fileAttachBlock) systemContent += fileAttachBlock;
           const qqSession = {
             userId,
             userName,
@@ -5137,7 +5175,16 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
 
           if (!replyText) replyText = cfg.messages?.error || DEFAULT_CONFIG.messages.error;
 
-          pushHistory(key, 'user', text || (attachments.length ? '[仅附件消息]' : ''));
+          pushHistory(key, 'user', historyLabelForUserMedia(text, imageUrls.length > 0, attachments.some((a) => a.kind === 'file')), {
+            attachments: attachments.map((a) => ({
+              kind: a.kind,
+              name: a.name,
+              size: a.size,
+              mime: a.mime,
+              textSnippet: a.textSnippet,
+              dataUrl: a.dataUrl
+            }))
+          });
           const assistantTools = [];
           if (qqContextMeta) assistantTools.push(qqContextMeta);
           if (agentToolTrace.length) assistantTools.push(...toolTraceToHistoryMeta(agentToolTrace));
@@ -5524,11 +5571,13 @@ const plugin_onmessage = async (ctx, event) => {
   if (isGroup) logIncomingGroupMessage(event);
   const plainText = extractPlainText(event.raw_message).trim();
   const hasImages = extractImageFromEvent(event).length > 0;
+  const hasFiles = extractFileFromEvent(event).length > 0;
 
-  if (isGroup && (plainText.length > 0 || hasImages) && (!selfId || userId !== selfId)) {
+  if (isGroup && (plainText.length > 0 || hasImages || hasFiles) && (!selfId || userId !== selfId)) {
     const senderName = event.sender?.card || event.sender?.nickname || event.sender?.nick || '';
     const list = recentGroupMessages.get(String(groupId)) || [];
-    list.push({ userId, userName: senderName, text: plainText.length > 0 ? plainText.slice(0, 500) : '[图片]', ts: Date.now() });
+    const msgText = plainText.length > 0 ? plainText.slice(0, 500) : (hasImages ? '[图片]' : (hasFiles ? '[文件]' : ''));
+    list.push({ userId, userName: senderName, text: msgText, ts: Date.now() });
     const cfgLines = pluginState.config || {};
     const maxLines = Math.max(5, Math.min(50, Math.max(
       Number(cfgLines.fakeHumanContextLines) || 5,
@@ -5581,7 +5630,7 @@ const plugin_onmessage = async (ctx, event) => {
   log('info', '触发通过', { triggerMode: cfg.triggerMode, isGroup: !!groupId, userId, groupId: groupId || 'private', plainPreview: plainText.slice(0, 80) }, 'chat');
 
   const userText = (trigger.useText || '').trim().slice(0, 2000);
-  if (!userText && !hasImages) return;
+  if (!userText && !hasImages && !hasFiles) return;
 
   const cd = checkCooldown(groupId, userId);
   if (!cd.ok) {
@@ -5646,6 +5695,8 @@ const plugin_onmessage = async (ctx, event) => {
 
   let imageUrls = [];
   let imageAnalysis = '';
+  let userFiles = [];
+  let fileContextBlock = '';
   let searchQueries = [];
   let searchResult = '';
   if (cfg.chatParseImage !== false && hasImages) {
@@ -5671,6 +5722,20 @@ const plugin_onmessage = async (ctx, event) => {
       }
     } else {
       log('warn', '消息含图片但解析失败', null, 'image');
+    }
+  }
+
+  if (hasFiles) {
+    userFiles = await resolveEventFiles(callAction, event, 3);
+    if (userFiles.length) {
+      fileContextBlock = buildFileContextBlock(userFiles);
+      systemContent += fileContextBlock;
+      log('info', '已解析用户文件', { count: userFiles.length, names: userFiles.map((f) => f.name) }, 'chat');
+    } else {
+      log('info', '用户发送文件但无法读取（可能超过 5MB 或非文本类型）', null, 'chat');
+      if (!userText && !hasImages) {
+        systemContent += '\n\n用户发送了文件，但文件超过 5MB 或不是可预览的文本类型（如 txt/md/json/代码文件等），请礼貌说明并让用户改用文字描述或发送较小文本文件。';
+      }
     }
   }
 
@@ -5855,20 +5920,25 @@ const plugin_onmessage = async (ctx, event) => {
   if (!replyText) replyText = cfg.messages?.error || DEFAULT_CONFIG.messages.error;
   log('info', fromRateLimit ? '限频/配额用尽，已使用友好提示回复' : '回复已生成', { replyLength: replyText.length }, 'chat');
 
-  pushHistory(key, 'user', historyLabelForUser(userText, imageUrls.length > 0));
+  pushHistory(key, 'user', historyLabelForUser(userText, imageUrls.length > 0, userFiles.length > 0), {
+    attachments: userFiles.map((f) => ({
+      kind: 'file',
+      name: f.name,
+      size: f.size,
+      mime: f.mime || 'text/plain',
+      textSnippet: f.textSnippet
+    }))
+  });
   const assistantTools = [];
   if (qqContextMeta) assistantTools.push(qqContextMeta);
   if (agentToolTrace.length) assistantTools.push(...toolTraceToHistoryMeta(agentToolTrace));
   if (searchResult) assistantTools.push({ type: 'web_search', queries: searchQueries, result: searchResult });
   if (imageAnalysis) assistantTools.push({ type: 'image_vision', result: imageAnalysis });
+  if (userFiles.length) assistantTools.push({ type: 'user_file', name: userFiles.map((f) => f.name).join(', '), result: fileContextBlock.slice(0, 4000) });
   pushHistory(key, 'assistant', replyText, assistantTools.length ? { tools: assistantTools } : {});
 
   const prefix = isGroup ? formatReply(cfg.replyPrefix || '', { user_id: userId }) : '';
-  const needSpace = prefix && !/[\s\u3000]$/.test(prefix);
-  const fullReply = prefix ? (prefix.trimEnd() + (needSpace ? ' ' : '') + replyText.trim()) : replyText.trim();
-
-  if (isGroup) await sendGroup(ctx, groupId, fullReply);
-  else await sendPrivate(ctx, userId, replyText.trim());
+  await deliverChatReply(ctx, { isGroup, groupId, userId, prefix, replyText });
   log('info', '消息已发送', { key, groupId: groupId || 'private', userId, replyLength: replyText.length }, 'chat');
 
   if (userMessageId) await applyAfterReplyReaction(cfg, userMessageId);
