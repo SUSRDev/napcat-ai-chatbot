@@ -153,7 +153,7 @@ import {
   loadMaisakaStore,
   saveMaisakaStore
 } from './lib/maisaka/maisaka-fakehuman.mjs';
-import { expandBurstReplies } from './lib/maisaka/fakehuman-burst.mjs';
+import { expandBurstReplies, pickFakeHumanRandomText, shouldUseFakeHumanTextList, getEffectiveFakeHumanPickMode, buildFakeHumanReplyerInstruction } from './lib/maisaka/fakehuman-burst.mjs';
 import { resolveQqFaceId } from './lib/emoji/qq-face.mjs';
 import {
   captureAndRegisterEmoji,
@@ -170,9 +170,12 @@ import {
   listEmojiSourceGroups,
   updateEmojiStatus,
   batchUpdateEmojiStatus,
+  updateEmojiMeta,
+  normalizeEmojiRegistry,
   deleteEmojiRecord,
   clearEmojiByStatus,
   findEmojiRecord,
+  serializeEmojiItem,
   EMOJI_STATUSES
 } from './lib/emoji/emoji-library.mjs';
 import {
@@ -556,7 +559,7 @@ const DEFAULT_CONFIG = {
   fakeHumanPlannerMaxRounds: 5,
   observeLoopIntervalMs: 15000,
   emojiCacheEnabled: true,
-  emojiAutoRegister: true,
+  emojiAutoRegister: false,
   emojiUseRegistry: true,
   emojiMaxCacheSizeMb: 5,
   emojiVlmPrompt: DEFAULT_EMOJI_VLM_PROMPT,
@@ -3981,7 +3984,11 @@ async function callFakeHumanLlmWithTools(cfg, { messages, tools, maxTokens = 400
         temperature
       }))
     });
-    if (!res.ok) return { content: '', tool_calls: [] };
+    if (!res.ok) {
+      const errBody = await readApiErrorBody(res);
+      log('warn', '伪人 Planner LLM HTTP 失败', { status: res.status, body: errBody.slice(0, 200) });
+      return { content: '', tool_calls: [] };
+    }
     const data = await res.json();
     const msg = data?.choices?.[0]?.message || {};
     return {
@@ -4014,12 +4021,14 @@ async function queueCaptureGroupEmojis(ctx, event, groupId) {
         cacheDir,
         imageUrl: url,
         groupId,
-        autoRegister: cfg.emojiAutoRegister !== false,
+        autoRegister: cfg.emojiAutoRegister === true,
         maxSizeMb: cfg.emojiMaxCacheSizeMb ?? 5,
         promptTemplate: (cfg.emojiVlmPrompt || DEFAULT_EMOJI_VLM_PROMPT).trim(),
         callVision: ({ systemPrompt, userText, imageUrls }) => callVisionChatRaw({ systemPrompt, userText, imageUrls, model: visionModel })
       });
-      if (r.status === 'registered') log('info', '群聊表情已缓存注册', { groupId, hash: r.emoji?.hash?.slice(0, 12), emotions: r.emoji?.emotions }, 'sticker');
+      if (r.status === 'cached' || r.status === 'registered') {
+        log('info', '群聊表情已缓存', { groupId, hash: r.emoji?.hash?.slice(0, 12), status: r.emoji?.status || r.status, emotions: r.emoji?.emotions || [] }, 'sticker');
+      }
     } catch (e) {
       log('debug', '群聊表情缓存失败', e.message, 'sticker');
     }
@@ -4033,12 +4042,13 @@ function getChatVisionModel(cfg) {
   return String(c.chatVisionModel || c.kimiVisionModel || KIMI_CODE_DEFAULT_MODEL).trim() || KIMI_CODE_DEFAULT_MODEL;
 }
 
-/** 执行 Planner 出站动作序列（文字+文件+表情，支持连发短句） */
+/** 执行 Planner 出站动作序列（文字+文件+表情，支持连发短句）；返回实际发送步数 */
 async function deliverFakeHumanOutbound(ctx, groupId, replyMsgId, outbound, { cfg, store, recentContext, plainText, userId }) {
   const expanded = expandBurstReplies(outbound || [], cfg);
   let first = true;
   const burstDelay = Math.max(200, Number(cfg.fakeHumanBurstDelayMs) ?? 800);
   let step = 0;
+  let sentCount = 0;
   for (const ob of expanded) {
     if (step > 0 && cfg.fakeHumanBurstEnabled !== false) {
       await new Promise((res) => setTimeout(res, burstDelay));
@@ -4048,18 +4058,23 @@ async function deliverFakeHumanOutbound(ctx, groupId, replyMsgId, outbound, { cf
     first = false;
     if (ob.type === 'reply' && ob.message) {
       await deliverFakeHumanMessage(ctx, groupId, rid, { atUserId: ob.atUserId || '', message: ob.message });
+      sentCount += 1;
     } else if (ob.type === 'at' && ob.atUserId) {
       await deliverFakeHumanMessage(ctx, groupId, rid, { atUserId: ob.atUserId, message: '' });
+      sentCount += 1;
     } else if (ob.type === 'poke' && ob.userId) {
       await sendGroupPoke(ctx, groupId, ob.userId);
+      sentCount += 1;
     } else if (ob.type === 'qq_face') {
       const faceId = resolveQqFaceId(ob.faceId || ob.emotion || '微笑');
       await deliverFakeHumanMessage(ctx, groupId, rid, {
         messageArray: [{ type: 'face', data: { id: String(faceId) } }]
       });
+      sentCount += 1;
     } else if (ob.type === 'file' && ob.path) {
       if (ob.caption) await deliverFakeHumanMessage(ctx, groupId, rid, { message: ob.caption });
       await deliverChatReply(ctx, { isGroup: true, groupId, userId, prefix: '', replyText: `[发送文件:${ob.path}]` });
+      sentCount += 1;
     } else if (ob.type === 'emoji') {
       const pick = await pickRegisteredEmojiWithGrid({
         store,
@@ -4069,13 +4084,21 @@ async function deliverFakeHumanOutbound(ctx, groupId, replyMsgId, outbound, { cf
         contextLines: recentContext,
         callVisionChat: (opts) => callVisionChatRaw({ ...opts, model: getChatVisionModel(cfg) })
       });
-      const faceId = pick?.id || (await pickStickerFaceId(cfg, plainText, ob.emotion || '', recentContext, store));
-      if (faceId) {
+      let faceId = pick?.id || (await pickStickerFaceId(cfg, plainText, ob.emotion || '', recentContext, store));
+      if (!faceId) {
+        const qqId = resolveQqFaceId(ob.emotion || '微笑');
+        await deliverFakeHumanMessage(ctx, groupId, rid, {
+          messageArray: [{ type: 'face', data: { id: String(qqId) } }]
+        });
+        sentCount += 1;
+      } else {
         const arr = [{ type: isFaceIdUrl(faceId) ? 'image' : 'face', data: isFaceIdUrl(faceId) ? { file: faceId } : { id: String(faceId) } }];
         await deliverFakeHumanMessage(ctx, groupId, rid, { messageArray: arr });
+        sentCount += 1;
       }
     }
   }
+  return sentCount;
 }
 
 /** 伪人 LLM 调用封装 */
@@ -4103,6 +4126,59 @@ async function callFakeHumanLlm(cfg, { systemPrompt, userPrompt, maxTokens = 120
     log('warn', '伪人 LLM 调用失败', e.message);
     return '';
   }
+}
+
+/** 伪人 AI 一句模式：直接调用 LLM 生成单条回复（不经过 Planner / 随机短句） */
+async function generateFakeHumanDirectAiReply(cfg, { recentContext, plainText, personaContext, imageDesc }) {
+  const maxLen = Math.max(10, Math.min(200, Number(cfg.fakeHumanMaxLength) ?? 80));
+  let userContent = '【回复信息参考】\n最近群消息：\n' + (recentContext || (plainText || '')).slice(0, 800);
+  if (personaContext) userContent += '\n' + personaContext.slice(0, 500);
+  if (imageDesc) userContent += '\n\n用户本条消息图片内容：' + imageDesc.slice(0, 200);
+  if (cfg.fakeHumanWebSearch && cfg.webSearchEnabled) {
+    const query = (plainText || recentContext.split('\n').pop() || '').slice(0, 50);
+    const searchResult = await webSearchMulti(query, cfg);
+    if (searchResult) userContent += '\n\n联网参考：\n' + searchResult.slice(0, 400);
+  }
+  const { apiUrl, apiKey, model } = getApiConfig();
+  if (!apiKey) return '';
+  const sysPrompt = buildFakeHumanSystemPrompt({
+    ...cfg,
+    _replyInstruction: buildFakeHumanReplyerInstruction(cfg)
+  });
+  try {
+    const res = await fetch(apiUrl, {
+      method: 'POST',
+      headers: chatHeadersFromApiConfig({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(buildAuxiliaryChatBody(cfg, {
+        model,
+        messages: [
+          { role: 'system', content: sysPrompt },
+          { role: 'user', content: userContent }
+        ],
+        max_tokens: Math.min(120, maxLen * 2),
+        temperature: 0.85
+      }))
+    });
+    if (!res.ok) return '';
+    const data = await res.json();
+    return (data?.choices?.[0]?.message?.content || '').trim().slice(0, maxLen).replace(/\n+/g, ' ');
+  } catch (e) {
+    log('warn', '伪人 AI 直接生成失败', e.message);
+    return '';
+  }
+}
+
+/** 伪人失败时的兜底回复：仅 random_text 模式用短句列表，其余模式走 AI */
+async function resolveFakeHumanFallbackMessage(cfg, pickMode, aiContext) {
+  const effective = getEffectiveFakeHumanPickMode(cfg, pickMode);
+  if (effective === 'random_text') {
+    return pickFakeHumanRandomText(cfg, pickMode);
+  }
+  if (aiContext) {
+    const aiMsg = await generateFakeHumanDirectAiReply(cfg, aiContext);
+    if (aiMsg) return aiMsg;
+  }
+  return null;
 }
 
 /** 发送伪人消息（@ 使用 segment，不再裸发 CQ 字符串） */
@@ -4204,6 +4280,7 @@ async function tryFakeHumanReply(ctx, event, groupId, userId, plainText) {
     const r = Math.random();
     pickMode = r < 0.75 ? 'ai' : ['random_text', 'emoji', 'sticker'][Math.floor(Math.random() * 3)];
   }
+  log('info', '伪人回复模式', { configured: mode, effective: getEffectiveFakeHumanPickMode(cfg, pickMode), pickMode, useMaisaka: cfg.fakeHumanMaisakaMode !== false && pickMode === 'ai' });
 
   const useMaisaka = cfg.fakeHumanMaisakaMode !== false && pickMode === 'ai';
   const store = getMaisakaStore(ctx);
@@ -4255,6 +4332,17 @@ async function tryFakeHumanReply(ctx, event, groupId, userId, plainText) {
 
     if (result.action === 'skip') {
       recordObserveDecision(g, 'no_action', { source: 'fakehuman', reasoning: result.reasoning || result.plan?.reasoning || '' });
+      const fallbackMsg = await resolveFakeHumanFallbackMessage(cfg, pickMode, {
+        recentContext, plainText, personaContext, imageDesc: imageDesc ? imageDesc.slice(0, 200) : ''
+      });
+      if (!fallbackMsg) {
+        log('debug', '伪人跳过发言', { groupId: g, reason: 'planner_skip', mode: pickMode });
+        return;
+      }
+      const replyMsgId = event.message_id ?? event.message?.id ?? null;
+      await deliverFakeHumanMessage(ctx, groupId, replyMsgId, { message: fallbackMsg });
+      appendRecentGroupBotMessage(g, selfId, botName, fallbackMsg);
+      log('info', '伪人插话', { groupId: g, mode: shouldUseFakeHumanTextList(cfg, pickMode) ? 'random_text' : 'ai_fallback', reason: 'planner_skip' });
       return;
     }
 
@@ -4263,10 +4351,29 @@ async function tryFakeHumanReply(ctx, event, groupId, userId, plainText) {
 
     if (outbound.length) {
       recordObserveOutbound(g, { source: 'fakehuman', steps: outbound.length, preview: outbound.slice(0, 4) });
-      await deliverFakeHumanOutbound(ctx, groupId, replyMsgId, outbound, { cfg, store, recentContext, plainText, userId });
+      const sentCount = await deliverFakeHumanOutbound(ctx, groupId, replyMsgId, outbound, { cfg, store, recentContext, plainText, userId });
+      if (sentCount === 0) {
+        const fallbackMsg = await resolveFakeHumanFallbackMessage(cfg, pickMode, {
+          recentContext, plainText, personaContext, imageDesc: imageDesc ? imageDesc.slice(0, 200) : ''
+        });
+        if (!fallbackMsg) {
+          log('debug', '伪人跳过发言', { groupId: g, reason: 'outbound_empty', mode: pickMode });
+          return;
+        }
+        await deliverFakeHumanMessage(ctx, groupId, replyMsgId, { message: fallbackMsg });
+        appendRecentGroupBotMessage(g, selfId, botName, fallbackMsg);
+        log('info', '伪人插话', { groupId: g, mode: shouldUseFakeHumanTextList(cfg, pickMode) ? 'random_text' : 'ai_fallback', reason: 'outbound_empty' });
+        return;
+      }
       const sentText = outbound.filter((o) => o.type === 'reply').map((o) => o.message).join(' ') || '[组合动作]';
       appendRecentGroupBotMessage(g, selfId, botName, sentText);
-      log('info', '伪人 Planner 出站', { groupId: g, steps: outbound.length, rounds: result.plan?.rounds });
+      log('info', '伪人 Planner 出站', {
+        groupId: g,
+        steps: outbound.length,
+        sent: sentCount,
+        rounds: result.plan?.rounds,
+        replyerFallback: !!result.replyerFallback
+      });
       setImmediate(() => {
         runMaisakaLearning({ cfg, store: getMaisakaStore(ctx), storePath, groupId: g, recentContext, botName, botReply: sentText, llmText: (opts) => callFakeHumanLlm(cfg, opts) }).catch(() => {});
       });
@@ -4277,8 +4384,9 @@ async function tryFakeHumanReply(ctx, event, groupId, userId, plainText) {
     atUserId = result.atUserId || '';
     if (!message && !(result.outbound || []).length) {
       log('warn', '伪人 AI 未生成内容', { groupId: g, hint: getApiConfig().apiKey ? 'Planner/Reply 返回空' : '请配置 API Key' });
-      const textList = cfg.fakeHumanTextList || DEFAULT_CONFIG.fakeHumanTextList;
-      message = (Array.isArray(textList) && textList.length) ? textList[Math.floor(Math.random() * textList.length)] : '哈哈';
+      message = await resolveFakeHumanFallbackMessage(cfg, pickMode, {
+        recentContext, plainText, personaContext, imageDesc: imageDesc ? imageDesc.slice(0, 200) : ''
+      }) || '';
     }
   } else if (pickMode === 'sticker') {
     const faceId = await pickStickerFaceId(cfg, plainText || recentContext, '', recentContext, store);
@@ -4293,8 +4401,7 @@ async function tryFakeHumanReply(ctx, event, groupId, userId, plainText) {
     const emojiList = cfg.fakeHumanEmojiList || DEFAULT_CONFIG.fakeHumanEmojiList;
     message = (emojiList.length ? emojiList[Math.floor(Math.random() * emojiList.length)] : '哈');
   } else if (pickMode === 'random_text') {
-    const textList = cfg.fakeHumanTextList || DEFAULT_CONFIG.fakeHumanTextList;
-    message = (Array.isArray(textList) && textList.length) ? textList[Math.floor(Math.random() * textList.length)] : '哈哈';
+    message = pickFakeHumanRandomText(cfg, pickMode) || '哈哈';
   } else {
     let userContent = '【回复信息参考】\n最近群消息：\n' + (recentContext || (plainText || '')).slice(0, 800) + (personaContext ? '\n' + personaContext.slice(0, 500) : '');
     if (imageDesc) userContent += '\n\n用户本条消息图片内容：' + imageDesc.slice(0, 200);
@@ -4332,8 +4439,9 @@ async function tryFakeHumanReply(ctx, event, groupId, userId, plainText) {
       }
     }
     if (!message) {
-      const textList = cfg.fakeHumanTextList || DEFAULT_CONFIG.fakeHumanTextList;
-      message = (Array.isArray(textList) && textList.length) ? textList[Math.floor(Math.random() * textList.length)] : '哈哈';
+      message = await resolveFakeHumanFallbackMessage(cfg, pickMode, {
+        recentContext, plainText, personaContext, imageDesc: imageDesc ? imageDesc.slice(0, 200) : ''
+      }) || '';
     }
     const atChance = Math.max(0, Math.min(1, Number(cfg.fakeHumanAtChance) ?? 0.25));
     if (!atUserId && Math.random() < atChance) {
@@ -4349,8 +4457,11 @@ async function tryFakeHumanReply(ctx, event, groupId, userId, plainText) {
   const replyMsgId = event.message_id ?? event.message?.id ?? null;
   if (sendAsArray && messageArray) {
     await deliverFakeHumanMessage(ctx, groupId, replyMsgId, { atUserId, messageArray });
+  } else if (message) {
+    await deliverFakeHumanMessage(ctx, groupId, replyMsgId, { atUserId, message });
   } else {
-    await deliverFakeHumanMessage(ctx, groupId, replyMsgId, { atUserId, message: message || ' ' });
+    log('debug', '伪人跳过发言', { groupId: g, mode: useMaisaka ? 'maisaka' : pickMode, reason: 'empty_message' });
+    return;
   }
 
   const sentText = message || (sendAsArray ? '[表情]' : '');
@@ -5264,7 +5375,7 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         if (body.fakeHumanChance !== undefined) cfg.fakeHumanChance = Math.max(0, Math.min(1, parseFloat(body.fakeHumanChance) || 0.05));
         if (body.fakeHumanGroupChance !== undefined) cfg.fakeHumanGroupChance = typeof body.fakeHumanGroupChance === 'object' && body.fakeHumanGroupChance !== null ? normalizeNumericKeyedObject(body.fakeHumanGroupChance) : {};
         if (body.fakeHumanMinInterval !== undefined) cfg.fakeHumanMinInterval = Math.max(0, parseInt(body.fakeHumanMinInterval, 10) || 90);
-        if (body.fakeHumanReplyMode !== undefined) cfg.fakeHumanReplyMode = ['ai', 'random_text', 'emoji', 'sticker', 'mixed'].includes(String(body.fakeHumanReplyMode).toLowerCase()) ? String(body.fakeHumanReplyMode).toLowerCase() : 'mixed';
+        if (body.fakeHumanReplyMode !== undefined) cfg.fakeHumanReplyMode = ['ai', 'random_text', 'emoji', 'sticker', 'mixed'].includes(String(body.fakeHumanReplyMode).toLowerCase()) ? String(body.fakeHumanReplyMode).toLowerCase() : 'ai';
         if (body.fakeHumanTextList !== undefined) cfg.fakeHumanTextList = Array.isArray(body.fakeHumanTextList) ? body.fakeHumanTextList.map(String).filter(Boolean) : (cfg.fakeHumanTextList || []);
         if (body.fakeHumanEmojiList !== undefined) cfg.fakeHumanEmojiList = Array.isArray(body.fakeHumanEmojiList) ? body.fakeHumanEmojiList.map(String).filter(Boolean) : (cfg.fakeHumanEmojiList || []);
         if (body.fakeHumanAtChance !== undefined) cfg.fakeHumanAtChance = Math.max(0, Math.min(1, parseFloat(body.fakeHumanAtChance) || 0.25));
@@ -5500,6 +5611,8 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
           const rtCtx = pluginState.runtimeCtx || ctx;
           const store = getMaisakaStore(rtCtx);
           ensureEmojiRegistry(store);
+          const fixed = normalizeEmojiRegistry(store);
+          if (fixed > 0) persistMaisakaStore(rtCtx);
           const imageBase = 'emoji-library/image';
           const result = listEmojiLibrary(store, {
             status: req.query?.status || 'all',
@@ -5531,9 +5644,26 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
           const rec = updateEmojiStatus(store, id, status);
           if (!rec) return res.json({ success: false, error: 'not_found' });
           persistMaisakaStore(rtCtx);
-          res.json({ success: true, emoji: rec });
+          res.json({ success: true, emoji: serializeEmojiItem(store, rec, { imageBase: 'emoji-library/image' }) });
         } catch (e) {
-          res.json({ success: false, error: e.message });
+          res.json({ success: false, error: e.message || String(e) });
+        }
+      });
+
+      router.postNoAuth('/emoji-library/update', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const id = String(req.body?.id || req.body?.hash || '').trim();
+          const rec = updateEmojiMeta(store, id, {
+            description: req.body?.description,
+            emotions: req.body?.emotions ?? req.body?.tags
+          });
+          if (!rec) return res.json({ success: false, error: 'not_found' });
+          persistMaisakaStore(rtCtx);
+          res.json({ success: true, emoji: serializeEmojiItem(store, rec, { imageBase: 'emoji-library/image' }) });
+        } catch (e) {
+          res.json({ success: false, error: e.message || String(e) });
         }
       });
 
@@ -5585,12 +5715,15 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
           const store = getMaisakaStore(rtCtx);
           const id = String(req.body?.id || req.body?.hash || '').trim();
           const registered = req.body?.registered !== false;
-          const rec = updateEmojiStatus(store, id, registered ? 'owned' : 'recognized');
+          const rec0 = findEmojiRecord(store, id);
+          if (!rec0) return res.json({ success: false, error: 'not_found' });
+          const target = registered ? 'owned' : 'recognized';
+          const rec = updateEmojiStatus(store, id, target);
           if (!rec) return res.json({ success: false, error: 'not_found' });
           persistMaisakaStore(rtCtx);
-          res.json({ success: true, emoji: rec });
+          res.json({ success: true, emoji: serializeEmojiItem(store, rec, { imageBase: 'emoji-library/image' }) });
         } catch (e) {
-          res.json({ success: false, error: e.message });
+          res.json({ success: false, error: e.message || String(e) });
         }
       });
 

@@ -4728,7 +4728,7 @@ npx playwright install chromium</pre>
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span id="sidebar-version">NapCat 插件 · v2.9.0</span>
+          <span id="sidebar-version">NapCat 插件 · v2.9.5</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -5486,14 +5486,14 @@ npx playwright install chromium</pre>
         </div>
         <div class="section" style="padding:0;overflow:hidden">
           <div class="section-title" style="margin:0">群聊表情缓存（MaiBot）</div>
-          <p class="page-desc" style="margin:8px 16px 0;font-size:13px">自动从各群消息抓取图片/表情 → 视觉模型打标分类 → 注册「占为己有」，供 Planner send_emoji 与回复后发表情使用。表情列表请在 <a href="#" onclick="navigatePage('emoji-library',document.querySelector('[data-page=emoji-library]'));return false" style="color:var(--accent)">表情库</a> 管理。</p>
+          <p class="page-desc" style="margin:8px 16px 0;font-size:13px">自动从各群消息抓取图片/表情 → VLM 打标 → 进入「待处理」队列；人工审核打标后「已认识」→「占为己有」才可用于 send_emoji。列表在 <a href="#" onclick="navigatePage('emoji-library',document.querySelector('[data-page=emoji-library]'));return false" style="color:var(--accent)">表情库</a> 管理。</p>
           <div class="form-row">
             <div class="form-label">启用群聊表情缓存</div>
             <div class="tgl on" id="tgl-emojiCacheEnabled" onclick="toggle(this,'emojiCacheEnabled')"></div>
           </div>
           <div class="form-row">
-            <div class="form-label">VLM 识别后自动注册<div class="hint">is_emoji=true 时写入表情库；false 标记为「不认识」</div></div>
-            <div class="tgl on" id="tgl-emojiAutoRegister" onclick="toggle(this,'emojiAutoRegister')"></div>
+            <div class="form-label">VLM 识别后进入待处理<div class="hint">识别为表情后写入「待处理」队列，不再自动占为己有；is_emoji=false 标记为抛弃</div></div>
+            <div class="tgl" id="tgl-emojiAutoRegister" onclick="toggle(this,'emojiAutoRegister')"></div>
           </div>
           <div class="form-row">
             <div class="form-label">发送时优先使用缓存库<div class="hint">与下方账号表情池合并，拼图视觉选择</div></div>
@@ -5536,7 +5536,7 @@ npx playwright install chromium</pre>
 
       <div id="pg-emoji-library" class="page">
         <h2 class="page-title">表情库</h2>
-        <p class="page-desc">群聊缓存 + VLM 打标。占为己有的表情会进入发送池（不限 QQ 收藏）。支持筛选：不认识 / 已认识 / 占为己有 / 待处理 / 抛弃。</p>
+          <p class="page-desc">群聊缓存 + VLM 打标。流程（MaiBot）：<strong>待处理</strong> → 添加标签 → <strong>已认识</strong> → <strong>占为己有</strong>（进入发送池）。</p>
         <div class="mai-layout">
           <div class="mai-sidebar">
             <div class="mai-sidebar-title">来源群聊</div>
@@ -5553,11 +5553,11 @@ npx playwright install chromium</pre>
               <button type="button" class="btn btn-s" onclick="loadEmojiLibraryPage()"><span class="material-symbols-outlined">refresh</span></button>
             </div>
             <div class="mai-filter-bar" id="elib-filters">
-              <button type="button" class="mai-filter-btn active" data-elib-status="all" onclick="setEmojiLibStatus(this,'all')">全部<span class="cnt" id="elib-c-all"></span></button>
+              <button type="button" class="mai-filter-btn" data-elib-status="all" onclick="setEmojiLibStatus(this,'all')">全部<span class="cnt" id="elib-c-all"></span></button>
               <button type="button" class="mai-filter-btn" data-elib-status="unknown" onclick="setEmojiLibStatus(this,'unknown')">不认识<span class="cnt" id="elib-c-unknown"></span></button>
               <button type="button" class="mai-filter-btn" data-elib-status="recognized" onclick="setEmojiLibStatus(this,'recognized')">已认识<span class="cnt" id="elib-c-recognized"></span></button>
               <button type="button" class="mai-filter-btn" data-elib-status="owned" onclick="setEmojiLibStatus(this,'owned')">占为己有<span class="cnt" id="elib-c-owned"></span></button>
-              <button type="button" class="mai-filter-btn" data-elib-status="pending" onclick="setEmojiLibStatus(this,'pending')">待处理<span class="cnt" id="elib-c-pending"></span></button>
+              <button type="button" class="mai-filter-btn active" data-elib-status="pending" onclick="setEmojiLibStatus(this,'pending')">待处理<span class="cnt" id="elib-c-pending"></span></button>
               <button type="button" class="mai-filter-btn" data-elib-status="discarded" onclick="setEmojiLibStatus(this,'discarded')">抛弃<span class="cnt" id="elib-c-discarded"></span></button>
             </div>
             <div class="mai-content">
@@ -6892,7 +6892,7 @@ npx playwright install chromium</pre>
 
       <div id="pg-slang" class="page">
         <h2 class="page-title">黑话 / 梗库</h2>
-        <p class="page-desc">群聊黑话、网络梗、缩写、口头禅。AI 从群聊自动学习，支持人工/AI 审核；已通过且开启使用的词条会注入伪人回复。<br>支持导入 TXT/JSON：TXT 每行「词条|含义|用法|类型|标签」或 Tab/冒号分隔；JSON 为数组或 <code>{ "slangs": [...] }</code>，重复词条可自动跳过。</p>
+        <p class="page-desc">群聊黑话、网络梗、缩写、口头禅。AI 从群聊自动学习，支持人工/AI 审核；已通过且开启使用的词条会注入伪人回复。<br>支持导入 TXT/JSON（可多选文件）：TXT 每行「词条：含义」或「词条|含义|用法|类型|标签」；JSON 支持 <code>{ "slangs": [...] }</code> 或 OpenIE 格式 <code>{ "docs": [...] }</code>（梗指南/游戏术语等）。重复词条自动跳过。</p>
         <div class="mai-subtabs">
           <div class="mai-subtab active" id="slang-tab-list" onclick="switchSlangTab('list')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">list</span> 词条列表</div>
           <div class="mai-subtab" id="slang-tab-review" onclick="switchSlangTab('review')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">bolt</span> 快速审核</div>
@@ -6910,7 +6910,7 @@ npx playwright install chromium</pre>
             </div>
             <button type="button" class="btn btn-p btn-s" onclick="openSlangCreateModal()"><span class="material-symbols-outlined">add</span>新增词条</button>
             <button type="button" class="btn btn-s" onclick="triggerSlangImport()"><span class="material-symbols-outlined">upload_file</span>导入 TXT/JSON</button>
-            <input type="file" id="slang-import-file" accept=".txt,.json,.md" style="display:none" onchange="onSlangImportFile(this)" />
+            <input type="file" id="slang-import-file" accept=".txt,.json,.md" multiple style="display:none" onchange="onSlangImportFile(this)" />
           </div>
           <div class="mai-filter-bar" id="slang-filters">
             <button type="button" class="mai-filter-btn active" data-slang-status="all" onclick="setSlangStatus(this,'all')">全部</button>
@@ -9867,7 +9867,7 @@ npx playwright install chromium</pre>
       const cacheTgl = document.getElementById('tgl-emojiCacheEnabled');
       if (cacheTgl) cacheTgl.classList.toggle('on', config.emojiCacheEnabled !== false);
       const autoTgl = document.getElementById('tgl-emojiAutoRegister');
-      if (autoTgl) autoTgl.classList.toggle('on', config.emojiAutoRegister !== false);
+      if (autoTgl) autoTgl.classList.toggle('on', config.emojiAutoRegister === true);
       const useTgl = document.getElementById('tgl-emojiUseRegistry');
       if (useTgl) useTgl.classList.toggle('on', config.emojiUseRegistry !== false);
       const maxMb = document.getElementById('cfg-emojiMaxCacheSizeMb');
@@ -9893,7 +9893,7 @@ npx playwright install chromium</pre>
         grid.innerHTML = emojiRegistryList.length ? emojiRegistryList.map((e) => {
           const tags = (e.emotions || []).slice(0, 4).map((t) => `<span class="tag-chip">${escapeHtml(t)}</span>`).join('');
           const status = e.registered ? '已占' : (e.rejectedReason === 'not_emoji' ? '非表情' : '未注册');
-          const preview = e.preview ? `<img src="${escapeHtml(e.preview)}" alt="" loading="lazy" />` : '<span class="material-symbols-outlined">image</span>';
+          const preview = e.preview ? `<img src="${escapeHtml(BASE + '/' + e.preview)}" alt="" loading="lazy" />` : '<span class="material-symbols-outlined">image</span>';
           return `<div class="sticker-cell${e.registered ? ' selected' : ''}" data-emoji-id="${escapeHtml(e.id || e.hash)}">
             <div class="sticker-thumb">${preview}</div>
             <div class="sticker-meta"><span class="sticker-name">${escapeHtml((e.description || e.hash || '').slice(0, 24))}</span>
@@ -9923,7 +9923,7 @@ npx playwright install chromium</pre>
       } catch (e) { toast(e.message, 'error'); }
     }
 
-    let emojiLibStatus = 'all';
+    let emojiLibStatus = 'pending';
     let emojiLibGroupId = '';
     let emojiLibDebounce = null;
     const EMOJI_STATUS_LABEL = { unknown: '不认识', recognized: '已认识', owned: '占为己有', pending: '待处理', discarded: '抛弃' };
@@ -9944,6 +9944,36 @@ npx playwright install chromium</pre>
       document.querySelectorAll('[data-elib-group]').forEach((b) => b.classList.toggle('active', b.dataset.elibGroup === gid));
       if (el) el.classList.add('active');
       loadEmojiLibraryPage();
+    }
+
+    async function editEmojiLibTags(id) {
+      const item = (window._emojiLibCache || []).find((e) => e.id === id);
+      const curTags = (item?.tags || item?.emotions || []).join('、');
+      const curDesc = item?.description || '';
+      const tagsInput = await showAppPrompt({
+        title: '编辑标签',
+        message: '情绪/场景标签，逗号或顿号分隔（必填一项才可「已认识」）',
+        defaultValue: curTags,
+        placeholder: '开心、安慰、阴阳怪气'
+      });
+      if (tagsInput === null) return;
+      const descInput = await showAppPrompt({
+        title: '描述（可选）',
+        message: '一句话描述表情内容',
+        defaultValue: curDesc,
+        placeholder: '20字内描述'
+      });
+      if (descInput === null) return;
+      try {
+        const res = await fetch(BASE + '/emoji-library/update', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, tags: tagsInput, description: descInput })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || '保存失败');
+        toast('标签已更新', 'success');
+        loadEmojiLibraryPage();
+      } catch (e) { toast(e.message, 'error'); }
     }
 
     async function setEmojiLibItemStatus(id, status) {
@@ -10006,22 +10036,35 @@ npx playwright install chromium</pre>
           return;
         }
         if (empty) empty.style.display = 'none';
+        window._emojiLibCache = list;
         grid.innerHTML = list.map((e) => {
           const tags = (e.tags || e.emotions || []).map((t) => `<span class="tag-chip">${escapeHtml(t)}</span>`).join('');
-          const preview = e.preview ? `<img class="mai-emoji-thumb" src="${escapeHtml(BASE + '/' + e.preview)}" alt="" loading="lazy" />` : '<div class="mai-emoji-thumb" style="display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined">image</span></div>';
+          const hasTags = tags.length > 0 || Boolean((e.description || '').trim());
+          const previewUrl = e.preview ? (BASE + '/' + e.preview) : '';
+          const preview = previewUrl
+            ? `<img class="mai-emoji-thumb" src="${escapeHtml(previewUrl)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'mai-emoji-thumb',innerHTML:'<span class=\\'material-symbols-outlined\\'>broken_image</span>',style:'display:flex;align-items:center;justify-content:center;color:var(--text3)'}))" />`
+            : '<div class="mai-emoji-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--text3)"><span class="material-symbols-outlined">image</span></div>';
           const badgeCls = e.status === 'owned' ? 'mai-status-owned' : (e.status === 'pending' ? 'mai-status-pending' : (e.status === 'discarded' ? 'mai-status-discarded' : ''));
           const id = escapeHtml(e.id);
+          const label = (e.description || e.hash || '').slice(0, 40);
+          let actions = '';
+          if (e.status === 'pending' || e.status === 'unknown') {
+            actions += `<button type="button" class="btn btn-s" onclick="editEmojiLibTags('${id}')">编辑标签</button>`;
+            actions += `<button type="button" class="btn btn-s${hasTags ? ' btn-p' : ''}" onclick="setEmojiLibItemStatus('${id}','recognized')" ${hasTags ? '' : 'disabled title="请先编辑标签"'}">已认识</button>`;
+          } else if (e.status === 'recognized') {
+            actions += `<button type="button" class="btn btn-s btn-p" onclick="setEmojiLibItemStatus('${id}','owned')">占为己有</button>`;
+            actions += `<button type="button" class="btn btn-s" onclick="editEmojiLibTags('${id}')">编辑标签</button>`;
+          }
+          if (e.status !== 'discarded') {
+            actions += `<button type="button" class="btn btn-s" onclick="setEmojiLibItemStatus('${id}','discarded')">抛弃</button>`;
+          }
+          actions += `<button type="button" class="btn btn-s" onclick="deleteEmojiLibItem('${id}')" title="删除"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button>`;
           return `<div class="mai-emoji-card ${e.status === 'owned' ? 'owned' : ''}">
             <span class="mai-status-badge ${badgeCls}">${escapeHtml(EMOJI_STATUS_LABEL[e.status] || e.status)}</span>
             ${preview}
-            <div class="mai-emoji-meta">${escapeHtml((e.description || e.hash || '').slice(0, 40))}<br>群 ${escapeHtml(e.sourceGroupId || '-')} · 用 ${e.queryCount || 0}</div>
-            <div class="tag-row">${tags || '<span class="tag-chip">无标签</span>'}</div>
-            <div class="mai-emoji-actions">
-              ${e.status !== 'owned' ? `<button type="button" class="btn btn-s btn-p" onclick="setEmojiLibItemStatus('${id}','owned')">占为己有</button>` : ''}
-              ${e.status !== 'recognized' ? `<button type="button" class="btn btn-s" onclick="setEmojiLibItemStatus('${id}','recognized')">已认识</button>` : ''}
-              ${e.status !== 'discarded' ? `<button type="button" class="btn btn-s" onclick="setEmojiLibItemStatus('${id}','discarded')">抛弃</button>` : ''}
-              <button type="button" class="btn btn-s" onclick="deleteEmojiLibItem('${id}')" title="删除"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button>
-            </div></div>`;
+            <div class="mai-emoji-meta">${escapeHtml(label)}<br>群 ${escapeHtml(e.sourceGroupId || '-')} · 用 ${e.queryCount || 0}</div>
+            <div class="tag-row">${tags || '<span class="tag-chip" style="opacity:0.6">无标签</span>'}</div>
+            <div class="mai-emoji-actions">${actions}</div></div>`;
         }).join('');
       } catch (e) {
         grid.innerHTML = '<p style="color:var(--danger)">' + escapeHtml(e.message) + '</p>';
@@ -10331,25 +10374,38 @@ npx playwright install chromium</pre>
     }
 
     async function onSlangImportFile(input) {
-      const file = input?.files?.[0];
-      if (!file) return;
+      const files = Array.from(input?.files || []);
+      if (!files.length) return;
       input.value = '';
-      try {
-        const text = await file.text();
-        const ext = (file.name.split('.').pop() || '').toLowerCase();
-        const format = ext === 'json' ? 'json' : 'txt';
-        const res = await fetch(BASE + '/slangs/import', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: text, format, groupId: slangGroupId || '', skipDuplicate: true })
-        });
-        const data = await res.json();
-        if (!data.success) throw new Error(data.error || '导入失败');
-        toast('导入完成：新增 ' + (data.imported || 0) + ' 条，跳过 ' + (data.skipped || 0) + ' 条', 'success');
-        if (data.errors?.length) toast('部分行解析失败：' + data.errors.slice(0, 3).join('；'), 'warn');
+      let totalImported = 0;
+      let totalSkipped = 0;
+      const failNames = [];
+      for (const file of files) {
+        try {
+          const text = await file.text();
+          const ext = (file.name.split('.').pop() || '').toLowerCase();
+          const format = ext === 'json' ? 'json' : 'txt';
+          const res = await fetch(BASE + '/slangs/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: text, format, groupId: slangGroupId || '', skipDuplicate: true })
+          });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.error || '导入失败');
+          totalImported += data.imported || 0;
+          totalSkipped += data.skipped || 0;
+        } catch (e) {
+          failNames.push(file.name + '（' + (e.message || '失败') + '）');
+        }
+      }
+      if (totalImported > 0 || totalSkipped > 0) {
+        toast('导入完成：新增 ' + totalImported + ' 条，跳过 ' + totalSkipped + ' 条' + (files.length > 1 ? '（' + files.length + ' 个文件）' : ''), 'success');
         loadSlangPage();
-      } catch (e) {
-        toast(e.message || '导入失败', 'error');
+      }
+      if (failNames.length) {
+        toast('部分文件失败：' + failNames.slice(0, 2).join('；') + (failNames.length > 2 ? '…' : ''), 'error');
+      } else if (!totalImported && !totalSkipped && files.length) {
+        toast('导入失败', 'error');
       }
     }
 
@@ -10601,7 +10657,7 @@ npx playwright install chromium</pre>
       cfg.stickerSelectionPrompt = (document.getElementById('cfg-stickerSelectionPrompt')?.value || '').trim();
       cfg.stickerPool = collectStickerPoolFromUI();
       cfg.emojiCacheEnabled = document.getElementById('tgl-emojiCacheEnabled')?.classList.contains('on') !== false;
-      cfg.emojiAutoRegister = document.getElementById('tgl-emojiAutoRegister')?.classList.contains('on') !== false;
+      cfg.emojiAutoRegister = document.getElementById('tgl-emojiAutoRegister')?.classList.contains('on') === true;
       cfg.emojiUseRegistry = document.getElementById('tgl-emojiUseRegistry')?.classList.contains('on') !== false;
       cfg.emojiMaxCacheSizeMb = Math.max(1, Math.min(20, parseInt(document.getElementById('cfg-emojiMaxCacheSizeMb')?.value, 10) || 5));
       cfg.emojiVlmPrompt = (document.getElementById('cfg-emojiVlmPrompt')?.value || '').trim();

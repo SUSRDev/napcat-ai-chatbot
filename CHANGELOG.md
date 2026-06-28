@@ -1,5 +1,32 @@
 # 更新日志
 
+## [2.9.5] — 2026-06-28
+
+### 改进
+
+- **伪人兜底逻辑分离**：Planner 返回 `no_action` 或出站步数为零时，`random_text` 模式使用短句列表，其余模式调用 LLM 直接生成单条回复，不再统一静默跳过。
+- **AI 直接生成函数**：新增 `generateFakeHumanDirectAiReply`，在不经过 Planner 的情况下直接调用 LLM 生成伪人回复，支持联网搜索补充上下文。
+- **表情库降级**：`send_emoji` 出站在本地表情库无匹配时降级发送对应 QQ 小黄脸，不再静默丢弃该步骤。
+- **出站步数追踪**：`deliverFakeHumanOutbound` 现在返回实际发送步数 `sentCount`，为出站为空时触发兜底提供依据。
+- **`emojiAutoRegister` 默认关闭**：配置项默认值由 `true` 改为 `false`，避免新部署自动注册表情到库。
+- **Planner LLM 错误日志**：HTTP 请求失败时记录状态码与响应体片段，方便排查 API 异常。
+
+### 修复
+
+- **表情缓存日志遗漏**：之前仅 `registered` 状态记录日志，现在 `cached` 状态也会输出缓存信息。
+
+---
+
+## [2.9.1] — 2026-06-28
+
+### 修复
+
+- **插件无法加载**：修复 `lib/maisaka/maisaka-planner-loop.mjs` 中 `send_emoji` 工具定义结构不完整导致的语法错误（NapCat 报 `Plugin load failed` / `check plugin structure`）。
+- **伪人不发言**：Planner 调用 `no_action` 或出站为空时不再直接静默跳过，默认回退 Replyer 文本生成；表情库无 `owned` 条目时 `send_emoji` 降级为 QQ 小黄脸；出站未实际发送时回退预设短句。
+- **AI 模式误发随机短句**：修复 AI 一句模式下失败兜底误用「随机短句列表」的问题；该列表仅在「随机短句」或「混合→随机短句」分支使用，AI 模式失败时改为 LLM 重试或静默跳过。
+
+---
+
 ## [2.9.0] — 2026-06-28
 
 ### 新增
