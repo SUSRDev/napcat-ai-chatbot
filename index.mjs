@@ -166,7 +166,6 @@ import {
   extractEmojiUrlsFromEvent,
   pickRegisteredEmojiWithGrid,
   registeredEmojisToStickerCandidates,
-  getRegisteredEmojis,
   runEmojiVlmOnRecord,
   applyEmojiVlmToRecord,
   DEFAULT_EMOJI_VLM_PROMPT,
@@ -574,6 +573,8 @@ const DEFAULT_CONFIG = {
   emojiCacheEnabled: true,
   emojiAutoRegister: false,
   emojiUseRegistry: true,
+  emojiOwnedOnly: true,
+  emojiSceneMinScore: 2,
   emojiMaxCacheSizeMb: 5,
   emojiVlmPrompt: DEFAULT_EMOJI_VLM_PROMPT,
   fakeHumanMaxLength: 80,
@@ -4037,7 +4038,7 @@ function pickWeightedStickerId(candidates) {
 }
 
 /** 构建回复后发表情的候选列表（合并群聊缓存注册库 + 配置池 + 收藏回退） */
-async function buildStickerCandidates(cfg, store = null) {
+async function buildStickerCandidates(cfg, store = null, cacheDir = '') {
   const seen = new Set();
   const merged = [];
   const push = (c) => {
@@ -4048,8 +4049,10 @@ async function buildStickerCandidates(cfg, store = null) {
   };
 
   if (store && cfg.emojiUseRegistry !== false) {
-    for (const c of registeredEmojisToStickerCandidates(store)) push(c);
+    for (const c of registeredEmojisToStickerCandidates(store, cacheDir)) push(c);
   }
+
+  if (cfg.emojiOwnedOnly !== false) return merged;
 
   const pool = normalizeStickerPool(cfg.stickerPool);
   if (pool.length > 0) {
@@ -4100,9 +4103,21 @@ async function pickStickerWithGridOrText(cfg, candidates, userText, replyText, c
   return candidates[safeIndex]?.id || null;
 }
 
-/** 根据配置选取要发送的表情 id */
-async function pickStickerFaceId(cfg, userText, replyText, contextLines = '', store = null) {
-  const candidates = await buildStickerCandidates(cfg, store);
+/** 根据配置选取要发送的表情 id（emojiOwnedOnly 时仅走已占为己有 + 场景匹配） */
+async function pickStickerFaceId(cfg, userText, replyText, contextLines = '', store = null, cacheDir = '') {
+  if (store && cfg.emojiOwnedOnly !== false) {
+    const pick = await pickRegisteredEmojiWithGrid({
+      store,
+      cfg,
+      cacheDir,
+      userText,
+      replyText,
+      contextLines,
+      callVisionChat: (opts) => callVisionChatRaw({ ...opts, model: getChatVisionModel(cfg) })
+    });
+    return pick?.id || null;
+  }
+  const candidates = await buildStickerCandidates(cfg, store, cacheDir);
   if (!candidates.length) return null;
   const mode = String(cfg.stickerSelectMode || 'ai').toLowerCase();
   if (mode === 'fixed') {
@@ -4125,23 +4140,31 @@ function isFaceIdUrl(faceId) {
   return false;
 }
 
-/** 伪人出站：优先表情库，否则从 QQ 小黄脸池随机选取 */
-async function buildFakeHumanFaceSegments(cfg, store, { emotion = '', faceIdRaw = '', plainText = '', recentContext = '' }) {
+/** 伪人出站：仅发「占为己有」且场景匹配的表情；无匹配时 emoji 不发、qq_face 回退小黄脸 */
+async function buildFakeHumanFaceSegments(cfg, store, emojiCacheDir, { emotion = '', faceIdRaw = '', plainText = '', recentContext = '', replyText = '', mode = 'emoji' }) {
   const ctx = plainText || recentContext || '';
-  if (cfg.fakeHumanQqFacePreferSticker !== false && store) {
+  const ownedOnly = cfg.emojiOwnedOnly !== false;
+  const trySticker = mode === 'emoji' || cfg.fakeHumanQqFacePreferSticker !== false;
+
+  if (trySticker && store) {
     const pick = await pickRegisteredEmojiWithGrid({
       store,
       cfg,
+      cacheDir: emojiCacheDir,
       userText: ctx,
-      replyText: emotion || '',
+      replyText: replyText || emotion || '',
+      emotion: emotion || '',
       contextLines: recentContext,
       callVisionChat: (opts) => callVisionChatRaw({ ...opts, model: getChatVisionModel(cfg) })
     });
-    let fid = pick?.id || (await pickStickerFaceId(cfg, ctx, emotion || '', recentContext, store));
-    if (fid) {
+    if (pick?.id) {
+      const fid = pick.id;
       return [{ type: isFaceIdUrl(fid) ? 'image' : 'face', data: isFaceIdUrl(fid) ? { file: fid } : { id: String(fid) } }];
     }
+    if (ownedOnly && mode === 'emoji') return null;
   }
+
+  if (mode === 'emoji' && ownedOnly) return null;
   const qqId = pickFakeHumanQqFaceId(cfg, emotion, faceIdRaw, ctx);
   return [{ type: 'face', data: { id: String(qqId) } }];
 }
@@ -4393,10 +4416,12 @@ function getChatVisionModel(cfg) {
 /** 执行 Planner 出站动作序列（文字+文件+表情，支持连发短句）；返回实际发送步数 */
 async function deliverFakeHumanOutbound(ctx, groupId, replyMsgId, outbound, { cfg, store, recentContext, plainText, userId }) {
   const expanded = expandBurstReplies(outbound || [], cfg);
+  const emojiCacheDir = getEmojiCacheDir(ctx);
   let first = true;
   const burstDelay = Math.max(200, Number(cfg.fakeHumanBurstDelayMs) ?? 800);
   let step = 0;
   let sentCount = 0;
+  let lastBotReply = '';
   for (const ob of expanded) {
     if (step > 0 && cfg.fakeHumanBurstEnabled !== false) {
       await new Promise((res) => setTimeout(res, burstDelay));
@@ -4405,6 +4430,7 @@ async function deliverFakeHumanOutbound(ctx, groupId, replyMsgId, outbound, { cf
     const rid = first ? replyMsgId : null;
     first = false;
     if (ob.type === 'reply' && ob.message) {
+      lastBotReply = ob.message;
       await deliverFakeHumanMessage(ctx, groupId, rid, { atUserId: ob.atUserId || '', message: ob.message, defaultAtUserId: userId }, cfg);
       sentCount += 1;
     } else if (ob.type === 'at' && ob.atUserId) {
@@ -4414,12 +4440,15 @@ async function deliverFakeHumanOutbound(ctx, groupId, replyMsgId, outbound, { cf
       await sendGroupPoke(ctx, groupId, ob.userId);
       sentCount += 1;
     } else if (ob.type === 'qq_face') {
-      const arr = await buildFakeHumanFaceSegments(cfg, store, {
+      const arr = await buildFakeHumanFaceSegments(cfg, store, emojiCacheDir, {
         emotion: ob.emotion || '',
         faceIdRaw: ob.faceId || '',
         plainText,
-        recentContext
+        recentContext,
+        replyText: lastBotReply,
+        mode: 'qq_face'
       });
+      if (!arr?.length) continue;
       await deliverFakeHumanMessage(ctx, groupId, rid, { messageArray: arr, defaultAtUserId: userId }, cfg);
       sentCount += 1;
     } else if (ob.type === 'file' && ob.path) {
@@ -4427,12 +4456,18 @@ async function deliverFakeHumanOutbound(ctx, groupId, replyMsgId, outbound, { cf
       await deliverChatReply(ctx, { isGroup: true, groupId, userId, prefix: '', replyText: `[发送文件:${ob.path}]` });
       sentCount += 1;
     } else if (ob.type === 'emoji') {
-      const arr = await buildFakeHumanFaceSegments(cfg, store, {
+      const arr = await buildFakeHumanFaceSegments(cfg, store, emojiCacheDir, {
         emotion: ob.emotion || '',
         faceIdRaw: '',
         plainText,
-        recentContext
+        recentContext,
+        replyText: lastBotReply,
+        mode: 'emoji'
       });
+      if (!arr?.length) {
+        log('info', '伪人跳过表情：无场景匹配的已占为己有表情', { emotion: ob.emotion || '', reply: lastBotReply.slice(0, 40) }, 'sticker');
+        continue;
+      }
       await deliverFakeHumanMessage(ctx, groupId, rid, { messageArray: arr, defaultAtUserId: userId }, cfg);
       sentCount += 1;
     }
@@ -4570,14 +4605,19 @@ async function tryFakeHumanGroupTrend(ctx, event, groupId, userId, plainText, cf
     const battle = detectStickerBattleTrend(rawList, selfId, { minUsers, minCount: minUsers });
     if (battle && !botRecentlyTrended(rawList, selfId, 'sticker_battle')) {
       const store = getMaisakaStore(ctx);
-      let faceId = null;
-      const owned = getRegisteredEmojis(store, '斗图', plainText || '');
-      if (owned.length) {
-        faceId = owned[Math.floor(Math.random() * Math.min(owned.length, 8))].localPath;
-      }
-      if (!faceId) {
-        faceId = await pickStickerFaceId(cfg, plainText || '[斗图]', '斗图', getFormattedRecentGroupContext(g, 5, cfg), store);
-      }
+      const emojiCacheDir = getEmojiCacheDir(ctx);
+      const battleCtx = getFormattedRecentGroupContext(g, 5, cfg);
+      const pick = await pickRegisteredEmojiWithGrid({
+        store,
+        cfg,
+        cacheDir: emojiCacheDir,
+        userText: plainText || '',
+        replyText: '斗图',
+        emotion: '斗图',
+        contextLines: battleCtx,
+        callVisionChat: (opts) => callVisionChatRaw({ ...opts, model: getChatVisionModel(cfg) })
+      });
+      let faceId = pick?.id || null;
       await fakeHumanSleepMs(300 + Math.floor(Math.random() * 1500));
       if (faceId) {
         const arr = [{ type: isFaceIdUrl(faceId) ? 'image' : 'face', data: isFaceIdUrl(faceId) ? { file: faceId } : { id: String(faceId) } }];
@@ -4814,18 +4854,18 @@ async function tryFakeHumanReply(ctx, event, groupId, userId, plainText) {
       }) || '';
     }
   } else if (pickMode === 'sticker') {
-    const arr = await buildFakeHumanFaceSegments(cfg, store, {
+    const emojiCacheDir = getEmojiCacheDir(ctx);
+    const arr = await buildFakeHumanFaceSegments(cfg, store, emojiCacheDir, {
       emotion: '',
-      faceIdRaw: '',
       plainText: plainText || recentContext,
-      recentContext
+      recentContext,
+      mode: 'emoji'
     });
     if (arr?.length) {
       messageArray = arr;
       sendAsArray = true;
     } else {
-      const emojiList = cfg.fakeHumanEmojiList || DEFAULT_CONFIG.fakeHumanEmojiList;
-      message = (emojiList.length ? emojiList[Math.floor(Math.random() * emojiList.length)] : '哈');
+      message = pickFakeHumanRandomText(cfg, pickMode) || '哈哈';
     }
   } else if (pickMode === 'emoji') {
     const emojiList = cfg.fakeHumanEmojiList || DEFAULT_CONFIG.fakeHumanEmojiList;
@@ -5848,6 +5888,8 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         if (body.emojiCacheEnabled !== undefined) cfg.emojiCacheEnabled = Boolean(body.emojiCacheEnabled);
         if (body.emojiAutoRegister !== undefined) cfg.emojiAutoRegister = Boolean(body.emojiAutoRegister);
         if (body.emojiUseRegistry !== undefined) cfg.emojiUseRegistry = Boolean(body.emojiUseRegistry);
+        if (body.emojiOwnedOnly !== undefined) cfg.emojiOwnedOnly = Boolean(body.emojiOwnedOnly);
+        if (body.emojiSceneMinScore !== undefined) cfg.emojiSceneMinScore = Math.max(0, Math.min(20, Number(body.emojiSceneMinScore) || 2));
         if (body.emojiMaxCacheSizeMb !== undefined) cfg.emojiMaxCacheSizeMb = Math.max(1, Math.min(20, parseInt(body.emojiMaxCacheSizeMb, 10) || 5));
         if (body.emojiVlmPrompt !== undefined) cfg.emojiVlmPrompt = String(body.emojiVlmPrompt || DEFAULT_EMOJI_VLM_PROMPT).trim() || DEFAULT_EMOJI_VLM_PROMPT;
         if (body.fakeHumanGroupChatAttention !== undefined) cfg.fakeHumanGroupChatAttention = String(body.fakeHumanGroupChatAttention || DEFAULT_FAKEHUMAN_GROUP_CHAT_ATTENTION).trim();
@@ -8328,12 +8370,13 @@ const plugin_onmessage = async (ctx, event) => {
 
   if (cfg.appendStickerAfterReply) {
     const stickerStore = isGroup ? getMaisakaStore(ctx) : null;
-    const faceId = await pickStickerFaceId(cfg, userText, replyText, `用户：${String(userText || '').slice(0, 200)}\n机器人：${String(replyText || '').slice(0, 400)}`, stickerStore);
+    const stickerCacheDir = isGroup ? getEmojiCacheDir(ctx) : '';
+    const faceId = await pickStickerFaceId(cfg, userText, replyText, `用户：${String(userText || '').slice(0, 200)}\n机器人：${String(replyText || '').slice(0, 400)}`, stickerStore, stickerCacheDir);
     if (faceId) {
       if (isGroup) await sendGroupFace(ctx, groupId, faceId);
       else await sendPrivateFace(ctx, userId, faceId);
     } else {
-      log('debug', '无可用表情可发，已跳过', { poolSize: (cfg.stickerPool || []).length }, 'sticker');
+      log('debug', '无场景匹配的已占为己有表情，已跳过', { ownedOnly: cfg.emojiOwnedOnly !== false }, 'sticker');
     }
   }
 
