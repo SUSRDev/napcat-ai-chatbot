@@ -1445,6 +1445,33 @@ function isTransientApiError(status, text) {
   return false;
 }
 
+/** 网关/网络级故障：应立刻切换下一 API 端点，不在当前端点换模型或反复重试 */
+function isGatewayOrNetworkError(status, err) {
+  if (status === 502 || status === 503 || status === 504) return true;
+  if (status === 0) return true;
+  if (err?.code === 'TIMEOUT' || err?.message === 'TIMEOUT') return true;
+  if (err && (err.name === 'TypeError' || err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED')) return true;
+  return false;
+}
+
+/** 压缩 HTML/JSON 错误体，避免日志与异常信息刷屏 */
+function summarizeApiErrorBody(text, status = 0) {
+  const raw = String(text || '').trim();
+  if (!raw) return status ? `HTTP ${status}` : 'API error';
+  if (raw.startsWith('<!DOCTYPE') || raw.startsWith('<html') || /<title>/i.test(raw)) {
+    const title = raw.match(/<title>([^<]+)<\/title>/i)?.[1]?.trim();
+    if (title) return `${status || 'HTTP'} ${title}`;
+    return `${status || 'HTTP'} Bad gateway (HTML 错误页)`;
+  }
+  if (raw.startsWith('{')) {
+    try {
+      const j = JSON.parse(raw);
+      return String(j.error?.message || j.message || raw).slice(0, 240);
+    } catch { /* fall through */ }
+  }
+  return raw.slice(0, 240);
+}
+
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -2058,8 +2085,17 @@ function buildChatEndpointList(cfg = pluginState.config) {
   if (settings.enabled && Array.isArray(cfg.apiPool)) {
     for (const raw of cfg.apiPool) {
       if (!raw?.enabled) continue;
+      const provider = String(raw?.provider || 'custom').toLowerCase();
+      const poolUrl = String(raw?.apiUrl || '').trim();
+      if (provider === 'custom' && !poolUrl) {
+        log('warn', 'API 池端点缺少 apiUrl，已跳过（请填写完整备用网关地址）', { name: raw?.name, id: raw?.id }, 'api');
+        continue;
+      }
       const resolved = resolveChatEndpoint(raw, cfg);
-      if (!resolved.apiKey) continue;
+      if (!resolved.apiKey) {
+        log('warn', 'API 池端点缺少 apiKey，已跳过', { name: resolved.name, id: resolved.id }, 'api');
+        continue;
+      }
       if (list.some((e) => e.apiUrl === resolved.apiUrl && e.apiKey === resolved.apiKey && e.model === resolved.model)) continue;
       list.push(resolved);
     }
@@ -2178,7 +2214,8 @@ function shouldRotateApiFailure(status, text, err, settings) {
 }
 
 function createApiEndpointError(status, message = '', { rotatable = true } = {}) {
-  const err = new Error(message || `API ${status || 'error'}`);
+  const summary = summarizeApiErrorBody(message, status);
+  const err = new Error(summary || `API ${status || 'error'}`);
   if (status === 429) err.code = 'RATE_LIMIT';
   err.httpStatus = status || 0;
   if (rotatable) err.apiFailover = true;
@@ -2696,7 +2733,7 @@ async function chatCompletionOnEndpoint(messages, options, endpoint, settings) {
 
     const status = res.status;
     if (!res.ok) {
-      log('warn', '对话 API 错误', { endpoint: endpoint.name, status, body: text.slice(0, 300) }, 'api');
+      log('warn', '对话 API 错误', { endpoint: endpoint.name, status, body: summarizeApiErrorBody(text, status) }, 'api');
       return { ok: false, status, text };
     }
 
@@ -2719,6 +2756,16 @@ async function chatCompletionOnEndpoint(messages, options, endpoint, settings) {
   }
 
   let last = null;
+  const allowEndpointFailover = options.allowEndpointFailover === true;
+
+  function throwForEndpointFailover(failure) {
+    if (!allowEndpointFailover || !settings.enabled) return false;
+    if (!shouldRotateApiFailure(failure.status, failure.text, failure.error, settings)) return false;
+    const immediate = isGatewayOrNetworkError(failure.status, failure.error) || failure.status === 429;
+    if (!immediate) return false;
+    throw createApiEndpointError(failure.status, failure.text || failure.error?.message || 'API error', { rotatable: true });
+  }
+
   for (let attempt = 1; attempt <= retries; attempt++) {
     const first = await doRequest(baseModel);
     if (first.ok) {
@@ -2732,9 +2779,14 @@ async function chatCompletionOnEndpoint(messages, options, endpoint, settings) {
     }
     last = first;
 
+    if (throwForEndpointFailover(first)) {
+      /* never reached */
+    }
+
     const modelRouteErr = isModelRouteError(first.status, first.text);
-    const transientErr = isTransientApiError(first.status, first.text) || first.error?.code === 'TIMEOUT';
-    const shouldRetryModels = first.status === 429 || modelRouteErr || transientErr;
+    const gatewayErr = isGatewayOrNetworkError(first.status, first.error);
+    const transientErr = !gatewayErr && (isTransientApiError(first.status, first.text) || first.error?.code === 'TIMEOUT');
+    const shouldRetryModels = !gatewayErr && (first.status === 429 || modelRouteErr || transientErr);
 
     if (transientErr && !modelRouteErr && attempt < retries) {
       log('warn', '对话 API 临时错误，将重试', { endpoint: endpoint.name, status: first.status, attempt }, 'api');
@@ -2790,24 +2842,42 @@ async function chatCompletion(messages, options = {}) {
   const endpoints = buildChatEndpointList(cfg);
   if (!endpoints.length) throw new Error('NO_KEY');
 
-  if (!settings.enabled || endpoints.length <= 1) {
-    return chatCompletionOnEndpoint(messages, options, endpoints[0], settings);
+  const callOpts = {
+    ...options,
+    allowEndpointFailover: settings.enabled && endpoints.length > 1
+  };
+
+  if (settings.enabled && endpoints.length <= 1) {
+    log('warn', 'API 故障转移已开启，但仅 1 个可用端点，502/5xx 无法切换备用', {
+      hint: '请在 API 池添加备用端点并填写完整 apiUrl + apiKey'
+    }, 'api');
   }
+
+  if (!settings.enabled || endpoints.length <= 1) {
+    return chatCompletionOnEndpoint(messages, callOpts, endpoints[0], settings);
+  }
+
+  log('info', '对话 API 故障转移就绪', {
+    endpoints: endpoints.map((e) => ({ name: e.name, model: e.model, url: String(e.apiUrl || '').slice(0, 80) }))
+  }, 'api');
 
   let lastErr = null;
   for (let i = 0; i < endpoints.length; i++) {
     const endpoint = endpoints[i];
     try {
-      const result = await chatCompletionOnEndpoint(messages, options, endpoint, settings);
+      const result = await chatCompletionOnEndpoint(messages, callOpts, endpoint, settings);
       if (result?.ok === false) {
         throw createApiEndpointError(result.status, result.text);
+      }
+      if (i > 0) {
+        log('info', '备用对话 API 端点成功', { endpoint: endpoint.name, model: endpoint.model }, 'api');
       }
       return result;
     } catch (err) {
       lastErr = err;
       log('warn', '对话端点失败', { endpoint: endpoint.name, status: err.httpStatus, message: err.message }, 'api');
       if (!err.apiFailover || i >= endpoints.length - 1) throw err;
-      log('info', '切换下一对话 API 端点', { from: endpoint.name, to: endpoints[i + 1]?.name }, 'api');
+      log('info', '切换下一对话 API 端点', { from: endpoint.name, to: endpoints[i + 1]?.name, reason: err.httpStatus || err.message }, 'api');
       await sleep(settings.retryDelayMs);
     }
   }
