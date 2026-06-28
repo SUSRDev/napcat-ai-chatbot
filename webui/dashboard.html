@@ -160,6 +160,10 @@
     .page-footer-actions {
       display: flex; align-items: center; gap: 10px; margin-top: 4px;
     }
+    #pg-api .page-footer-actions,
+    #pg-agent .page-footer-actions {
+      margin-top: 24px;
+    }
     .page-footer-actions .save-hint {
       font-size: 12px; color: var(--text3);
     }
@@ -3198,6 +3202,49 @@
     .token-table-section { animation: fadeSlideIn 0.45s var(--ease) 0.1s both; }
     .token-refresh-bar { display: flex; justify-content: center; margin: 8px 0 20px; }
 
+    /* 行为观察（麦麦观察） */
+    #pg-observe { max-width: none; padding: 0; height: calc(100vh - var(--header-h) - 24px); min-height: 520px; }
+    #pg-observe.active { display: flex; flex-direction: column; }
+    .observe-shell { display: flex; flex: 1; min-height: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--card); margin: 0 16px 16px; }
+    .observe-stream-sidebar { width: 280px; flex-shrink: 0; border-right: 1px solid var(--border); display: flex; flex-direction: column; background: var(--bg); }
+    .observe-stream-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); font-weight: 700; font-size: 13px; }
+    .observe-live-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.2); }
+    .observe-live-dot.off { background: var(--text3); box-shadow: none; }
+    .observe-group-list { flex: 1; overflow-y: auto; padding: 8px; }
+    .observe-group-item { display: flex; gap: 10px; padding: 10px 12px; border-radius: 10px; cursor: pointer; border: 1px solid transparent; margin-bottom: 4px; transition: background 0.15s, border-color 0.15s; }
+    .observe-group-item:hover { background: var(--card-hover); border-color: var(--border); }
+    .observe-group-item.active { background: rgba(34,197,94,0.12); border-color: rgba(34,197,94,0.35); }
+    .observe-group-avatar { width: 36px; height: 36px; border-radius: 10px; background: var(--card); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--text2); flex-shrink: 0; }
+    .observe-group-meta { flex: 1; min-width: 0; }
+    .observe-group-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .observe-group-sub { font-size: 11px; color: var(--text3); margin-top: 2px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .observe-badge { font-size: 10px; padding: 1px 6px; border-radius: 999px; background: rgba(255,255,255,0.08); color: var(--text2); border: 1px solid var(--border); }
+    .observe-badge.running { background: rgba(34,197,94,0.15); color: #16a34a; border-color: rgba(34,197,94,0.35); }
+    .observe-badge.planner { background: rgba(59,130,246,0.12); color: #3b82f6; border-color: rgba(59,130,246,0.3); }
+    .observe-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .observe-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg); }
+    .observe-toolbar .observe-title { font-weight: 700; font-size: 14px; margin-right: auto; min-width: 120px; }
+    .observe-stats-bar { display: flex; gap: 12px; font-size: 12px; color: var(--text3); padding: 8px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+    .observe-feed-wrap { flex: 1; overflow-y: auto; padding: 16px; background: var(--card); }
+    .observe-feed { display: flex; flex-direction: column; gap: 12px; max-width: 920px; margin: 0 auto; }
+    .observe-chat-line { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.55; }
+    .observe-chat-line.is-bot .observe-chat-name { color: var(--accent); }
+    .observe-chat-name { font-weight: 600; color: var(--text); flex-shrink: 0; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .observe-chat-time { font-size: 11px; color: var(--text3); margin-left: auto; flex-shrink: 0; }
+    .observe-planner-card { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--bg); animation: fadeSlideIn 0.25s var(--ease); }
+    .observe-planner-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(34,197,94,0.08); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+    .observe-planner-head .material-symbols-outlined { font-size: 18px; color: #16a34a; }
+    .observe-planner-title { font-weight: 700; font-size: 13px; }
+    .observe-planner-meta { margin-left: auto; display: flex; gap: 10px; font-size: 11px; color: var(--text3); flex-wrap: wrap; }
+    .observe-planner-body { padding: 12px 14px; font-size: 13px; line-height: 1.65; color: var(--text2); white-space: pre-wrap; word-break: break-word; }
+    .observe-planner-tools { padding: 0 14px 12px; display: flex; flex-direction: column; gap: 6px; }
+    .observe-tool-chip { font-size: 12px; padding: 6px 10px; border-radius: 8px; background: var(--card); border: 1px solid var(--border); font-family: ui-monospace, monospace; }
+    .observe-decision-card { padding: 10px 14px; border-left: 3px solid var(--text3); background: var(--bg); border-radius: 0 8px 8px 0; font-size: 13px; color: var(--text2); }
+    @media (max-width: 900px) {
+      .observe-shell { flex-direction: column; margin: 0 8px 8px; }
+      .observe-stream-sidebar { width: 100%; max-height: 200px; border-right: none; border-bottom: 1px solid var(--border); }
+    }
+
     /* 运行日志页 */
     #pg-logs { max-width: none; }
     .logs-stat-grid {
@@ -3869,6 +3916,54 @@
       .param-grid { grid-template-columns: 1fr 1fr; }
     }
 
+    .tag-chip { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--bg3); color: var(--text2); margin: 2px 4px 2px 0; border: 1px solid var(--border); }
+    .tag-row { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 6px; }
+
+    /* MaiBot 风格：表情库 / 表达方式 */
+    .mai-layout { display: grid; grid-template-columns: 220px 1fr; gap: 16px; min-height: 520px; }
+    @media (max-width: 900px) { .mai-layout { grid-template-columns: 1fr; } }
+    .mai-sidebar { border: 1px solid var(--border); border-radius: 14px; background: var(--bg2); padding: 12px; overflow: auto; max-height: 70vh; }
+    .mai-sidebar-title { font-size: 12px; color: var(--text3); margin-bottom: 8px; font-weight: 600; }
+    .mai-group-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 10px; cursor: pointer; font-size: 13px; margin-bottom: 4px; border: 1px solid transparent; }
+    .mai-group-item:hover { background: var(--card-hover); }
+    .mai-group-item.active { background: var(--accent-glow); border-color: var(--accent); color: var(--text); }
+    .mai-main { border: 1px solid var(--border); border-radius: 14px; background: var(--bg2); overflow: hidden; display: flex; flex-direction: column; }
+    .mai-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--border); background: var(--bg); }
+    .mai-stat { font-size: 13px; color: var(--text2); }
+    .mai-stat strong { color: var(--text); }
+    .mai-filter-bar { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+    .mai-filter-btn { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg2); font-size: 13px; cursor: pointer; transition: all 0.15s; }
+    .mai-filter-btn:hover { border-color: var(--border-hover); }
+    .mai-filter-btn.active { background: var(--accent-glow); border-color: var(--accent); color: var(--text); font-weight: 500; }
+    .mai-filter-btn .cnt { opacity: 0.65; margin-left: 4px; font-size: 12px; }
+    .mai-subtabs { display: flex; gap: 4px; padding: 0 16px; border-bottom: 1px solid var(--border); background: var(--bg); }
+    .mai-subtab { padding: 12px 16px; font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--text2); }
+    .mai-subtab.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 500; }
+    .mai-content { padding: 16px; overflow: auto; flex: 1; max-height: 60vh; }
+    .mai-emoji-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+    .mai-emoji-card { border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: var(--bg); position: relative; }
+    .mai-emoji-card.owned { border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); }
+    .mai-emoji-thumb { width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 8px; background: var(--bg3); }
+    .mai-emoji-meta { font-size: 12px; color: var(--text3); margin-top: 6px; line-height: 1.4; }
+    .mai-emoji-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+    .mai-emoji-actions .btn { padding: 4px 8px; font-size: 11px; min-height: auto; }
+    .mai-status-badge { position: absolute; top: 8px; right: 8px; font-size: 10px; padding: 2px 8px; border-radius: 999px; background: var(--bg3); border: 1px solid var(--border); }
+    .mai-status-owned { background: color-mix(in srgb, var(--accent) 20%, var(--bg)); color: var(--accent); }
+    .mai-status-pending { background: #fef3c7; color: #92400e; }
+    .mai-status-discarded { background: #fee2e2; color: #991b1b; }
+    .mai-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .mai-table th, .mai-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+    .mai-table th { color: var(--text3); font-weight: 500; font-size: 12px; background: var(--bg); position: sticky; top: 0; }
+    .mai-review-card { max-width: 640px; margin: 0 auto; border: 1px solid var(--border); border-radius: 16px; padding: 20px; background: var(--bg); }
+    .mai-review-label { font-size: 12px; color: var(--text3); margin-bottom: 6px; }
+    .mai-review-box { padding: 12px 14px; border-radius: 10px; background: var(--bg3); margin-bottom: 14px; line-height: 1.5; }
+    .mai-review-style { border-left: 3px solid var(--accent); }
+    .mai-review-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; font-size: 12px; color: var(--text3); }
+    .mai-review-actions { display: flex; gap: 8px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+    .badge-pass { color: #059669; background: #d1fae5; padding: 2px 8px; border-radius: 999px; font-size: 11px; }
+    .badge-pending { color: #b45309; background: #fef3c7; padding: 2px 8px; border-radius: 999px; font-size: 11px; }
+    .badge-reject { color: #dc2626; background: #fee2e2; padding: 2px 8px; border-radius: 999px; font-size: 11px; }
+
     /* 表情管理 */
     .sticker-toolbar {
       display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;
@@ -4345,6 +4440,20 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="app-prompt-modal" onclick="closeAppPromptModal(event, null)">
+    <div class="modal-panel" role="dialog" aria-labelledby="app-prompt-title" onclick="event.stopPropagation()" style="max-width:480px">
+      <div class="modal-head">
+        <h3 id="app-prompt-title">输入</h3>
+        <button type="button" class="icon-btn sm" title="关闭" onclick="closeAppPromptModal(null, null)"><span class="material-symbols-outlined">close</span></button>
+      </div>
+      <div class="modal-body" id="app-prompt-fields" style="display:flex;flex-direction:column;gap:12px"></div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-d" id="app-prompt-cancel">取消</button>
+        <button type="button" class="btn btn-p" id="app-prompt-ok">确定</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="playwright-manual-modal" onclick="closePlaywrightManualModal(event)">
     <div class="modal-panel" style="max-width:520px" role="dialog" onclick="event.stopPropagation()">
       <div class="modal-head">
@@ -4432,6 +4541,56 @@ npx playwright install chromium</pre>
         <button type="button" class="btn btn-d" onclick="closeBrowserUseSetupModal()">取消</button>
         <button type="button" class="btn btn-p" id="btn-browser-use-setup-start" onclick="onBrowserUseSetupPrimaryClick()">
           <span class="material-symbols-outlined">rocket_launch</span>开始部署
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay browser-use-setup-modal" id="sqlite-setup-modal" onclick="closeSqliteSetupModal(event)">
+    <div class="modal-panel bu-setup-panel" role="dialog" aria-labelledby="sqlite-setup-title" onclick="event.stopPropagation()">
+      <div class="bu-setup-hero">
+        <div class="bu-setup-hero-icon">
+          <span class="material-symbols-outlined">database</span>
+        </div>
+        <div class="bu-setup-hero-text">
+          <h3 id="sqlite-setup-title">部署 SQLite</h3>
+          <p>通过 npm 镜像安装 better-sqlite3，并尝试下载 sqlite3 CLI 工具。</p>
+        </div>
+        <button type="button" class="icon-btn sm" title="关闭" onclick="closeSqliteSetupModal()"><span class="material-symbols-outlined">close</span></button>
+      </div>
+      <div class="bu-setup-body">
+        <div class="bu-setup-progress-card">
+          <div class="bu-setup-progress-top">
+            <div class="bu-setup-progress-status">
+              <div class="bu-setup-progress-icon" id="sqlite-progress-icon-wrap">
+                <span class="material-symbols-outlined" id="sqlite-progress-icon">hourglass_empty</span>
+              </div>
+              <div class="bu-setup-progress-msg" id="sqlite-progress-step">准备就绪，点击下方开始部署</div>
+            </div>
+            <div class="bu-setup-progress-pct" id="sqlite-progress-pct">0%</div>
+          </div>
+          <div class="bu-setup-progress-bar-wrap">
+            <div class="bu-setup-progress-bar" id="sqlite-progress-bar"></div>
+          </div>
+          <div class="bu-setup-mirror-badge" id="sqlite-mirror-badge" style="display:none">
+            <span class="material-symbols-outlined">dns</span>
+            <span id="sqlite-mirror-text">镜像：npmmirror</span>
+          </div>
+        </div>
+        <div class="bu-setup-log-wrap">
+          <div class="bu-setup-log-head">
+            <span>安装日志</span>
+            <span id="sqlite-log-count">0 条</span>
+          </div>
+          <div class="bu-setup-log" id="sqlite-progress-log">
+            <div class="bu-setup-log-empty" id="sqlite-log-empty">部署开始后将在此显示实时输出</div>
+          </div>
+        </div>
+      </div>
+      <div class="bu-setup-foot" id="sqlite-setup-foot">
+        <button type="button" class="btn btn-d" onclick="closeSqliteSetupModal()">取消</button>
+        <button type="button" class="btn btn-p" id="btn-sqlite-setup-start" onclick="onSqliteSetupPrimaryClick()">
+          <span class="material-symbols-outlined">database</span>开始部署
         </button>
       </div>
     </div>
@@ -4569,7 +4728,7 @@ npx playwright install chromium</pre>
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span id="sidebar-version">NapCat 插件 · v2.8.1</span>
+          <span id="sidebar-version">NapCat 插件 · v2.9.0</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -4577,47 +4736,73 @@ npx playwright install chromium</pre>
         <div class="nav-item active" data-page="overview" data-title="概览">
           <span class="material-symbols-outlined nav-icon">dashboard</span>
           仪表盘
-          </div>
+        </div>
 
-        <div class="nav-section-label">AI 能力</div>
+        <div class="nav-section-label">AI 与对话</div>
         <div class="nav-item" data-page="api" data-title="API 与模型">
           <span class="material-symbols-outlined nav-icon">hub</span>
           API 与模型
         </div>
-        <div class="nav-item" data-page="search" data-title="智能搜索">
-          <span class="material-symbols-outlined nav-icon">travel_explore</span>
-          智能搜索
-          </div>
         <div class="nav-item" data-page="persona" data-title="人设与回复">
           <span class="material-symbols-outlined nav-icon">smart_toy</span>
           人设与回复
         </div>
-        <div class="nav-item" data-page="stickers" data-title="表情管理">
-          <span class="material-symbols-outlined nav-icon">sticker</span>
-          收藏表情
-          </div>
-        <div class="nav-item" data-page="reactions" data-title="表情回应">
-          <span class="material-symbols-outlined nav-icon">favorite</span>
-          表情回应
-        </div>
-        <div class="nav-item" data-page="imagegen" data-title="图像生成">
-          <span class="material-symbols-outlined nav-icon">imagesmode</span>
-          图像生成
-          </div>
-        <div class="nav-item" data-page="agent" data-title="Agent / MCP">
-          <span class="material-symbols-outlined nav-icon">psychology</span>
-          Agent / MCP
+        <div class="nav-item" data-page="search" data-title="智能搜索">
+          <span class="material-symbols-outlined nav-icon">travel_explore</span>
+          智能搜索
         </div>
         <div class="nav-item" data-page="onlinechat" data-title="在线聊天">
           <span class="material-symbols-outlined nav-icon">chat</span>
           在线聊天
         </div>
-        <!-- [hidden] Skills 商店导航 — 恢复时取消注释
-        <div class="nav-item" data-page="skillhub" data-title="Skills 商店">
-          <span class="material-symbols-outlined nav-icon">storefront</span>
-          Skills 商店
+        <div class="nav-item" data-page="agent" data-title="Agent / MCP">
+          <span class="material-symbols-outlined nav-icon">psychology</span>
+          Agent / MCP
         </div>
-        -->
+
+        <div class="nav-group open">
+          <div class="nav-group-title"><span class="nav-arrow">▼</span> 伪人系统</div>
+          <div class="nav-group-children">
+            <div class="nav-item" data-page="fakehuman" data-title="伪人设置">
+              <span class="material-symbols-outlined nav-icon">face_6</span>
+              伪人设置
+            </div>
+            <div class="nav-item" data-page="observe" data-title="行为观察">
+              <span class="material-symbols-outlined nav-icon">visibility</span>
+              行为观察
+            </div>
+            <div class="nav-item" data-page="expressions" data-title="表达方式">
+              <span class="material-symbols-outlined nav-icon">forum</span>
+              表达方式
+            </div>
+            <div class="nav-item" data-page="slang" data-title="黑话 / 梗库">
+              <span class="material-symbols-outlined nav-icon">tag</span>
+              黑话 / 梗库
+            </div>
+            <div class="nav-item" data-page="emoji-library" data-title="表情库">
+              <span class="material-symbols-outlined nav-icon">collections</span>
+              表情库
+            </div>
+          </div>
+        </div>
+
+        <div class="nav-group open">
+          <div class="nav-group-title"><span class="nav-arrow">▼</span> 表情与媒体</div>
+          <div class="nav-group-children">
+            <div class="nav-item" data-page="stickers" data-title="收藏表情">
+              <span class="material-symbols-outlined nav-icon">sticker</span>
+              收藏表情
+            </div>
+            <div class="nav-item" data-page="reactions" data-title="表情回应">
+              <span class="material-symbols-outlined nav-icon">favorite</span>
+              表情回应
+            </div>
+            <div class="nav-item" data-page="imagegen" data-title="图像生成">
+              <span class="material-symbols-outlined nav-icon">imagesmode</span>
+              图像生成
+            </div>
+          </div>
+        </div>
 
         <div class="nav-section-label">行为控制</div>
         <div class="nav-item" data-page="trigger" data-title="触发与指令">
@@ -4641,7 +4826,7 @@ npx playwright install chromium</pre>
           消息模板
         </div>
 
-        <div class="nav-section-label">权限</div>
+        <div class="nav-section-label">权限与群聊</div>
         <div class="nav-item" data-page="groups" data-title="群组">
           <span class="material-symbols-outlined nav-icon">groups</span>
           群组管理
@@ -4654,12 +4839,8 @@ npx playwright install chromium</pre>
           <span class="material-symbols-outlined nav-icon">lock</span>
           功能权限
         </div>
-        <div class="nav-item" data-page="fakehuman" data-title="伪人">
-          <span class="material-symbols-outlined nav-icon">face_6</span>
-          伪人模式
-        </div>
 
-        <div class="nav-section-label">数据</div>
+        <div class="nav-section-label">运维</div>
         <div class="nav-item" data-page="conversations" data-title="对话管理">
           <span class="material-symbols-outlined nav-icon">forum</span>
           对话管理
@@ -4759,6 +4940,15 @@ npx playwright install chromium</pre>
         <h2 class="page-title">API 与模型</h2>
         <p class="page-desc">选择对话 API 提供商并填写密钥；图片理解使用独立的视觉 API（OpenAI 兼容，默认 Kimi Code）。</p>
 
+        <div class="mai-subtabs">
+          <div class="mai-subtab active" id="api-tab-basic" onclick="switchApiTab('basic')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">link</span> API 连接</div>
+          <div class="mai-subtab" id="api-tab-model" onclick="switchApiTab('model')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">smart_toy</span> 对话模型</div>
+          <div class="mai-subtab" id="api-tab-params" onclick="switchApiTab('params')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">tune</span> 生成参数</div>
+          <div class="mai-subtab" id="api-tab-vision" onclick="switchApiTab('vision')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">visibility</span> 图片理解</div>
+          <div class="mai-subtab" id="api-tab-other" onclick="switchApiTab('other')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">more_horiz</span> 其他</div>
+        </div>
+
+        <div id="api-panel-basic">
         <div class="section">
           <div class="section-title">基础</div>
           <div class="form-row">
@@ -4836,8 +5026,10 @@ npx playwright install chromium</pre>
             <div class="form-label">请求头<div class="hint">Kimi Code 接口校验 Coding Agent 白名单</div></div>
             <div style="font-size:12px;color:var(--text2);font-family:monospace;padding:8px 0">User-Agent: KimiCLI/1.3</div>
           </div>
-          </div>
+        </div>
+        </div>
 
+        <div id="api-panel-model" style="display:none">
         <div class="section">
           <div class="section-title">对话模型</div>
           <div class="form-row" id="row-model-kimi">
@@ -4927,7 +5119,9 @@ npx playwright install chromium</pre>
           </div>
           <div class="failover-list" id="api-pool-list"></div>
         </div>
+        </div>
 
+        <div id="api-panel-params" style="display:none">
         <div class="section" style="padding:0;overflow:hidden">
           <div class="section-title" style="margin:0">生成参数</div>
           <div class="form-row" style="padding:14px 18px;border-bottom:1px solid var(--border)">
@@ -4965,7 +5159,9 @@ npx playwright install chromium</pre>
             </label>
           </div>
         </div>
+        </div>
 
+        <div id="api-panel-vision" style="display:none">
         <div class="section" id="section-vision">
           <div class="section-title">图片理解</div>
           <div class="form-row">
@@ -5043,7 +5239,9 @@ npx playwright install chromium</pre>
           <div class="failover-list" id="vision-pool-list"></div>
           </div>
         </div>
+        </div>
 
+        <div id="api-panel-other" style="display:none">
         <div class="section">
           <div class="section-title">其他</div>
           <div class="form-row">
@@ -5060,7 +5258,10 @@ npx playwright install chromium</pre>
             </select>
           </div>
         </div>
-        <button class="btn btn-p" onclick="saveConfig()">保存配置</button>
+        </div>
+        <div class="page-footer-actions">
+          <button type="button" class="btn btn-p" onclick="saveConfig()">保存配置</button>
+        </div>
       </div>
 
       <div id="pg-search" class="page">
@@ -5284,6 +5485,33 @@ npx playwright install chromium</pre>
           </div>
         </div>
         <div class="section" style="padding:0;overflow:hidden">
+          <div class="section-title" style="margin:0">群聊表情缓存（MaiBot）</div>
+          <p class="page-desc" style="margin:8px 16px 0;font-size:13px">自动从各群消息抓取图片/表情 → 视觉模型打标分类 → 注册「占为己有」，供 Planner send_emoji 与回复后发表情使用。表情列表请在 <a href="#" onclick="navigatePage('emoji-library',document.querySelector('[data-page=emoji-library]'));return false" style="color:var(--accent)">表情库</a> 管理。</p>
+          <div class="form-row">
+            <div class="form-label">启用群聊表情缓存</div>
+            <div class="tgl on" id="tgl-emojiCacheEnabled" onclick="toggle(this,'emojiCacheEnabled')"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">VLM 识别后自动注册<div class="hint">is_emoji=true 时写入表情库；false 标记为「不认识」</div></div>
+            <div class="tgl on" id="tgl-emojiAutoRegister" onclick="toggle(this,'emojiAutoRegister')"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">发送时优先使用缓存库<div class="hint">与下方账号表情池合并，拼图视觉选择</div></div>
+            <div class="tgl on" id="tgl-emojiUseRegistry" onclick="toggle(this,'emojiUseRegistry')"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">单张最大体积 (MB)</div>
+            <input type="number" class="ipt" id="cfg-emojiMaxCacheSizeMb" min="1" max="20" value="5" style="max-width:80px" />
+          </div>
+          <div class="form-row">
+            <div class="form-label">VLM 打标提示词<div class="hint">返回 JSON：description / emotions / is_emoji</div></div>
+            <textarea class="ipt" id="cfg-emojiVlmPrompt" rows="4" placeholder="分析表情包并输出 JSON…"></textarea>
+          </div>
+          <div style="padding:12px 16px 16px">
+            <button type="button" class="btn btn-s" onclick="navigatePage('emoji-library',document.querySelector('[data-page=emoji-library]'))"><span class="material-symbols-outlined">collections</span> 打开表情库</button>
+          </div>
+        </div>
+        <div class="section" style="padding:0;overflow:hidden">
           <div class="sticker-toolbar">
             <div class="icon-toolbar">
               <button type="button" class="icon-btn" title="拉取账号表情" onclick="loadAccountStickers()"><span class="material-symbols-outlined">cloud_download</span></button>
@@ -5303,6 +5531,86 @@ npx playwright install chromium</pre>
         <div class="page-footer-actions">
           <button type="button" class="icon-btn lg primary" title="保存表情配置" onclick="saveStickerConfig()"><span class="material-symbols-outlined">save</span></button>
           <span class="save-hint">保存表情池与发送策略</span>
+        </div>
+      </div>
+
+      <div id="pg-emoji-library" class="page">
+        <h2 class="page-title">表情库</h2>
+        <p class="page-desc">群聊缓存 + VLM 打标。占为己有的表情会进入发送池（不限 QQ 收藏）。支持筛选：不认识 / 已认识 / 占为己有 / 待处理 / 抛弃。</p>
+        <div class="mai-layout">
+          <div class="mai-sidebar">
+            <div class="mai-sidebar-title">来源群聊</div>
+            <div class="mai-group-item active" data-elib-group="" onclick="selectEmojiLibGroup(this,'')">全部群聊</div>
+            <div id="emoji-lib-groups"></div>
+          </div>
+          <div class="mai-main">
+            <div class="mai-toolbar">
+              <span class="mai-stat">总数 <strong id="elib-stat-all">0</strong> · 近7天 <strong id="elib-stat-7d">0</strong></span>
+              <div class="search-input-wrap" style="flex:1;max-width:280px;margin-left:auto">
+                <span class="material-symbols-outlined search-icon">search</span>
+                <input type="text" class="ipt" id="elib-search" placeholder="搜索描述、标签、hash…" oninput="debounceEmojiLibLoad()" />
+              </div>
+              <button type="button" class="btn btn-s" onclick="loadEmojiLibraryPage()"><span class="material-symbols-outlined">refresh</span></button>
+            </div>
+            <div class="mai-filter-bar" id="elib-filters">
+              <button type="button" class="mai-filter-btn active" data-elib-status="all" onclick="setEmojiLibStatus(this,'all')">全部<span class="cnt" id="elib-c-all"></span></button>
+              <button type="button" class="mai-filter-btn" data-elib-status="unknown" onclick="setEmojiLibStatus(this,'unknown')">不认识<span class="cnt" id="elib-c-unknown"></span></button>
+              <button type="button" class="mai-filter-btn" data-elib-status="recognized" onclick="setEmojiLibStatus(this,'recognized')">已认识<span class="cnt" id="elib-c-recognized"></span></button>
+              <button type="button" class="mai-filter-btn" data-elib-status="owned" onclick="setEmojiLibStatus(this,'owned')">占为己有<span class="cnt" id="elib-c-owned"></span></button>
+              <button type="button" class="mai-filter-btn" data-elib-status="pending" onclick="setEmojiLibStatus(this,'pending')">待处理<span class="cnt" id="elib-c-pending"></span></button>
+              <button type="button" class="mai-filter-btn" data-elib-status="discarded" onclick="setEmojiLibStatus(this,'discarded')">抛弃<span class="cnt" id="elib-c-discarded"></span></button>
+            </div>
+            <div class="mai-content">
+              <div class="mai-emoji-grid" id="emoji-lib-grid"></div>
+              <p id="emoji-lib-empty" style="display:none;text-align:center;color:var(--text3);padding:40px">暂无表情，群聊有人发表情后会自动采集</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="pg-expressions" class="page">
+        <h2 class="page-title">表达方式</h2>
+        <p class="page-desc">MaiBot 风格表达学习：AI 从群聊学习「情境→风格」，支持 AI 自动通过 / 人工审核。已通过且开启使用的表达会注入伪人回复。</p>
+        <div class="mai-subtabs">
+          <div class="mai-subtab active" id="exp-tab-list" onclick="switchExpressionTab('list')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">list</span> 表达列表</div>
+          <div class="mai-subtab" id="exp-tab-review" onclick="switchExpressionTab('review')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">bolt</span> 快速审核</div>
+        </div>
+        <div class="mai-main" style="border-radius:0 0 14px 14px;margin-top:0">
+          <div class="mai-toolbar">
+            <span class="mai-stat">总数 <strong id="exp-stat-all">0</strong> · 待审核 <strong id="exp-stat-pending">0</strong> · 近7天 <strong id="exp-stat-7d">0</strong></span>
+            <div class="form-row" style="margin:0;gap:12px">
+              <div class="form-label" style="margin:0;font-size:12px">开启学习</div>
+              <div class="tgl on" id="tgl-expLearning" onclick="toggleExpressionSetting('learningEnabled', this)"></div>
+              <div class="form-label" style="margin:0;font-size:12px">开启使用</div>
+              <div class="tgl on" id="tgl-expUsage" onclick="toggleExpressionSetting('usageEnabled', this)"></div>
+              <div class="form-label" style="margin:0;font-size:12px">AI 自动通过</div>
+              <div class="tgl" id="tgl-expAutoAiPass" onclick="toggleExpressionSetting('autoAiPass', this)"></div>
+            </div>
+            <button type="button" class="btn btn-p btn-s" onclick="openExpressionCreateModal()"><span class="material-symbols-outlined">add</span>新增表达</button>
+          </div>
+          <div class="mai-filter-bar" id="exp-filters">
+            <button type="button" class="mai-filter-btn active" data-exp-status="all" onclick="setExpressionStatus(this,'all')">全部</button>
+            <button type="button" class="mai-filter-btn" data-exp-status="pending" onclick="setExpressionStatus(this,'pending')">待审核</button>
+            <button type="button" class="mai-filter-btn" data-exp-status="passed" onclick="setExpressionStatus(this,'passed')">已通过</button>
+            <button type="button" class="mai-filter-btn" data-exp-status="rejected" onclick="setExpressionStatus(this,'rejected')">已拒绝</button>
+            <input type="text" class="ipt" id="exp-search" placeholder="搜索情境、风格…" style="max-width:200px;margin-left:auto" oninput="debounceExpressionLoad()" />
+          </div>
+          <div class="mai-layout" style="min-height:400px;border:none;border-radius:0">
+            <div class="mai-sidebar" style="border:none;border-right:1px solid var(--border);border-radius:0">
+              <div class="mai-sidebar-title">群聊</div>
+              <div class="mai-group-item active" data-exp-group="" onclick="selectExpressionGroup(this,'')">全部</div>
+              <div id="exp-groups"></div>
+            </div>
+            <div class="mai-content" style="border:none">
+              <div id="exp-list-panel">
+                <table class="mai-table"><thead><tr><th><input type="checkbox" id="exp-check-all" onchange="toggleExpCheckAll(this)" /></th><th>情境</th><th>风格</th><th>审核</th><th>操作</th></tr></thead><tbody id="exp-table-body"></tbody></table>
+              </div>
+              <div id="exp-review-panel" style="display:none">
+                <div id="exp-review-card-wrap"></div>
+                <p id="exp-review-empty" style="display:none;text-align:center;color:var(--text3);padding:40px">暂无待审核表达</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -5516,6 +5824,15 @@ npx playwright install chromium</pre>
         <h2 class="page-title">Agent / MCP</h2>
         <p class="page-desc">Agent 模式用于多轮调用工具；MCP 用于连接外部工具服务（文件、数据库、GitHub 等）。开启 Agent 工具循环后，模型可按需调用 MCP 与内置工具。</p>
 
+        <div class="mai-subtabs">
+          <div class="mai-subtab active" id="agent-tab-core" onclick="switchAgentTab('core')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">smart_toy</span> Agent 循环</div>
+          <div class="mai-subtab" id="agent-tab-qq-bili" onclick="switchAgentTab('qq-bili')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">groups</span> QQ / B站</div>
+          <div class="mai-subtab" id="agent-tab-system" onclick="switchAgentTab('system')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">terminal</span> 系统能力</div>
+          <div class="mai-subtab" id="agent-tab-tools" onclick="switchAgentTab('tools')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">tune</span> 工具开关</div>
+          <div class="mai-subtab" id="agent-tab-mcp" onclick="switchAgentTab('mcp')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">hub</span> MCP</div>
+        </div>
+
+        <div id="agent-panel-core">
         <div class="section">
           <div class="section-title">Agent 工具循环</div>
           <div class="section-body">
@@ -5531,6 +5848,30 @@ npx playwright install chromium</pre>
         </div>
 
         <div class="section">
+          <div class="section-title">高危操作双重保险</div>
+          <div class="section-body">
+            <div class="form-row"><div class="form-label">启用高危保护总开关</div><div class="tgl" id="tgl-agentDangerGuardEnabled" onclick="toggle(this,'agentDangerGuardEnabled')"></div></div>
+            <div class="form-row"><div class="form-label">第一重：仅管理员 QQ 可执行</div><div class="tgl" id="tgl-agentDangerRequireAdmin" onclick="toggle(this,'agentDangerRequireAdmin')"></div></div>
+            <div class="form-row"><div class="form-label">第二重：网页弹窗确认</div><div class="tgl" id="tgl-agentDangerRequireWebConfirm" onclick="toggle(this,'agentDangerRequireWebConfirm')"></div></div>
+            <div class="form-row">
+              <div class="form-label">危险操作密码<div class="hint">不可逆加密存储，忘记后无法恢复。请谨慎设置并妥善保管。</div></div>
+              <div style="display:flex;gap:8px;align-items:center;width:100%">
+                <button type="button" class="btn btn-s" onclick="openDangerPasswordModal()">设置 / 修改密码</button>
+                <span id="agent-danger-password-status" style="font-size:12px;color:var(--text3)">未设置</span>
+              </div>
+            </div>
+            <div class="form-row"><div class="form-label">确认按钮延时（秒）</div><input type="number" class="ipt" id="cfg-agentDangerConfirmDelaySec" min="0" max="30" value="5" style="max-width:120px" /></div>
+            <div class="form-row"><div class="form-label">确认过期时间（秒）</div><input type="number" class="ipt" id="cfg-agentDangerConfirmExpireSec" min="5" max="180" value="20" style="max-width:120px" /></div>
+            <div class="form-row"><div class="form-label">拦截关机/重启命令</div><div class="tgl" id="tgl-agentDangerOnSystemPower" onclick="toggle(this,'agentDangerOnSystemPower')"></div></div>
+            <div class="form-row"><div class="form-label">拦截 Shell 删除命令</div><div class="tgl" id="tgl-agentDangerOnShellDelete" onclick="toggle(this,'agentDangerOnShellDelete')"></div></div>
+            <div class="form-row"><div class="form-label">拦截文件删除操作</div><div class="tgl" id="tgl-agentDangerOnFileDelete" onclick="toggle(this,'agentDangerOnFileDelete')"></div></div>
+            <div class="form-row"><div class="form-label">拦截注册表写入/删除</div><div class="tgl" id="tgl-agentDangerOnRegistryWrite" onclick="toggle(this,'agentDangerOnRegistryWrite')"></div></div>
+          </div>
+        </div>
+        </div>
+
+        <div id="agent-panel-qq-bili" style="display:none">
+        <div class="section">
           <div class="section-title">QQ 群/用户信息</div>
           <div class="section-body">
             <p class="section-subtitle">自动注入当前群号、群名、发送者 QQ/昵称；支持按 QQ 号或群内昵称（如 @Juice）查询用户，以及获取群内最近消息作为群上下文。</p>
@@ -5544,10 +5885,80 @@ npx playwright install chromium</pre>
             </div>
             <div class="form-row"><div class="form-label">用户信息查询工具</div><div class="tgl on" id="tgl-agentToolQqUserInfoEnabled" onclick="toggle(this,'agentToolQqUserInfoEnabled')"></div></div>
             <div class="form-row"><div class="form-label">群信息查询工具</div><div class="tgl on" id="tgl-agentToolQqGroupInfoEnabled" onclick="toggle(this,'agentToolQqGroupInfoEnabled')"></div></div>
+            <div class="form-row"><div class="form-label">群扩展工具<div class="hint">群列表、成员列表/详情、公告、精华、禁言列表（NapCat API）</div></div><div class="tgl on" id="tgl-agentToolQqGroupExtendedEnabled" onclick="toggle(this,'agentToolQqGroupExtendedEnabled')"></div></div>
+            <div class="form-row"><div class="form-label">NapCat 全量 API 网关<div class="hint">170+ 接口：builtin_qq_napcat_catalog 搜索 + builtin_qq_napcat_call 调用（<a href="https://napcat.apifox.cn/5430207m0" target="_blank" rel="noopener">文档</a>）</div></div><div class="tgl on" id="tgl-agentToolQqNapcatEnabled" onclick="toggle(this,'agentToolQqNapcatEnabled')"></div></div>
+            <div class="form-row"><div class="form-label">允许 NapCat 写操作<div class="hint">发消息、禁言、踢人等；关闭后仅可读 API</div></div><div class="tgl on" id="tgl-agentToolQqNapcatAllowWrite" onclick="toggle(this,'agentToolQqNapcatAllowWrite')"></div></div>
+            <div class="form-row"><div class="form-label">NapCat 写操作高危保护<div class="hint">与 Shell 高危保护共用管理员/弹窗确认</div></div><div class="tgl on" id="tgl-agentToolQqNapcatDangerGuard" onclick="toggle(this,'agentToolQqNapcatDangerGuard')"></div></div>
             <div class="form-row"><div class="form-label">群上下文查询工具</div><div class="tgl on" id="tgl-agentToolQqGroupContextEnabled" onclick="toggle(this,'agentToolQqGroupContextEnabled')"></div></div>
           </div>
         </div>
 
+        <div class="section">
+          <div class="section-title">SQLite 记忆与用户库</div>
+          <div class="section-body">
+            <p class="section-subtitle">记忆、表达、黑话、群用户资料、B站 Cookie 绑定统一存入 <code>agent-data.db</code>。首次启动会自动从 <code>maisaka-data.json</code> 迁移并备份。</p>
+            <div class="agent-browser-use-panel" id="sqlite-env-panel">
+              <div class="agent-browser-use-panel-head">
+                <span class="agent-browser-use-panel-title">SQLite 驱动</span>
+                <span id="sqlite-env-badge" class="agent-browser-use-status-badge">检测中…</span>
+              </div>
+              <div class="agent-browser-use-panel-body">
+                <div class="form-row">
+                  <div class="form-label">npm 镜像</div>
+                  <select class="ipt" id="cfg-sqlite-mirror" style="max-width:200px">
+                    <option value="npmmirror">npmmirror 淘宝</option>
+                    <option value="tencent">腾讯云</option>
+                    <option value="huawei">华为云</option>
+                    <option value="official">npm 官方</option>
+                  </select>
+                </div>
+                <div class="form-row">
+                  <button type="button" class="btn btn-p" id="btn-sqlite-install" onclick="openSqliteSetupModal()"><span class="material-symbols-outlined">database</span>一键部署 SQLite</button>
+                  <button type="button" class="btn btn-d" onclick="refreshSqliteEnvStatus()"><span class="material-symbols-outlined">refresh</span>刷新状态</button>
+                </div>
+                <p class="agent-browser-use-hint" id="sqlite-env-hint">将安装 better-sqlite3 到本地 agent-runtime，并尝试下载 sqlite3 CLI。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Bilibili Agent（B站 API）</div>
+          <div class="section-body">
+            <p class="section-subtitle">基于 <a href="https://github.com/realysy/bili-apis" target="_blank" rel="noopener">bili-apis</a> / <a href="https://qinshixixing.gitbooks.io/bilibiliapi/content/" target="_blank" rel="noopener">Bilibili API 文档</a>。<strong>未绑定用户</strong>使用下方「自定义域名 Cookies」主站 Cookie；<strong>已扫码绑定</strong>的 QQ 用户使用各自 Cookie。</p>
+            <div class="form-row"><div class="form-label">启用 B站 Agent 工具</div><div class="tgl on" id="tgl-agentBiliToolsEnabled" onclick="toggle(this,'agentBiliToolsEnabled')"></div></div>
+            <div class="form-row"><div class="form-label">API 目录搜索<div class="hint">builtin_bili_catalog — 40+ 常用接口</div></div><div class="tgl on" id="tgl-agentToolBiliCatalogEnabled" onclick="toggle(this,'agentToolBiliCatalogEnabled')"></div></div>
+            <div class="form-row"><div class="form-label">通用 API 调用<div class="hint">builtin_bili_call — 按 action/path 调用，自动带 Cookie</div></div><div class="tgl on" id="tgl-agentToolBiliCallEnabled" onclick="toggle(this,'agentToolBiliCallEnabled')"></div></div>
+            <div class="form-row"><div class="form-label">快捷工具<div class="hint">搜索 / 视频详情 / 用户信息 / 登录态 nav</div></div><div class="tgl on" id="tgl-agentToolBiliQuickEnabled" onclick="toggle(this,'agentToolBiliQuickEnabled')"></div></div>
+            <div class="form-row"><div class="form-label">对话扫码登录 B站<div class="hint">用户说「登录 B 站」时自动发二维码；Agent 工具 builtin_bili_login_qr</div></div><div class="tgl on" id="tgl-agentToolBiliLoginQrEnabled" onclick="toggle(this,'agentToolBiliLoginQrEnabled')"></div></div>
+            <div class="form-row"><div class="form-label">允许 B站写操作<div class="hint">点赞、投币、收藏、关注、发评论等；默认关闭</div></div><div class="tgl" id="tgl-agentToolBiliAllowWrite" onclick="toggle(this,'agentToolBiliAllowWrite')"></div></div>
+            <div class="form-row"><div class="form-label">B站写操作高危保护</div><div class="tgl on" id="tgl-agentToolBiliDangerGuard" onclick="toggle(this,'agentToolBiliDangerGuard')"></div></div>
+            <div class="agent-browser-use-panel" id="bili-auth-panel" style="margin-top:12px">
+              <div class="agent-browser-use-panel-head">
+                <span class="agent-browser-use-panel-title">B站扫码绑定（按 QQ 用户）</span>
+                <span id="bili-auth-badge" class="agent-browser-use-status-badge">—</span>
+              </div>
+              <div class="agent-browser-use-panel-body">
+                <div class="form-row">
+                  <div class="form-label">QQ 号<div class="hint">绑定后该 QQ 在 Agent 中调用 B站 API 时使用自己的 Cookie</div></div>
+                  <input type="text" class="ipt" id="bili-bind-qq" placeholder="例如 123456789" style="max-width:220px" />
+                </div>
+                <div class="form-row">
+                  <button type="button" class="btn btn-p" id="btn-bili-qr-start" onclick="startBiliQrBind()"><span class="material-symbols-outlined">qr_code_2</span>生成二维码</button>
+                  <button type="button" class="btn btn-d" onclick="refreshBiliSessions()"><span class="material-symbols-outlined">refresh</span>刷新绑定列表</button>
+                </div>
+                <div id="bili-qr-area" style="display:none;margin-top:8px">
+                  <div id="bili-qr-status" class="agent-browser-use-hint">等待扫码…</div>
+                  <img id="bili-qr-img" alt="B站登录二维码" style="max-width:200px;margin-top:8px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:8px" />
+                </div>
+                <div id="bili-sessions-list" style="margin-top:12px;font-size:13px;color:var(--text-muted)">加载中…</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
+
+        <div id="agent-panel-system" style="display:none">
         <div class="section">
           <div class="section-title">系统操作能力（Shell / 浏览器 / 注册表 / 文件）</div>
           <div class="section-body">
@@ -5687,7 +6098,9 @@ npx playwright install chromium</pre>
             </div>
           </div>
         </div>
+        </div>
 
+        <div id="agent-panel-tools" style="display:none">
         <div class="section">
           <div class="section-title">Agent 功能类型开关（细粒度）</div>
           <div class="section-body">
@@ -5703,27 +6116,6 @@ npx playwright install chromium</pre>
             <div class="form-row"><div class="form-label">browser-use 自然语言任务</div><div class="tgl on" id="tgl-agentToolBrowserUseTaskEnabled" onclick="toggle(this,'agentToolBrowserUseTaskEnabled')"></div></div>
           </div>
         </div>
-
-        <div class="section">
-          <div class="section-title">高危操作双重保险</div>
-          <div class="section-body">
-            <div class="form-row"><div class="form-label">启用高危保护总开关</div><div class="tgl" id="tgl-agentDangerGuardEnabled" onclick="toggle(this,'agentDangerGuardEnabled')"></div></div>
-            <div class="form-row"><div class="form-label">第一重：仅管理员 QQ 可执行</div><div class="tgl" id="tgl-agentDangerRequireAdmin" onclick="toggle(this,'agentDangerRequireAdmin')"></div></div>
-            <div class="form-row"><div class="form-label">第二重：网页弹窗确认</div><div class="tgl" id="tgl-agentDangerRequireWebConfirm" onclick="toggle(this,'agentDangerRequireWebConfirm')"></div></div>
-            <div class="form-row">
-              <div class="form-label">危险操作密码<div class="hint">不可逆加密存储，忘记后无法恢复。请谨慎设置并妥善保管。</div></div>
-              <div style="display:flex;gap:8px;align-items:center;width:100%">
-                <button type="button" class="btn btn-s" onclick="openDangerPasswordModal()">设置 / 修改密码</button>
-                <span id="agent-danger-password-status" style="font-size:12px;color:var(--text3)">未设置</span>
-              </div>
-            </div>
-            <div class="form-row"><div class="form-label">确认按钮延时（秒）</div><input type="number" class="ipt" id="cfg-agentDangerConfirmDelaySec" min="0" max="30" value="5" style="max-width:120px" /></div>
-            <div class="form-row"><div class="form-label">确认过期时间（秒）</div><input type="number" class="ipt" id="cfg-agentDangerConfirmExpireSec" min="5" max="180" value="20" style="max-width:120px" /></div>
-            <div class="form-row"><div class="form-label">拦截关机/重启命令</div><div class="tgl" id="tgl-agentDangerOnSystemPower" onclick="toggle(this,'agentDangerOnSystemPower')"></div></div>
-            <div class="form-row"><div class="form-label">拦截 Shell 删除命令</div><div class="tgl" id="tgl-agentDangerOnShellDelete" onclick="toggle(this,'agentDangerOnShellDelete')"></div></div>
-            <div class="form-row"><div class="form-label">拦截文件删除操作</div><div class="tgl" id="tgl-agentDangerOnFileDelete" onclick="toggle(this,'agentDangerOnFileDelete')"></div></div>
-            <div class="form-row"><div class="form-label">拦截注册表写入/删除</div><div class="tgl" id="tgl-agentDangerOnRegistryWrite" onclick="toggle(this,'agentDangerOnRegistryWrite')"></div></div>
-          </div>
         </div>
 
         <!-- [hidden] Agent Skills 区块 — 恢复时取消注释
@@ -5759,6 +6151,7 @@ npx playwright install chromium</pre>
         </div>
         -->
 
+        <div id="agent-panel-mcp" style="display:none">
         <div class="section">
           <div class="section-title">MCP 服务</div>
           <div class="section-body">
@@ -5799,8 +6192,11 @@ npx playwright install chromium</pre>
           <div id="agent-mcp-status" class="agent-panel"></div>
           </div>
         </div>
+        </div>
 
-        <button class="btn btn-p" onclick="saveConfig()">保存配置</button>
+        <div class="page-footer-actions">
+          <button type="button" class="btn btn-p" onclick="saveConfig()">保存配置</button>
+        </div>
       </div>
 
       <!-- [hidden] Skills 商店页面 — 恢复时取消注释
@@ -6193,9 +6589,59 @@ npx playwright install chromium</pre>
         </div>
       </div>
 
+      <div id="pg-observe" class="page">
+        <div class="observe-shell">
+          <aside class="observe-stream-sidebar">
+            <div class="observe-stream-head">
+              <span>聊天流</span>
+              <span id="observe-live-dot" class="observe-live-dot off" title="持续获取"></span>
+            </div>
+            <div id="observe-group-list" class="observe-group-list">
+              <div style="padding:16px;color:var(--text3);font-size:13px">加载群列表…</div>
+            </div>
+          </aside>
+          <main class="observe-main">
+            <div class="observe-toolbar">
+              <span class="observe-title" id="observe-current-title">选择群聊</span>
+              <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer">
+                <input type="checkbox" id="observe-auto-fetch" checked /> 持续获取
+              </label>
+              <button type="button" class="btn btn-s" onclick="observeScrollBottom()"><span class="material-symbols-outlined">vertical_align_bottom</span>回到底部</button>
+              <button type="button" class="btn btn-s" id="btn-observe-tick" onclick="observeManualTick()"><span class="material-symbols-outlined">psychology</span>运行 Planner</button>
+              <button type="button" class="btn btn-p" id="btn-observe-loop" onclick="observeToggleLoop()"><span class="material-symbols-outlined">play_arrow</span>启动循环</button>
+            </div>
+            <div class="observe-stats-bar" id="observe-stats-bar">
+              <span>群数 <strong id="obs-stat-groups">0</strong></span>
+              <span>Planner <strong id="obs-stat-planner">0</strong></span>
+              <span>消息 <strong id="obs-stat-chat">0</strong></span>
+              <span>循环 <strong id="obs-stat-loops">0</strong></span>
+              <span id="obs-stat-status" style="margin-left:auto">等待选择群聊</span>
+            </div>
+            <div class="observe-feed-wrap" id="observe-feed-wrap">
+              <div id="observe-feed" class="observe-feed">
+                <div style="text-align:center;color:var(--text3);padding:40px 16px">从左侧选择群聊，查看消息流与 Planner 推理过程</div>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+
       <div id="pg-fakehuman" class="page">
-        <h2 class="page-title">伪人</h2>
-        <p style="font-size:12px;color:var(--text3);margin-bottom:14px">在群里不 @ 机器人时，按概率随机插话（短句、emoji、表情或 AI 一句），可 @ 用户，伪装成真人水群。仅群聊生效。</p>
+        <h2 class="page-title">伪人系统</h2>
+        <p class="page-desc">在群里不 @ 机器人时，按概率随机插话，伪装成真人水群。MaiBot 引擎支持记忆、表达、黑话/梗、行为学习与 Planner 多轮出站。</p>
+        <div class="mai-subtabs">
+          <div class="mai-subtab active" id="fh-tab-basic" onclick="switchFakeHumanTab('basic')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">tune</span> 基础设置</div>
+          <div class="mai-subtab" id="fh-tab-reply" onclick="switchFakeHumanTab('reply')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">chat</span> 回复与人设</div>
+          <div class="mai-subtab" id="fh-tab-maibot" onclick="switchFakeHumanTab('maibot')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">psychology</span> MaiBot 引擎</div>
+          <div class="mai-subtab" id="fh-tab-groups" onclick="switchFakeHumanTab('groups')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">groups</span> 群聊启用</div>
+        </div>
+        <div style="padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--card)">
+          <button type="button" class="btn btn-p btn-s" onclick="navigatePage('observe',document.querySelector('[data-page=observe]'))"><span class="material-symbols-outlined">visibility</span> 行为观察</button>
+          <button type="button" class="btn btn-s" onclick="navigatePage('expressions',document.querySelector('[data-page=expressions]'))"><span class="material-symbols-outlined">forum</span> 表达方式</button>
+          <button type="button" class="btn btn-s" onclick="navigatePage('slang',document.querySelector('[data-page=slang]'))"><span class="material-symbols-outlined">tag</span> 黑话 / 梗库</button>
+          <button type="button" class="btn btn-s" onclick="navigatePage('emoji-library',document.querySelector('[data-page=emoji-library]'))"><span class="material-symbols-outlined">collections</span> 表情库</button>
+        </div>
+        <div id="fh-panel-basic">
         <div class="section">
           <div class="section-title">开关与概率</div>
           <div class="form-row">
@@ -6246,13 +6692,15 @@ npx playwright install chromium</pre>
             </select>
           </div>
         </div>
+        </div>
+        <div id="fh-panel-reply" style="display:none">
         <div class="section">
           <div class="section-title">回复内容</div>
           <div class="form-row">
             <div class="form-label">回复模式<div class="hint">AI=根据消息生成一句；随机短句=从下方列表抽；emoji/表情=只发一个；混合=随机选一种</div></div>
             <select class="ipt" id="cfg-fakeHumanReplyMode" style="max-width:200px">
+              <option value="ai">AI（MaiBot Planner，推荐）</option>
               <option value="mixed">混合随机</option>
-              <option value="ai">AI 一句</option>
               <option value="random_text">随机短句</option>
               <option value="emoji">纯 Emoji</option>
               <option value="sticker">纯表情（收藏）</option>
@@ -6326,17 +6774,81 @@ npx playwright install chromium</pre>
             </div>
             <textarea class="ipt" id="cfg-fakeHumanImageDescribePrompt" style="display:none"></textarea>
           </div>
+        </div>
+        </div>
+        <div id="fh-panel-maibot" style="display:none">
+        <div class="section">
+          <div class="section-title">MaiBot 伪人引擎</div>
+          <div class="form-row">
+            <div class="form-label">启用 MaiBot 伪人模式<div class="hint">Planner→Reply 双阶段、长期记忆、表达/黑话/行为学习</div></div>
+            <div class="tgl on" id="tgl-fakeHumanMaisakaMode" onclick="toggle(this,'fakeHumanMaisakaMode')"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">多轮 Planner 工具循环<div class="hint">reply / send_emoji / send_file / at / poke 组合出站（MaiBot HeartFlow 简化版）</div></div>
+            <div class="tgl on" id="tgl-fakeHumanPlannerLoop" onclick="toggle(this,'fakeHumanPlannerLoop')"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">Planner 最大轮数<div class="hint">1–8，默认 5</div></div>
+            <input type="number" class="ipt" id="cfg-fakeHumanPlannerMaxRounds" min="1" max="8" value="5" style="max-width:80px" />
+          </div>
+          <div class="form-row">
+            <div class="form-label">随机口吻切换概率<div class="hint">临时替换 reply_style，更网感/口语化，0~1</div></div>
+            <input type="number" class="ipt" id="cfg-fakeHumanMultipleProbability" min="0" max="1" step="0.01" value="0.12" style="max-width:80px" />
+          </div>
+          <div class="form-row">
+            <div class="form-label">随机口吻列表<div class="hint">每行一条临时风格；完整黑话/梗请前往「黑话 / 梗库」</div></div>
+            <textarea class="ipt" id="cfg-fakeHumanMultipleReplyStyle" rows="3" placeholder="你的风格平淡但不失讽刺..."></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-label">群聊注意力块<div class="hint">group_chat_attention_block</div></div>
+            <div class="kv-editor-inline">
+              <div class="kv-editor-summary" id="sum-fakeHumanGroupChatAttention">群聊注意事项</div>
+              <button type="button" class="btn btn-s" onclick="openStructuredEditor('fakeHumanGroupChatAttention')"><span class="material-symbols-outlined">forum</span>编辑</button>
+            </div>
+            <textarea class="ipt" id="cfg-fakeHumanGroupChatAttention" style="display:none"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-label">启发式长期记忆</div>
+            <div class="tgl on" id="tgl-fakeHumanEnableMemoryRecall" onclick="toggle(this,'fakeHumanEnableMemoryRecall')"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">表达学习</div>
+            <div class="tgl on" id="tgl-fakeHumanEnableExpressionLearning" onclick="toggle(this,'fakeHumanEnableExpressionLearning')"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">黑话 / 梗学习<div class="hint">从群聊自动提取黑话、网络梗、缩写；在「黑话 / 梗库」审核后注入回复</div></div>
+            <div class="tgl on" id="tgl-fakeHumanEnableSlangLearning" onclick="toggle(this,'fakeHumanEnableSlangLearning')"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">行为学习</div>
+            <div class="tgl on" id="tgl-fakeHumanEnableBehaviorLearning" onclick="toggle(this,'fakeHumanEnableBehaviorLearning')"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">记忆召回条数</div>
+            <input type="number" class="ipt" id="cfg-fakeHumanMemoryRecallLimit" min="1" max="10" value="3" style="max-width:60px" />
+          </div>
           <div class="form-row">
             <div class="form-label">AI 回复最大字数</div>
             <input type="number" class="ipt" id="cfg-fakeHumanMaxLength" min="10" max="200" value="80" style="max-width:80px" />
           </div>
           <div class="form-row">
-            <div class="form-label">解析用户图片<div class="hint">用户发图时先用视觉 API 描述图片，再交给文字模型插话（需配置视觉 API Key）</div></div>
+            <div class="form-label">解析用户图片<div class="hint">与「API 与模型 → 图片理解」共用视觉模型与 Key</div></div>
             <div class="tgl" id="tgl-fakeHumanParseImage" onclick="toggle(this,'fakeHumanParseImage')"></div>
           </div>
           <div class="form-row">
-            <div class="form-label">视觉模型（可选）<div class="hint">图片描述时使用的模型，留空则用 Kimi/视觉配置中的模型</div></div>
-            <input type="text" class="ipt" id="cfg-fakeHumanVisionModel" placeholder="如 deepseek-chat 或留空" style="max-width:240px" />
+            <div class="form-label">连发短句<div class="hint">MaiBot 风格：Planner 可连发 2-4 条极短句，或单独发 QQ 小黄脸</div></div>
+            <div class="tgl on" id="tgl-fakeHumanBurstEnabled" onclick="toggle(this,'fakeHumanBurstEnabled')"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">短句间隔 (ms)</div>
+            <input type="number" class="ipt" id="cfg-fakeHumanBurstDelayMs" min="200" max="5000" value="800" style="max-width:100px" />
+          </div>
+          <div class="form-row">
+            <div class="form-label">每条最大字数 / 最多条数</div>
+            <div style="display:flex;gap:8px">
+              <input type="number" class="ipt" id="cfg-fakeHumanBurstMaxLen" min="8" max="60" value="28" style="max-width:80px" />
+              <input type="number" class="ipt" id="cfg-fakeHumanBurstMaxMessages" min="1" max="8" value="4" style="max-width:80px" />
+            </div>
           </div>
         </div>
         <div class="section">
@@ -6353,6 +6865,8 @@ npx playwright install chromium</pre>
             </select>
           </div>
         </div>
+        </div>
+        <div id="fh-panel-groups" style="display:none">
         <div class="fakehuman-groups-panel">
           <div class="fakehuman-groups-head">
             <span>开启群聊（卡片选择）</span>
@@ -6371,6 +6885,63 @@ npx playwright install chromium</pre>
           <div class="fakehuman-actions-btns">
             <button type="button" class="btn btn-s" onclick="loadFakeHumanGroups()"><span class="material-symbols-outlined">refresh</span>刷新群列表</button>
             <button type="button" class="btn btn-p" onclick="saveFakeHumanConfig()"><span class="material-symbols-outlined">save</span>保存伪人配置</button>
+          </div>
+        </div>
+        </div>
+      </div>
+
+      <div id="pg-slang" class="page">
+        <h2 class="page-title">黑话 / 梗库</h2>
+        <p class="page-desc">群聊黑话、网络梗、缩写、口头禅。AI 从群聊自动学习，支持人工/AI 审核；已通过且开启使用的词条会注入伪人回复。<br>支持导入 TXT/JSON：TXT 每行「词条|含义|用法|类型|标签」或 Tab/冒号分隔；JSON 为数组或 <code>{ "slangs": [...] }</code>，重复词条可自动跳过。</p>
+        <div class="mai-subtabs">
+          <div class="mai-subtab active" id="slang-tab-list" onclick="switchSlangTab('list')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">list</span> 词条列表</div>
+          <div class="mai-subtab" id="slang-tab-review" onclick="switchSlangTab('review')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">bolt</span> 快速审核</div>
+        </div>
+        <div class="mai-main" style="border-radius:0 0 14px 14px;margin-top:0">
+          <div class="mai-toolbar">
+            <span class="mai-stat">总数 <strong id="slang-stat-all">0</strong> · 待审核 <strong id="slang-stat-pending">0</strong> · 近7天 <strong id="slang-stat-7d">0</strong></span>
+            <div class="form-row" style="margin:0;gap:12px">
+              <div class="form-label" style="margin:0;font-size:12px">开启学习</div>
+              <div class="tgl on" id="tgl-slangLearning" onclick="toggleSlangSetting('learningEnabled', this)"></div>
+              <div class="form-label" style="margin:0;font-size:12px">开启使用</div>
+              <div class="tgl on" id="tgl-slangUsage" onclick="toggleSlangSetting('usageEnabled', this)"></div>
+              <div class="form-label" style="margin:0;font-size:12px">AI 自动通过</div>
+              <div class="tgl" id="tgl-slangAutoAiPass" onclick="toggleSlangSetting('autoAiPass', this)"></div>
+            </div>
+            <button type="button" class="btn btn-p btn-s" onclick="openSlangCreateModal()"><span class="material-symbols-outlined">add</span>新增词条</button>
+            <button type="button" class="btn btn-s" onclick="triggerSlangImport()"><span class="material-symbols-outlined">upload_file</span>导入 TXT/JSON</button>
+            <input type="file" id="slang-import-file" accept=".txt,.json,.md" style="display:none" onchange="onSlangImportFile(this)" />
+          </div>
+          <div class="mai-filter-bar" id="slang-filters">
+            <button type="button" class="mai-filter-btn active" data-slang-status="all" onclick="setSlangStatus(this,'all')">全部</button>
+            <button type="button" class="mai-filter-btn" data-slang-status="pending" onclick="setSlangStatus(this,'pending')">待审核</button>
+            <button type="button" class="mai-filter-btn" data-slang-status="passed" onclick="setSlangStatus(this,'passed')">已通过</button>
+            <button type="button" class="mai-filter-btn" data-slang-status="rejected" onclick="setSlangStatus(this,'rejected')">已拒绝</button>
+            <select class="ipt" id="slang-type-filter" style="max-width:120px" onchange="loadSlangPage()">
+              <option value="">全部类型</option>
+              <option value="slang">黑话</option>
+              <option value="meme">梗</option>
+              <option value="abbrev">缩写</option>
+              <option value="inside_joke">群内梗</option>
+              <option value="catchphrase">口头禅</option>
+            </select>
+            <input type="text" class="ipt" id="slang-search" placeholder="搜索词条、含义、标签…" style="max-width:200px;margin-left:auto" oninput="debounceSlangLoad()" />
+          </div>
+          <div class="mai-layout" style="min-height:400px;border:none;border-radius:0">
+            <div class="mai-sidebar" style="border:none;border-right:1px solid var(--border);border-radius:0">
+              <div class="mai-sidebar-title">群聊</div>
+              <div class="mai-group-item active" data-slang-group="" onclick="selectSlangGroup(this,'')">全部</div>
+              <div id="slang-groups"></div>
+            </div>
+            <div class="mai-content" style="border:none">
+              <div id="slang-list-panel">
+                <table class="mai-table"><thead><tr><th>词条</th><th>含义</th><th>类型</th><th>标签</th><th>审核</th><th>操作</th></tr></thead><tbody id="slang-table-body"></tbody></table>
+              </div>
+              <div id="slang-review-panel" style="display:none">
+                <div id="slang-review-card-wrap"></div>
+                <p id="slang-review-empty" style="display:none;text-align:center;color:var(--text3);padding:40px">暂无待审核词条</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -7124,6 +7695,84 @@ npx playwright install chromium</pre>
         }, 40);
       });
     }
+
+    let appPromptResolver = null;
+
+    function closeAppPromptModal(ev, result) {
+      if (ev && ev.target !== ev.currentTarget && result !== null) return;
+      document.getElementById('app-prompt-modal')?.classList.remove('open');
+      const resolver = appPromptResolver;
+      appPromptResolver = null;
+      if (resolver) resolver(result);
+    }
+
+    /**
+     * @param {{ title?: string, confirmText?: string, cancelText?: string, fields: { id: string, label: string, placeholder?: string, required?: boolean, type?: string, value?: string, options?: {value:string,label:string}[] }[] }} options
+     * @returns {Promise<object|null>}
+     */
+    function showAppPrompt(options) {
+      const opts = options || {};
+      return new Promise(function (resolve) {
+        appPromptResolver = resolve;
+        const modal = document.getElementById('app-prompt-modal');
+        const titleEl = document.getElementById('app-prompt-title');
+        const fieldsEl = document.getElementById('app-prompt-fields');
+        const okBtn = document.getElementById('app-prompt-ok');
+        const cancelBtn = document.getElementById('app-prompt-cancel');
+        if (!modal || !fieldsEl || !okBtn || !cancelBtn) { resolve(null); return; }
+        titleEl.textContent = opts.title || '输入';
+        okBtn.textContent = opts.confirmText || '确定';
+        cancelBtn.textContent = opts.cancelText || '取消';
+        fieldsEl.innerHTML = (opts.fields || []).map(function (f) {
+          const req = f.required ? ' <span style="color:var(--danger)">*</span>' : '';
+          if (f.type === 'select' && f.options?.length) {
+            return '<div class="form-row" style="margin:0;padding:0;border:none"><div class="form-label">' + escapeHtml(f.label) + req + '</div>' +
+              '<select class="ipt" id="app-prompt-field-' + escapeHtml(f.id) + '">' +
+              f.options.map(function (o) { return '<option value="' + escapeHtml(o.value) + '">' + escapeHtml(o.label) + '</option>'; }).join('') +
+              '</select></div>';
+          }
+          if (f.type === 'textarea') {
+            return '<div class="form-row form-row-top" style="margin:0;padding:0;border:none"><div class="form-label">' + escapeHtml(f.label) + req + '</div>' +
+              '<textarea class="ipt" id="app-prompt-field-' + escapeHtml(f.id) + '" rows="3" placeholder="' + escapeHtml(f.placeholder || '') + '">' + escapeHtml(f.value || '') + '</textarea></div>';
+          }
+          const inputType = f.type === 'password' ? 'password' : 'text';
+          return '<div class="form-row" style="margin:0;padding:0;border:none"><div class="form-label">' + escapeHtml(f.label) + req + '</div>' +
+            '<input type="' + inputType + '" class="ipt" id="app-prompt-field-' + escapeHtml(f.id) + '" placeholder="' + escapeHtml(f.placeholder || '') + '" value="' + escapeHtml(f.value || '') + '" /></div>';
+        }).join('');
+        const submit = function () {
+          const out = {};
+          for (const f of (opts.fields || [])) {
+            const el = document.getElementById('app-prompt-field-' + f.id);
+            const val = el ? String(el.value || '').trim() : '';
+            if (f.required && !val) {
+              toast('请填写：' + f.label, 'warn');
+              if (el) el.focus();
+              return;
+            }
+            out[f.id] = val;
+          }
+          closeAppPromptModal(null, out);
+        };
+        okBtn.onclick = submit;
+        cancelBtn.onclick = function () { closeAppPromptModal(null, null); };
+        modal.classList.add('open');
+        const first = fieldsEl.querySelector('input,textarea,select');
+        if (first) setTimeout(function () { first.focus(); }, 40);
+      });
+    }
+
+    /** 禁止浏览器原生 prompt / confirm / alert，统一使用 showAppPrompt / showAppConfirm */
+    (function installNativeDialogGuard() {
+      function blocked(name, args) {
+        console.warn('[Dashboard] 已禁用浏览器原生 ' + name, args);
+        if (typeof toast === 'function') toast('浏览器原生弹窗已禁用，请使用页面内对话框', 'error');
+        if (name === 'prompt') return null;
+        if (name === 'confirm') return false;
+      }
+      window.prompt = function () { return blocked('prompt', arguments); };
+      window.confirm = function () { return blocked('confirm', arguments); };
+      window.alert = function () { blocked('alert', arguments); };
+    })();
 
     function cycleTheme() {
       const body = document.body;
@@ -8391,6 +9040,543 @@ npx playwright install chromium</pre>
       }
     }
 
+    let sqliteLogCursor = 0;
+    let sqlitePollTimer = null;
+    let sqliteInstallToken = 0;
+    let biliQrPollTimer = null;
+    let biliQrSessionKey = '';
+
+    function setSqliteEnvBadge(text, kind) {
+      const badge = document.getElementById('sqlite-env-badge');
+      if (!badge) return;
+      badge.textContent = text;
+      badge.classList.remove('is-ready', 'is-warn');
+      if (kind === 'ready') badge.classList.add('is-ready');
+      else if (kind === 'warn') badge.classList.add('is-warn');
+    }
+
+    async function refreshSqliteEnvStatus() {
+      const hint = document.getElementById('sqlite-env-hint');
+      try {
+        const res = await fetch(BASE + '/sqlite/env/status');
+        const data = await res.json();
+        const st = data.data || {};
+        if (st.ready && st.dbOpen) {
+          setSqliteEnvBadge('已就绪 · ' + (st.driver || 'sqlite'), 'ready');
+          if (hint) hint.textContent = '数据库：' + (st.dbPath || 'agent-data.db') + (st.migrated ? '（已从 JSON 迁移）' : '');
+        } else if (st.ready) {
+          setSqliteEnvBadge('驱动已装 · 待连接', 'warn');
+          if (hint) hint.textContent = '驱动就绪，重启插件或点击部署完成连接。';
+        } else {
+          setSqliteEnvBadge('未部署', 'warn');
+          if (hint) hint.textContent = st.error || '请点击「一键部署 SQLite」安装 better-sqlite3。';
+        }
+      } catch (_) {
+        setSqliteEnvBadge('检测失败', 'warn');
+      }
+    }
+
+    function openSqliteSetupModal() {
+      sqliteLogCursor = 0;
+      const log = document.getElementById('sqlite-progress-log');
+      if (log) log.innerHTML = '<div class="bu-setup-log-empty" id="sqlite-log-empty">部署开始后将在此显示实时输出</div>';
+      document.getElementById('sqlite-setup-modal')?.classList.remove('is-running', 'is-error', 'is-success');
+      document.getElementById('sqlite-setup-modal')?.classList.add('open');
+    }
+
+    function closeSqliteSetupModal(ev) {
+      if (ev && ev.target !== ev.currentTarget) return;
+      document.getElementById('sqlite-setup-modal')?.classList.remove('open');
+    }
+
+    function updateSqliteSetupProgress(data) {
+      const pct = Math.max(0, Math.min(100, Number(data.percent) || 0));
+      const bar = document.getElementById('sqlite-progress-bar');
+      const pctEl = document.getElementById('sqlite-progress-pct');
+      const stepEl = document.getElementById('sqlite-progress-step');
+      const modal = document.getElementById('sqlite-setup-modal');
+      if (bar) bar.style.width = pct + '%';
+      if (pctEl) pctEl.textContent = pct + '%';
+      if (stepEl) stepEl.textContent = data.message || data.step || '';
+      if (data.mirror) {
+        const badge = document.getElementById('sqlite-mirror-badge');
+        const text = document.getElementById('sqlite-mirror-text');
+        if (badge) badge.style.display = 'flex';
+        if (text) text.textContent = '镜像：' + data.mirror;
+      }
+      if (data.running && modal) modal.classList.add('is-running');
+      if (data.error && modal) modal.classList.add('is-error');
+      if (data.ok && !data.running && modal) modal.classList.add('is-success');
+    }
+
+    function appendSqliteSetupLogs(logs) {
+      const log = document.getElementById('sqlite-progress-log');
+      if (!log || !logs?.length) return;
+      const empty = document.getElementById('sqlite-log-empty');
+      if (empty) empty.remove();
+      for (const item of logs) {
+        const line = document.createElement('div');
+        line.className = 'bu-setup-log-line';
+        line.textContent = item.line || '';
+        log.appendChild(line);
+        log.scrollTop = log.scrollHeight;
+      }
+      const countEl = document.getElementById('sqlite-log-count');
+      if (countEl) countEl.textContent = log.querySelectorAll('.bu-setup-log-line').length + ' 条';
+    }
+
+    function pollSqliteSetupProgress(token) {
+      if (sqlitePollTimer) clearInterval(sqlitePollTimer);
+      const tick = async function () {
+        try {
+          const res = await fetch(BASE + '/sqlite/env/progress?since=' + sqliteLogCursor);
+          const data = await res.json();
+          if (data.logs?.length) {
+            sqliteLogCursor = data.total || sqliteLogCursor + data.logs.length;
+            appendSqliteSetupLogs(data.logs);
+          }
+          updateSqliteSetupProgress(data);
+          if (!data.running) {
+            if (token !== sqliteInstallToken) return;
+            clearInterval(sqlitePollTimer);
+            const modal = document.getElementById('sqlite-setup-modal');
+            if (modal) modal.classList.remove('is-running');
+            if (data.ok) {
+              toast('SQLite 环境部署完成', 'success');
+              refreshSqliteEnvStatus();
+            } else if (data.error) {
+              toast(data.error, 'error');
+            }
+          }
+        } catch (_) {}
+      };
+      tick();
+      sqlitePollTimer = setInterval(tick, 800);
+    }
+
+    function onSqliteSetupPrimaryClick() {
+      startSqliteInstall(true);
+    }
+
+    async function startSqliteInstall(fromModal) {
+      if (!fromModal) {
+        openSqliteSetupModal();
+        return;
+      }
+      const mirror = document.getElementById('cfg-sqlite-mirror')?.value || 'npmmirror';
+      const myToken = ++sqliteInstallToken;
+      const btn = document.getElementById('btn-sqlite-setup-start');
+      const modal = document.getElementById('sqlite-setup-modal');
+      if (btn) btn.disabled = true;
+      if (modal) modal.classList.add('is-running');
+      sqliteLogCursor = 0;
+      try {
+        const res = await fetch(BASE + '/sqlite/env/install', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mirror: mirror })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          toast(data.error || '无法启动部署', 'error');
+          if (btn) btn.disabled = false;
+          if (modal) modal.classList.remove('is-running');
+          return;
+        }
+        pollSqliteSetupProgress(myToken);
+        if (btn) btn.disabled = false;
+      } catch (e) {
+        toast('启动部署失败', 'error');
+        if (btn) btn.disabled = false;
+        if (modal) modal.classList.remove('is-running');
+      }
+    }
+
+    async function refreshBiliSessions() {
+      const listEl = document.getElementById('bili-sessions-list');
+      const badge = document.getElementById('bili-auth-badge');
+      try {
+        const res = await fetch(BASE + '/bili/auth/sessions');
+        const data = await res.json();
+        const sessions = data.data || [];
+        if (badge) badge.textContent = sessions.length ? (sessions.length + ' 个绑定') : '无绑定';
+        if (!listEl) return;
+        if (!sessions.length) {
+          listEl.innerHTML = '<span style="color:var(--text3)">暂无 B站绑定；未绑定用户使用主站全局 Cookie。</span>';
+          return;
+        }
+        listEl.innerHTML = sessions.map(function (s) {
+          const name = s.biliUname || s.biliMid || '未知';
+          const ts = s.updatedAt ? new Date(s.updatedAt).toLocaleString() : '';
+          return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">' +
+            '<span>QQ ' + escapeHtml(s.qqUserId) + ' → B站 ' + escapeHtml(name) + '</span>' +
+            '<span style="color:var(--text3);font-size:12px">' + escapeHtml(ts) + '</span>' +
+            '<button type="button" class="btn btn-d sm" onclick="deleteBiliSession(\'' + escapeHtml(s.qqUserId) + '\')">解绑</button></div>';
+        }).join('');
+      } catch (_) {
+        if (listEl) listEl.textContent = '加载失败';
+      }
+    }
+
+    async function startBiliQrBind() {
+      const qq = document.getElementById('bili-bind-qq')?.value?.trim();
+      if (!qq) { toast('请输入 QQ 号', 'warn'); return; }
+      if (biliQrPollTimer) clearInterval(biliQrPollTimer);
+      const area = document.getElementById('bili-qr-area');
+      const statusEl = document.getElementById('bili-qr-status');
+      const img = document.getElementById('bili-qr-img');
+      try {
+        const res = await fetch(BASE + '/bili/auth/qr/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ qqUserId: qq })
+        });
+        const data = await res.json();
+        if (!data.success) { toast(data.error || '生成二维码失败', 'error'); return; }
+        biliQrSessionKey = data.data.sessionKey;
+        if (area) area.style.display = 'block';
+        if (statusEl) statusEl.textContent = '请使用 B站 App 扫码登录（QQ ' + qq + '）';
+        if (img && data.data.qrcodeUrl) {
+          img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(data.data.qrcodeUrl);
+        }
+        biliQrPollTimer = setInterval(pollBiliQrStatus, 2000);
+        pollBiliQrStatus();
+      } catch (e) {
+        toast('请求失败', 'error');
+      }
+    }
+
+    async function pollBiliQrStatus() {
+      if (!biliQrSessionKey) return;
+      const statusEl = document.getElementById('bili-qr-status');
+      try {
+        const res = await fetch(BASE + '/bili/auth/qr/poll?sessionKey=' + encodeURIComponent(biliQrSessionKey));
+        const data = await res.json();
+        const st = data.data || {};
+        if (statusEl) statusEl.textContent = st.message || st.status || '';
+        if (st.status === 'confirmed') {
+          clearInterval(biliQrPollTimer);
+          biliQrPollTimer = null;
+          toast('B站绑定成功：' + (st.biliUname || st.biliMid || ''), 'success');
+          document.getElementById('bili-qr-area').style.display = 'none';
+          refreshBiliSessions();
+        } else if (st.status === 'expired' || st.status === 'error') {
+          clearInterval(biliQrPollTimer);
+          biliQrPollTimer = null;
+        }
+      } catch (_) {}
+    }
+
+    async function deleteBiliSession(qqUserId) {
+      if (!qqUserId) return;
+      if (!(await showAppConfirm({ title: '解绑 B站', message: '解绑 QQ ' + qqUserId + ' 的 B站 Cookie？', confirmText: '解绑', danger: true }))) return;
+      try {
+        const res = await fetch(BASE + '/bili/auth/session/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ qqUserId: qqUserId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          toast('已解绑', 'success');
+          refreshBiliSessions();
+        } else {
+          toast(data.error || '解绑失败', 'error');
+        }
+      } catch (_) {
+        toast('请求失败', 'error');
+      }
+    }
+
+    const observeUi = {
+      selectedGroupId: '',
+      sinceEventId: 0,
+      pollTimer: null,
+      chatRendered: new Set(),
+      loopRunning: false
+    };
+
+    function formatObserveTime(ts) {
+      if (!ts) return '';
+      const d = new Date(ts);
+      const now = Date.now();
+      const diff = now - ts;
+      if (diff < 60000) return '刚刚';
+      if (diff < 3600000) return Math.floor(diff / 60000) + ' 分钟前';
+      if (diff < 86400000) return Math.floor(diff / 3600000) + ' 小时前';
+      return d.toLocaleString();
+    }
+
+    function observeStatusLabel(st) {
+      if (st === 'planner') return 'Planner';
+      if (st === 'loop') return '循环中';
+      if (st === 'waiting') return '等待消息';
+      return '空闲';
+    }
+
+    async function loadObserveGroups() {
+      const listEl = document.getElementById('observe-group-list');
+      try {
+        const res = await fetch(BASE + '/observe/groups');
+        const data = await res.json();
+        const groups = data.data || [];
+        const g = data.global || {};
+        document.getElementById('obs-stat-groups').textContent = g.groupCount || groups.length;
+        document.getElementById('obs-stat-planner').textContent = g.totalPlanner || 0;
+        document.getElementById('obs-stat-chat').textContent = g.totalChat || 0;
+        document.getElementById('obs-stat-loops').textContent = g.activeLoops || 0;
+        if (!groups.length) {
+          listEl.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:13px">暂无群聊数据，等有群消息后会出现在这里</div>';
+          return;
+        }
+        listEl.innerHTML = groups.map(function (item) {
+          const name = escapeHtml(item.groupName || ('群 ' + item.groupId));
+          const active = item.groupId === observeUi.selectedGroupId ? ' active' : '';
+          const badgeCls = item.loopRunning ? 'running' : (item.status === 'planner' ? 'planner' : '');
+          const badge = item.loopRunning ? '循环 ' + (item.loopRound || 0) : observeStatusLabel(item.status);
+          return '<div class="observe-group-item' + active + '" data-gid="' + escapeHtml(item.groupId) + '" onclick="selectObserveGroup(\'' + escapeHtml(item.groupId) + '\')">' +
+            '<div class="observe-group-avatar">' + escapeHtml(String(item.groupId).slice(-2)) + '</div>' +
+            '<div class="observe-group-meta">' +
+            '<div class="observe-group-name">' + name + '</div>' +
+            '<div class="observe-group-sub"><span class="observe-badge ' + badgeCls + '">' + escapeHtml(badge) + '</span>' +
+            '<span>' + (item.messageCount || 0) + ' 条</span><span>' + formatObserveTime(item.lastActivity) + '</span></div>' +
+            '</div></div>';
+        }).join('');
+      } catch (_) {
+        if (listEl) listEl.innerHTML = '<div style="padding:16px;color:var(--danger)">加载失败</div>';
+      }
+    }
+
+    function selectObserveGroup(groupId) {
+      observeUi.selectedGroupId = String(groupId || '');
+      observeUi.sinceEventId = 0;
+      observeUi.chatRendered = new Set();
+      observeUi.loopRunning = false;
+      document.getElementById('observe-feed').innerHTML = '';
+      document.getElementById('observe-current-title').textContent = observeUi.selectedGroupId ? ('群 ' + observeUi.selectedGroupId) : '选择群聊';
+      loadObserveGroups();
+      fetchObserveFeed(true);
+      updateObserveLoopButton();
+    }
+
+    function renderObserveChatLine(c) {
+      const key = 'c' + c.id;
+      if (observeUi.chatRendered.has(key)) return '';
+      observeUi.chatRendered.add(key);
+      const botCls = c.isBot ? ' is-bot' : '';
+      return '<div class="observe-chat-line' + botCls + '">' +
+        '<span class="observe-chat-name">' + escapeHtml(c.userName || c.userId) + '</span>' +
+        '<span class="observe-chat-text">' + escapeHtml(c.text || '') + '</span>' +
+        '<span class="observe-chat-time">' + formatObserveTime(c.ts) + '</span></div>';
+    }
+
+    function renderObserveEvent(ev) {
+      if (ev.type === 'planner_round') {
+        const d = ev.data || {};
+        const tools = (d.tools || []).map(function (t) {
+          return '<div class="observe-tool-chip">' + escapeHtml(t.name) + ' ' + escapeHtml(JSON.stringify(t.args || {}).slice(0, 120)) + '</div>';
+        }).join('');
+        return '<div class="observe-planner-card" data-ev="' + ev.id + '">' +
+          '<div class="observe-planner-head">' +
+          '<span class="material-symbols-outlined">psychology</span>' +
+          '<span class="observe-planner-title">Planner 推理 · 第 ' + (d.round || '?') + '/' + (d.maxRounds || '?') + ' 轮</span>' +
+          '<div class="observe-planner-meta">' +
+          '<span>' + ((d.durationMs || 0) / 1000).toFixed(2) + 's</span>' +
+          '<span>上下文 ' + (d.messagesCount || 0) + ' 条</span>' +
+          '<span>工具 ' + (d.toolCatalogSize || 8) + '</span></div></div>' +
+          (d.reasoning ? '<div class="observe-planner-body">' + escapeHtml(d.reasoning) + '</div>' : '') +
+          (tools ? '<div class="observe-planner-tools">' + tools + '</div>' : '') +
+          '</div>';
+      }
+      if (ev.type === 'planner_end') {
+        const d = ev.data || {};
+        const action = d.action === 'skip' ? '不发言' : (d.outboundCount ? ('出站 ' + d.outboundCount + ' 步') : '完成');
+        return '<div class="observe-planner-card" data-ev="' + ev.id + '">' +
+          '<div class="observe-planner-head">' +
+          '<span class="material-symbols-outlined">flag</span>' +
+          '<span class="observe-planner-title">Planner 结束 · ' + escapeHtml(action) + '</span>' +
+          '<div class="observe-planner-meta"><span>' + ((d.durationMs || 0) / 1000).toFixed(2) + 's</span>' +
+          '<span>共 ' + (d.rounds || 0) + ' 轮</span><span>' + escapeHtml(d.source || '') + '</span></div></div>' +
+          (d.reasoning ? '<div class="observe-planner-body">' + escapeHtml(d.reasoning) + '</div>' : '') +
+          '</div>';
+      }
+      if (ev.type === 'decision') {
+        return '<div class="observe-decision-card" data-ev="' + ev.id + '">决策：' + escapeHtml(ev.data?.decision || '') +
+          (ev.data?.reasoning ? ' — ' + escapeHtml(String(ev.data.reasoning).slice(0, 200)) : '') + '</div>';
+      }
+      if (ev.type === 'outbound') {
+        return '<div class="observe-decision-card" data-ev="' + ev.id + '" style="border-color:#16a34a">出站 ' +
+          escapeHtml(String(ev.data?.steps || 0)) + ' 步 · ' + escapeHtml(ev.data?.source || '') + '</div>';
+      }
+      if (ev.type === 'loop_start') {
+        return '<div class="observe-decision-card" data-ev="' + ev.id + '" style="border-color:#3b82f6">▶ 观察循环已启动（间隔 ' + Math.round((ev.data?.intervalMs || 0) / 1000) + 's）</div>';
+      }
+      if (ev.type === 'loop_stop') {
+        return '<div class="observe-decision-card" data-ev="' + ev.id + '">■ 观察循环已停止（共 ' + (ev.data?.rounds || 0) + ' 轮）</div>';
+      }
+      return '';
+    }
+
+    async function fetchObserveFeed(fullReset) {
+      const gid = observeUi.selectedGroupId;
+      if (!gid) return;
+      try {
+        const url = BASE + '/observe/feed?groupId=' + encodeURIComponent(gid) +
+          '&sinceEventId=' + (fullReset ? 0 : observeUi.sinceEventId) +
+          '&chatLimit=120';
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!data.success) return;
+        const feed = document.getElementById('observe-feed');
+        if (fullReset) {
+          feed.innerHTML = '';
+          observeUi.chatRendered = new Set();
+        }
+        (data.chat || []).forEach(function (c) {
+          const html = renderObserveChatLine(c);
+          if (html) feed.insertAdjacentHTML('beforeend', html);
+        });
+        let maxId = observeUi.sinceEventId;
+        (data.events || []).forEach(function (ev) {
+          const html = renderObserveEvent(ev);
+          if (html) feed.insertAdjacentHTML('beforeend', html);
+          if (ev.id > maxId) maxId = ev.id;
+        });
+        observeUi.sinceEventId = maxId;
+        observeUi.loopRunning = !!data.loopRunning;
+        const st = data.stats || {};
+        document.getElementById('obs-stat-status').textContent =
+          (data.loopRunning ? '循环运行中 · 第 ' + (st.loopRound || 0) + ' 轮 · ' : '') +
+          'Planner ' + (st.plannerRuns || 0) + ' 次 · 不发言 ' + (st.noActionCount || 0);
+        updateObserveLoopButton();
+        if (document.getElementById('observe-auto-fetch')?.checked) {
+          observeScrollBottom(false);
+        }
+      } catch (_) {}
+    }
+
+    function observeScrollBottom(smooth) {
+      const wrap = document.getElementById('observe-feed-wrap');
+      if (!wrap) return;
+      wrap.scrollTo({ top: wrap.scrollHeight, behavior: smooth === false ? 'auto' : 'smooth' });
+    }
+
+    function updateObserveLoopButton() {
+      const btn = document.getElementById('btn-observe-loop');
+      if (!btn) return;
+      if (observeUi.loopRunning) {
+        btn.innerHTML = '<span class="material-symbols-outlined">stop</span>停止循环';
+        btn.classList.remove('btn-p');
+        btn.classList.add('btn-d');
+      } else {
+        btn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span>启动循环';
+        btn.classList.add('btn-p');
+        btn.classList.remove('btn-d');
+      }
+    }
+
+    async function observeToggleLoop() {
+      const gid = observeUi.selectedGroupId;
+      if (!gid) { toast('请先选择群聊', 'warn'); return; }
+      try {
+        if (observeUi.loopRunning) {
+          const res = await fetch(BASE + '/observe/loop/stop', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: gid })
+          });
+          const data = await res.json();
+          if (data.success) {
+            observeUi.loopRunning = false;
+            updateObserveLoopButton();
+            toast('观察循环已停止', 'info');
+            fetchObserveFeed(false);
+            loadObserveGroups();
+          }
+        } else {
+          const intervalMs = Number(config.observeLoopIntervalMs) || 15000;
+          const res = await fetch(BASE + '/observe/loop/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: gid, intervalMs: intervalMs, executeOutbound: false })
+          });
+          const data = await res.json();
+          if (data.success) {
+            observeUi.loopRunning = true;
+            updateObserveLoopButton();
+            toast('观察循环已启动', 'success');
+            loadObserveGroups();
+          } else {
+            toast(data.error || '启动失败', 'error');
+          }
+        }
+      } catch (_) {
+        toast('请求失败', 'error');
+      }
+    }
+
+    async function observeManualTick() {
+      const gid = observeUi.selectedGroupId;
+      if (!gid) { toast('请先选择群聊', 'warn'); return; }
+      const btn = document.getElementById('btn-observe-tick');
+      if (btn) btn.disabled = true;
+      try {
+        const res = await fetch(BASE + '/observe/planner/tick', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ groupId: gid, executeOutbound: false })
+        });
+        const data = await res.json();
+        if (data.success) {
+          await fetchObserveFeed(false);
+          loadObserveGroups();
+        } else {
+          toast(data.error || 'Planner 运行失败', 'error');
+        }
+      } catch (_) {
+        toast('请求失败', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    function toggleObservePoll(on) {
+      if (observeUi.pollTimer) {
+        clearInterval(observeUi.pollTimer);
+        observeUi.pollTimer = null;
+      }
+      const dot = document.getElementById('observe-live-dot');
+      if (on) {
+        if (dot) dot.classList.remove('off');
+        observeUi.pollTimer = setInterval(function () {
+          if (document.getElementById('pg-observe')?.classList.contains('active')) {
+            loadObserveGroups();
+            if (observeUi.selectedGroupId && document.getElementById('observe-auto-fetch')?.checked) {
+              fetchObserveFeed(false);
+            }
+          }
+        }, 2000);
+      } else if (dot) {
+        dot.classList.add('off');
+      }
+    }
+
+    function initObservePage() {
+      loadObserveGroups();
+      toggleObservePoll(true);
+      const autoEl = document.getElementById('observe-auto-fetch');
+      if (autoEl && !autoEl._bound) {
+        autoEl._bound = true;
+        autoEl.addEventListener('change', function (e) {
+          toggleObservePoll(!!e.target.checked);
+        });
+      }
+    }
+
+    function destroyObservePage() {
+      toggleObservePoll(false);
+    }
+
     async function startSkillhubEnvSetup(isRetry) {
       const regEl = document.getElementById('cfg-skillhubRegistry');
       const tokEl = document.getElementById('cfg-skillhubToken');
@@ -8489,7 +9675,7 @@ npx playwright install chromium</pre>
     }
 
     async function skillhubRemoveSkill(slug) {
-      if (!confirm('移除技能 ' + slug + '？')) return;
+      if (!(await showAppConfirm({ title: '移除技能', message: '移除技能 ' + slug + '？', confirmText: '移除', danger: true }))) return;
       try {
         const res = await fetch(BASE + '/skillhub/remove', {
           method: 'POST',
@@ -8672,6 +9858,586 @@ npx playwright install chromium</pre>
       mergeStickerCatalogWithPool();
       onStickerModeChange();
       refreshStructuredSummary('stickerSelectionPrompt');
+      syncEmojiCacheFormFromConfig();
+    }
+
+    let emojiRegistryList = [];
+
+    function syncEmojiCacheFormFromConfig() {
+      const cacheTgl = document.getElementById('tgl-emojiCacheEnabled');
+      if (cacheTgl) cacheTgl.classList.toggle('on', config.emojiCacheEnabled !== false);
+      const autoTgl = document.getElementById('tgl-emojiAutoRegister');
+      if (autoTgl) autoTgl.classList.toggle('on', config.emojiAutoRegister !== false);
+      const useTgl = document.getElementById('tgl-emojiUseRegistry');
+      if (useTgl) useTgl.classList.toggle('on', config.emojiUseRegistry !== false);
+      const maxMb = document.getElementById('cfg-emojiMaxCacheSizeMb');
+      if (maxMb) maxMb.value = config.emojiMaxCacheSizeMb ?? 5;
+      const vlmPrompt = document.getElementById('cfg-emojiVlmPrompt');
+      if (vlmPrompt) vlmPrompt.value = config.emojiVlmPrompt || '';
+    }
+
+    async function loadEmojiRegistry() {
+      const statsEl = document.getElementById('emoji-registry-stats');
+      const grid = document.getElementById('emoji-registry-grid');
+      if (!grid) return;
+      if (statsEl) statsEl.textContent = '加载中…';
+      try {
+        const res = await fetch(BASE + '/emoji-registry?registered=false');
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || '加载失败');
+        emojiRegistryList = data.data || [];
+        if (statsEl) {
+          const st = data.stats || {};
+          statsEl.textContent = `已注册 ${data.registered || 0} / 共 ${data.total || 0}（采集 ${st.captured || 0}，跳过 ${st.skipped || 0}）`;
+        }
+        grid.innerHTML = emojiRegistryList.length ? emojiRegistryList.map((e) => {
+          const tags = (e.emotions || []).slice(0, 4).map((t) => `<span class="tag-chip">${escapeHtml(t)}</span>`).join('');
+          const status = e.registered ? '已占' : (e.rejectedReason === 'not_emoji' ? '非表情' : '未注册');
+          const preview = e.preview ? `<img src="${escapeHtml(e.preview)}" alt="" loading="lazy" />` : '<span class="material-symbols-outlined">image</span>';
+          return `<div class="sticker-cell${e.registered ? ' selected' : ''}" data-emoji-id="${escapeHtml(e.id || e.hash)}">
+            <div class="sticker-thumb">${preview}</div>
+            <div class="sticker-meta"><span class="sticker-name">${escapeHtml((e.description || e.hash || '').slice(0, 24))}</span>
+            <span class="sticker-sub">${escapeHtml(status)} · 群 ${escapeHtml(e.sourceGroupId || '-')} · 用 ${e.queryCount || 0} 次</span>
+            <div class="tag-row">${tags}</div></div>
+            <button type="button" class="btn btn-s sticker-action" onclick="toggleEmojiRegistry('${escapeHtml(e.id || e.hash)}', ${e.registered ? 'false' : 'true'})">${e.registered ? '取消注册' : '占为己有'}</button>
+          </div>`;
+        }).join('') : '<p style="padding:16px;color:var(--text3);font-size:13px">暂无缓存。在群里有人发表情/图片后会自动采集（需开启缓存 + 配置视觉 API）。</p>';
+      } catch (e) {
+        if (statsEl) statsEl.textContent = '失败';
+        if (grid) grid.innerHTML = '<p style="padding:16px;color:var(--danger)">' + escapeHtml(e.message) + '</p>';
+      }
+    }
+
+    async function toggleEmojiRegistry(id, registered) {
+      try {
+        const res = await fetch(BASE + '/emoji-registry/toggle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, registered: registered !== false && registered !== 'false' })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || '操作失败');
+        toast(registered ? '已占为己有' : '已改为已认识', 'success');
+        loadEmojiRegistry();
+        if (typeof loadEmojiLibraryPage === 'function') loadEmojiLibraryPage();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    let emojiLibStatus = 'all';
+    let emojiLibGroupId = '';
+    let emojiLibDebounce = null;
+    const EMOJI_STATUS_LABEL = { unknown: '不认识', recognized: '已认识', owned: '占为己有', pending: '待处理', discarded: '抛弃' };
+
+    function debounceEmojiLibLoad() {
+      clearTimeout(emojiLibDebounce);
+      emojiLibDebounce = setTimeout(loadEmojiLibraryPage, 300);
+    }
+
+    function setEmojiLibStatus(el, status) {
+      emojiLibStatus = status;
+      document.querySelectorAll('[data-elib-status]').forEach((b) => b.classList.toggle('active', b.dataset.elibStatus === status));
+      loadEmojiLibraryPage();
+    }
+
+    function selectEmojiLibGroup(el, gid) {
+      emojiLibGroupId = gid;
+      document.querySelectorAll('[data-elib-group]').forEach((b) => b.classList.toggle('active', b.dataset.elibGroup === gid));
+      if (el) el.classList.add('active');
+      loadEmojiLibraryPage();
+    }
+
+    async function setEmojiLibItemStatus(id, status) {
+      try {
+        const res = await fetch(BASE + '/emoji-library/status', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, status })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || '失败');
+        toast('已更新为：' + (EMOJI_STATUS_LABEL[status] || status), 'success');
+        loadEmojiLibraryPage();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function deleteEmojiLibItem(id) {
+      if (!(await showAppConfirm({ title: '删除表情', message: '确定删除该表情缓存？', confirmText: '删除', danger: true }))) return;
+      try {
+        const res = await fetch(BASE + '/emoji-library/delete', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || '失败');
+        toast('已删除', 'success');
+        loadEmojiLibraryPage();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function loadEmojiLibraryPage() {
+      const grid = document.getElementById('emoji-lib-grid');
+      const empty = document.getElementById('emoji-lib-empty');
+      if (!grid) return;
+      const q = (document.getElementById('elib-search')?.value || '').trim();
+      const params = new URLSearchParams({ status: emojiLibStatus, limit: '100' });
+      if (emojiLibGroupId) params.set('groupId', emojiLibGroupId);
+      if (q) params.set('q', q);
+      try {
+        const res = await fetch(BASE + '/emoji-library?' + params);
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || '加载失败');
+        const st = data.stats || {};
+        ['all', 'unknown', 'recognized', 'owned', 'pending', 'discarded'].forEach((k) => {
+          const el = document.getElementById('elib-c-' + k);
+          if (el) el.textContent = st[k] != null ? '(' + st[k] + ')' : '';
+        });
+        const statAll = document.getElementById('elib-stat-all');
+        const stat7d = document.getElementById('elib-stat-7d');
+        if (statAll) statAll.textContent = st.all || 0;
+        if (stat7d) stat7d.textContent = st.recent7d || 0;
+        const groupsEl = document.getElementById('emoji-lib-groups');
+        if (groupsEl && data.groups) {
+          groupsEl.innerHTML = data.groups.map((g) =>
+            `<div class="mai-group-item${emojiLibGroupId === g.groupId ? ' active' : ''}" data-elib-group="${escapeHtml(g.groupId)}" onclick="selectEmojiLibGroup(this,'${escapeHtml(g.groupId)}')">${escapeHtml(g.groupId)}<span style="opacity:0.6">${g.count}</span></div>`
+          ).join('');
+        }
+        const list = data.data || [];
+        if (!list.length) {
+          grid.innerHTML = '';
+          if (empty) empty.style.display = 'block';
+          return;
+        }
+        if (empty) empty.style.display = 'none';
+        grid.innerHTML = list.map((e) => {
+          const tags = (e.tags || e.emotions || []).map((t) => `<span class="tag-chip">${escapeHtml(t)}</span>`).join('');
+          const preview = e.preview ? `<img class="mai-emoji-thumb" src="${escapeHtml(BASE + '/' + e.preview)}" alt="" loading="lazy" />` : '<div class="mai-emoji-thumb" style="display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined">image</span></div>';
+          const badgeCls = e.status === 'owned' ? 'mai-status-owned' : (e.status === 'pending' ? 'mai-status-pending' : (e.status === 'discarded' ? 'mai-status-discarded' : ''));
+          const id = escapeHtml(e.id);
+          return `<div class="mai-emoji-card ${e.status === 'owned' ? 'owned' : ''}">
+            <span class="mai-status-badge ${badgeCls}">${escapeHtml(EMOJI_STATUS_LABEL[e.status] || e.status)}</span>
+            ${preview}
+            <div class="mai-emoji-meta">${escapeHtml((e.description || e.hash || '').slice(0, 40))}<br>群 ${escapeHtml(e.sourceGroupId || '-')} · 用 ${e.queryCount || 0}</div>
+            <div class="tag-row">${tags || '<span class="tag-chip">无标签</span>'}</div>
+            <div class="mai-emoji-actions">
+              ${e.status !== 'owned' ? `<button type="button" class="btn btn-s btn-p" onclick="setEmojiLibItemStatus('${id}','owned')">占为己有</button>` : ''}
+              ${e.status !== 'recognized' ? `<button type="button" class="btn btn-s" onclick="setEmojiLibItemStatus('${id}','recognized')">已认识</button>` : ''}
+              ${e.status !== 'discarded' ? `<button type="button" class="btn btn-s" onclick="setEmojiLibItemStatus('${id}','discarded')">抛弃</button>` : ''}
+              <button type="button" class="btn btn-s" onclick="deleteEmojiLibItem('${id}')" title="删除"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button>
+            </div></div>`;
+        }).join('');
+      } catch (e) {
+        grid.innerHTML = '<p style="color:var(--danger)">' + escapeHtml(e.message) + '</p>';
+      }
+    }
+
+    let expStatus = 'all';
+    let expGroupId = '';
+    let expTab = 'list';
+    let expReviewIndex = 0;
+    let expListCache = [];
+    let expDebounce = null;
+    const EXP_REVIEW_LABEL = { pending: '待审核', ai_passed: 'AI通过', manual_passed: '人工通过', passed: '已通过', rejected: '已拒绝' };
+
+    function debounceExpressionLoad() {
+      clearTimeout(expDebounce);
+      expDebounce = setTimeout(loadExpressionsPage, 300);
+    }
+
+    function switchExpressionTab(tab) {
+      expTab = tab;
+      document.getElementById('exp-tab-list')?.classList.toggle('active', tab === 'list');
+      document.getElementById('exp-tab-review')?.classList.toggle('active', tab === 'review');
+      document.getElementById('exp-list-panel').style.display = tab === 'list' ? 'block' : 'none';
+      document.getElementById('exp-review-panel').style.display = tab === 'review' ? 'block' : 'none';
+      if (tab === 'review') { expStatus = 'pending'; document.querySelectorAll('[data-exp-status]').forEach((b) => b.classList.toggle('active', b.dataset.expStatus === 'pending')); }
+      loadExpressionsPage();
+    }
+
+    function setExpressionStatus(el, status) {
+      expStatus = status;
+      document.querySelectorAll('[data-exp-status]').forEach((b) => b.classList.toggle('active', b.dataset.expStatus === status));
+      loadExpressionsPage();
+    }
+
+    function selectExpressionGroup(el, gid) {
+      expGroupId = gid;
+      document.querySelectorAll('[data-exp-group]').forEach((b) => b.classList.toggle('active', b.dataset.expGroup === gid));
+      if (el) el.classList.add('active');
+      loadExpressionsPage();
+    }
+
+    async function toggleExpressionSetting(key, el) {
+      el.classList.toggle('on');
+      const val = el.classList.contains('on');
+      try {
+        const body = {}; body[key] = val;
+        await fetch(BASE + '/expressions/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        toast('设置已保存', 'success');
+      } catch (e) { toast('保存失败', 'error'); }
+    }
+
+    function reviewBadge(rs) {
+      if (rs === 'pending') return '<span class="badge-pending">待审核</span>';
+      if (rs === 'rejected') return '<span class="badge-reject">已拒绝</span>';
+      if (rs === 'ai_passed') return '<span class="badge-pass">AI通过</span>';
+      return '<span class="badge-pass">人工通过</span>';
+    }
+
+    async function reviewExpressionItem(id, action) {
+      try {
+        const res = await fetch(BASE + '/expressions/review', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, action })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || '失败');
+        toast(action === 'reject' ? '已拒绝' : '已通过', 'success');
+        loadExpressionsPage();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function deleteExpressionItem(id) {
+      if (!(await showAppConfirm({ title: '删除表达', message: '确定删除该表达？', confirmText: '删除', danger: true }))) return;
+      try {
+        const res = await fetch(BASE + '/expressions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || '失败');
+        loadExpressionsPage();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function openExpressionCreateModal() {
+      const data = await showAppPrompt({
+        title: '新增表达方式',
+        confirmText: '添加',
+        fields: [
+          { id: 'situation', label: '情境（什么场景下使用）', required: true, placeholder: '例如：被调侃时' },
+          { id: 'style', label: '风格（怎么表达）', required: true, placeholder: '例如：自嘲式打哈哈' }
+        ]
+      });
+      if (!data) return;
+      fetch(BASE + '/expressions', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ situation: data.situation, style: data.style, groupId: expGroupId || '', reviewStatus: 'pending', source: 'manual' })
+      }).then((r) => r.json()).then((d) => {
+        if (d.success) { toast('已新增', 'success'); loadExpressionsPage(); }
+        else toast(d.error || '失败', 'error');
+      });
+    }
+
+    function renderExpressionReviewCard() {
+      const wrap = document.getElementById('exp-review-card-wrap');
+      const empty = document.getElementById('exp-review-empty');
+      const pending = expListCache.filter((e) => e.reviewStatus === 'pending');
+      if (!pending.length) {
+        if (wrap) wrap.innerHTML = '';
+        if (empty) empty.style.display = 'block';
+        return;
+      }
+      if (empty) empty.style.display = 'none';
+      if (expReviewIndex >= pending.length) expReviewIndex = 0;
+      const e = pending[expReviewIndex];
+      const dt = e.createdAt ? new Date(e.createdAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+      wrap.innerHTML = `<div class="mai-review-card">
+        <div style="display:flex;justify-content:space-between;margin-bottom:12px"><span>#${escapeHtml(String(e.id).slice(-6))}</span><span class="badge-pending">待审核</span></div>
+        <div class="mai-review-label">情景</div><div class="mai-review-box">${escapeHtml(e.situation)}</div>
+        <div class="mai-review-label">风格</div><div class="mai-review-box mai-review-style">${escapeHtml(e.style)}</div>
+        <div class="mai-review-footer"><span>群 ${escapeHtml(e.groupId || '全局')}</span><span>${dt}</span></div>
+        <div class="mai-review-actions">
+          <button type="button" class="btn btn-s" onclick="reviewExpressionItem('${escapeHtml(e.id)}','reject')">拒绝</button>
+          <button type="button" class="btn btn-s btn-p" onclick="reviewExpressionItem('${escapeHtml(e.id)}','pass')">人工通过</button>
+          <button type="button" class="btn btn-s" onclick="reviewExpressionItem('${escapeHtml(e.id)}','ai_pass')">AI通过</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:16px">
+          <button type="button" class="btn btn-s" ${expReviewIndex <= 0 ? 'disabled' : ''} onclick="expReviewNav(-1)"><span class="material-symbols-outlined">chevron_left</span></button>
+          <span style="font-size:12px;color:var(--text3)">${expReviewIndex + 1} / ${pending.length}</span>
+          <button type="button" class="btn btn-s" ${expReviewIndex >= pending.length - 1 ? 'disabled' : ''} onclick="expReviewNav(1)"><span class="material-symbols-outlined">chevron_right</span></button>
+        </div>
+      </div>`;
+    }
+
+    function expReviewNav(delta) {
+      const pending = expListCache.filter((e) => e.reviewStatus === 'pending');
+      if (!pending.length) return;
+      expReviewIndex = Math.max(0, Math.min(pending.length - 1, expReviewIndex + delta));
+      renderExpressionReviewCard();
+    }
+
+    async function loadExpressionsPage() {
+      const q = (document.getElementById('exp-search')?.value || '').trim();
+      const params = new URLSearchParams({ status: expStatus, limit: '200' });
+      if (expGroupId) params.set('groupId', expGroupId);
+      if (q) params.set('q', q);
+      try {
+        const res = await fetch(BASE + '/expressions?' + params);
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || '加载失败');
+        expListCache = data.data || [];
+        const st = data.stats || {};
+        const set = data.settings || {};
+        document.getElementById('exp-stat-all').textContent = st.all || 0;
+        document.getElementById('exp-stat-pending').textContent = st.pending || 0;
+        document.getElementById('exp-stat-7d').textContent = st.recent7d || 0;
+        document.getElementById('tgl-expLearning')?.classList.toggle('on', set.learningEnabled !== false);
+        document.getElementById('tgl-expUsage')?.classList.toggle('on', set.usageEnabled !== false);
+        document.getElementById('tgl-expAutoAiPass')?.classList.toggle('on', set.autoAiPass === true);
+        const groupsEl = document.getElementById('exp-groups');
+        if (groupsEl && data.groups) {
+          groupsEl.innerHTML = data.groups.map((g) =>
+            `<div class="mai-group-item${expGroupId === g.groupId ? ' active' : ''}" data-exp-group="${escapeHtml(g.groupId)}" onclick="selectExpressionGroup(this,'${escapeHtml(g.groupId)}')">${escapeHtml(g.groupId)}<span style="opacity:0.6">${g.count}</span></div>`
+          ).join('');
+        }
+        const tbody = document.getElementById('exp-table-body');
+        if (tbody && expTab === 'list') {
+          tbody.innerHTML = expListCache.map((e) => `<tr>
+            <td><input type="checkbox" data-exp-id="${escapeHtml(e.id)}" /></td>
+            <td>${escapeHtml(e.situation)}</td>
+            <td>${escapeHtml(e.style)}</td>
+            <td>${reviewBadge(e.reviewStatus)}</td>
+            <td>
+              ${e.reviewStatus === 'pending' ? `<button type="button" class="btn btn-s btn-p" onclick="reviewExpressionItem('${escapeHtml(e.id)}','pass')">通过</button>` : ''}
+              <button type="button" class="btn btn-s" onclick="deleteExpressionItem('${escapeHtml(e.id)}')">删</button>
+            </td></tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text3)">暂无数据</td></tr>';
+        }
+        if (expTab === 'review') renderExpressionReviewCard();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    function switchFakeHumanTab(tab) {
+      ['basic', 'reply', 'maibot', 'groups'].forEach((t) => {
+        document.getElementById('fh-tab-' + t)?.classList.toggle('active', t === tab);
+        const panel = document.getElementById('fh-panel-' + t);
+        if (panel) panel.style.display = t === tab ? 'block' : 'none';
+      });
+      if (tab === 'groups' && typeof loadFakeHumanGroups === 'function') loadFakeHumanGroups();
+    }
+
+    function switchApiTab(tab) {
+      ['basic', 'model', 'params', 'vision', 'other'].forEach((t) => {
+        document.getElementById('api-tab-' + t)?.classList.toggle('active', t === tab);
+        const panel = document.getElementById('api-panel-' + t);
+        if (panel) panel.style.display = t === tab ? 'block' : 'none';
+      });
+    }
+
+    function switchAgentTab(tab) {
+      ['core', 'qq-bili', 'system', 'tools', 'mcp'].forEach((t) => {
+        document.getElementById('agent-tab-' + t)?.classList.toggle('active', t === tab);
+        const panel = document.getElementById('agent-panel-' + t);
+        if (panel) panel.style.display = t === tab ? 'block' : 'none';
+      });
+      if (tab === 'mcp' && typeof loadAgentStatus === 'function') loadAgentStatus();
+    }
+
+    let slangStatus = 'all';
+    let slangGroupId = '';
+    let slangTab = 'list';
+    let slangReviewIndex = 0;
+    let slangListCache = [];
+    let slangDebounce = null;
+    const SLANG_TYPE_LABEL = { slang: '黑话', meme: '梗', abbrev: '缩写', inside_joke: '群内梗', catchphrase: '口头禅' };
+
+    function debounceSlangLoad() {
+      clearTimeout(slangDebounce);
+      slangDebounce = setTimeout(loadSlangPage, 300);
+    }
+
+    function switchSlangTab(tab) {
+      slangTab = tab;
+      document.getElementById('slang-tab-list')?.classList.toggle('active', tab === 'list');
+      document.getElementById('slang-tab-review')?.classList.toggle('active', tab === 'review');
+      document.getElementById('slang-list-panel').style.display = tab === 'list' ? 'block' : 'none';
+      document.getElementById('slang-review-panel').style.display = tab === 'review' ? 'block' : 'none';
+      if (tab === 'review') {
+        slangStatus = 'pending';
+        document.querySelectorAll('[data-slang-status]').forEach((b) => b.classList.toggle('active', b.dataset.slangStatus === 'pending'));
+      }
+      loadSlangPage();
+    }
+
+    function setSlangStatus(el, status) {
+      slangStatus = status;
+      document.querySelectorAll('[data-slang-status]').forEach((b) => b.classList.toggle('active', b.dataset.slangStatus === status));
+      loadSlangPage();
+    }
+
+    function selectSlangGroup(el, gid) {
+      slangGroupId = gid;
+      document.querySelectorAll('[data-slang-group]').forEach((b) => b.classList.toggle('active', b.dataset.slangGroup === gid));
+      if (el) el.classList.add('active');
+      loadSlangPage();
+    }
+
+    async function toggleSlangSetting(key, el) {
+      el.classList.toggle('on');
+      const val = el.classList.contains('on');
+      try {
+        const body = {}; body[key] = val;
+        await fetch(BASE + '/slangs/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        toast('设置已保存', 'success');
+      } catch (e) { toast('保存失败', 'error'); }
+    }
+
+    async function reviewSlangItem(id, action) {
+      try {
+        const res = await fetch(BASE + '/slangs/review', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, action })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || '失败');
+        toast(action === 'reject' ? '已拒绝' : '已通过', 'success');
+        loadSlangPage();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function deleteSlangItem(id) {
+      if (!(await showAppConfirm({ title: '删除词条', message: '确定删除该词条？', confirmText: '删除', danger: true }))) return;
+      try {
+        const res = await fetch(BASE + '/slangs/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || '失败');
+        loadSlangPage();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function openSlangCreateModal() {
+      const data = await showAppPrompt({
+        title: '新增黑话 / 梗',
+        confirmText: '添加',
+        fields: [
+          { id: 'term', label: '词条', required: true, placeholder: '黑话/梗/缩写' },
+          { id: 'meaning', label: '含义说明', placeholder: '可选' },
+          { id: 'usage', label: '典型用法', placeholder: '可选' },
+          { id: 'type', label: '类型', type: 'select', options: [
+            { value: 'slang', label: '黑话' }, { value: 'meme', label: '梗' }, { value: 'abbrev', label: '缩写' },
+            { value: 'inside_joke', label: '群内梗' }, { value: 'catchphrase', label: '口头禅' }
+          ]}
+        ]
+      });
+      if (!data) return;
+      fetch(BASE + '/slangs', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          term: data.term, meaning: data.meaning || '', usage: data.usage || '',
+          type: data.type || 'slang', groupId: slangGroupId || '', reviewStatus: 'pending', source: 'manual'
+        })
+      }).then((r) => r.json()).then((d) => {
+        if (d.success) { toast('已新增', 'success'); loadSlangPage(); }
+        else toast(d.error || '失败', 'error');
+      });
+    }
+
+    function triggerSlangImport() {
+      document.getElementById('slang-import-file')?.click();
+    }
+
+    async function onSlangImportFile(input) {
+      const file = input?.files?.[0];
+      if (!file) return;
+      input.value = '';
+      try {
+        const text = await file.text();
+        const ext = (file.name.split('.').pop() || '').toLowerCase();
+        const format = ext === 'json' ? 'json' : 'txt';
+        const res = await fetch(BASE + '/slangs/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: text, format, groupId: slangGroupId || '', skipDuplicate: true })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || '导入失败');
+        toast('导入完成：新增 ' + (data.imported || 0) + ' 条，跳过 ' + (data.skipped || 0) + ' 条', 'success');
+        if (data.errors?.length) toast('部分行解析失败：' + data.errors.slice(0, 3).join('；'), 'warn');
+        loadSlangPage();
+      } catch (e) {
+        toast(e.message || '导入失败', 'error');
+      }
+    }
+
+    function renderSlangReviewCard() {
+      const wrap = document.getElementById('slang-review-card-wrap');
+      const empty = document.getElementById('slang-review-empty');
+      const pending = slangListCache.filter((s) => s.reviewStatus === 'pending');
+      if (!pending.length) {
+        if (wrap) wrap.innerHTML = '';
+        if (empty) empty.style.display = 'block';
+        return;
+      }
+      if (empty) empty.style.display = 'none';
+      if (slangReviewIndex >= pending.length) slangReviewIndex = 0;
+      const s = pending[slangReviewIndex];
+      const tags = (s.tags || []).map((t) => `<span class="tag-chip">${escapeHtml(t)}</span>`).join('');
+      const dt = s.createdAt ? new Date(s.createdAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+      wrap.innerHTML = `<div class="mai-review-card">
+        <div style="display:flex;justify-content:space-between;margin-bottom:12px"><span>#${escapeHtml(String(s.id).slice(-6))}</span><span class="badge-pending">${escapeHtml(SLANG_TYPE_LABEL[s.type] || s.type)} · 待审核</span></div>
+        <div class="mai-review-label">词条</div><div class="mai-review-box mai-review-style">${escapeHtml(s.term)}</div>
+        <div class="mai-review-label">含义</div><div class="mai-review-box">${escapeHtml(s.meaning || '（无）')}</div>
+        ${s.usage ? `<div class="mai-review-label">用法</div><div class="mai-review-box">${escapeHtml(s.usage)}</div>` : ''}
+        <div class="tag-row" style="margin-top:8px">${tags || ''}</div>
+        <div class="mai-review-footer"><span>群 ${escapeHtml(s.groupId || '全局')}</span><span>${dt}</span></div>
+        <div class="mai-review-actions">
+          <button type="button" class="btn btn-s" onclick="reviewSlangItem('${escapeHtml(s.id)}','reject')">拒绝</button>
+          <button type="button" class="btn btn-s btn-p" onclick="reviewSlangItem('${escapeHtml(s.id)}','pass')">人工通过</button>
+          <button type="button" class="btn btn-s" onclick="reviewSlangItem('${escapeHtml(s.id)}','ai_pass')">AI通过</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:16px">
+          <button type="button" class="btn btn-s" ${slangReviewIndex <= 0 ? 'disabled' : ''} onclick="slangReviewNav(-1)"><span class="material-symbols-outlined">chevron_left</span></button>
+          <span style="font-size:12px;color:var(--text3)">${slangReviewIndex + 1} / ${pending.length}</span>
+          <button type="button" class="btn btn-s" ${slangReviewIndex >= pending.length - 1 ? 'disabled' : ''} onclick="slangReviewNav(1)"><span class="material-symbols-outlined">chevron_right</span></button>
+        </div>
+      </div>`;
+    }
+
+    function slangReviewNav(delta) {
+      const pending = slangListCache.filter((s) => s.reviewStatus === 'pending');
+      if (!pending.length) return;
+      slangReviewIndex = Math.max(0, Math.min(pending.length - 1, slangReviewIndex + delta));
+      renderSlangReviewCard();
+    }
+
+    async function loadSlangPage() {
+      const q = (document.getElementById('slang-search')?.value || '').trim();
+      const type = (document.getElementById('slang-type-filter')?.value || '').trim();
+      const params = new URLSearchParams({ status: slangStatus, limit: '200' });
+      if (slangGroupId) params.set('groupId', slangGroupId);
+      if (q) params.set('q', q);
+      if (type) params.set('type', type);
+      try {
+        const res = await fetch(BASE + '/slangs?' + params);
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || '加载失败');
+        slangListCache = data.data || [];
+        const st = data.stats || {};
+        const set = data.settings || {};
+        document.getElementById('slang-stat-all').textContent = st.all || 0;
+        document.getElementById('slang-stat-pending').textContent = st.pending || 0;
+        document.getElementById('slang-stat-7d').textContent = st.recent7d || 0;
+        document.getElementById('tgl-slangLearning')?.classList.toggle('on', set.learningEnabled !== false);
+        document.getElementById('tgl-slangUsage')?.classList.toggle('on', set.usageEnabled !== false);
+        document.getElementById('tgl-slangAutoAiPass')?.classList.toggle('on', set.autoAiPass === true);
+        const groupsEl = document.getElementById('slang-groups');
+        if (groupsEl && data.groups) {
+          groupsEl.innerHTML = data.groups.map((g) =>
+            `<div class="mai-group-item${slangGroupId === g.groupId ? ' active' : ''}" data-slang-group="${escapeHtml(g.groupId)}" onclick="selectSlangGroup(this,'${escapeHtml(g.groupId)}')">${escapeHtml(g.groupId)}<span style="opacity:0.6">${g.count}</span></div>`
+          ).join('');
+        }
+        const tbody = document.getElementById('slang-table-body');
+        if (tbody && slangTab === 'list') {
+          tbody.innerHTML = slangListCache.map((s) => {
+            const tags = (s.tags || []).map((t) => `<span class="tag-chip">${escapeHtml(t)}</span>`).join('') || '—';
+            return `<tr>
+              <td><strong>${escapeHtml(s.term)}</strong></td>
+              <td>${escapeHtml(s.meaning || '—')}</td>
+              <td>${escapeHtml(SLANG_TYPE_LABEL[s.type] || s.type)}</td>
+              <td>${tags}</td>
+              <td>${reviewBadge(s.reviewStatus)}</td>
+              <td>
+                ${s.reviewStatus === 'pending' ? `<button type="button" class="btn btn-s btn-p" onclick="reviewSlangItem('${escapeHtml(s.id)}','pass')">通过</button>` : ''}
+                <button type="button" class="btn btn-s" onclick="deleteSlangItem('${escapeHtml(s.id)}')">删</button>
+              </td></tr>`;
+          }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text3)">暂无数据</td></tr>';
+        }
+        if (slangTab === 'review') renderSlangReviewCard();
+      } catch (e) { toast(e.message, 'error'); }
     }
 
     function mergeStickerCatalogWithPool() {
@@ -8834,6 +10600,11 @@ npx playwright install chromium</pre>
       cfg.stickerSendNum = Math.max(1, Math.min(64, parseInt(document.getElementById('cfg-stickerSendNum')?.value, 10) || 25));
       cfg.stickerSelectionPrompt = (document.getElementById('cfg-stickerSelectionPrompt')?.value || '').trim();
       cfg.stickerPool = collectStickerPoolFromUI();
+      cfg.emojiCacheEnabled = document.getElementById('tgl-emojiCacheEnabled')?.classList.contains('on') !== false;
+      cfg.emojiAutoRegister = document.getElementById('tgl-emojiAutoRegister')?.classList.contains('on') !== false;
+      cfg.emojiUseRegistry = document.getElementById('tgl-emojiUseRegistry')?.classList.contains('on') !== false;
+      cfg.emojiMaxCacheSizeMb = Math.max(1, Math.min(20, parseInt(document.getElementById('cfg-emojiMaxCacheSizeMb')?.value, 10) || 5));
+      cfg.emojiVlmPrompt = (document.getElementById('cfg-emojiVlmPrompt')?.value || '').trim();
       try {
         const res = await fetch(BASE + '/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) });
         const data = await res.json();
@@ -8943,7 +10714,9 @@ npx playwright install chromium</pre>
       toggleBrowserAdvancedFold();
       updateBrowserEnginePanels();
       refreshBrowserEngineStatus();
-      ['agentToolWebSearchEnabled','agentToolCurrentTimeEnabled','agentToolMcpEnabled','agentToolShellExecEnabled','agentToolFileManagerEnabled','agentToolRegistryEnabled','agentToolExplorerEnabled','agentToolBrowserSnapshotEnabled','agentToolBrowserActEnabled','agentToolBrowserUseTaskEnabled','agentQqToolsEnabled','agentQqContextEnabled','agentQqGroupContextEnabled','agentQqGroupContextAuto','agentToolQqUserInfoEnabled','agentToolQqGroupInfoEnabled','agentToolQqGroupContextEnabled','agentDangerGuardEnabled','agentDangerRequireAdmin','agentDangerRequireWebConfirm','agentDangerOnSystemPower','agentDangerOnShellDelete','agentDangerOnFileDelete','agentDangerOnRegistryWrite'].forEach(function(k){
+      refreshSqliteEnvStatus();
+      refreshBiliSessions();
+      ['agentToolWebSearchEnabled','agentToolCurrentTimeEnabled','agentToolMcpEnabled','agentToolShellExecEnabled','agentToolFileManagerEnabled','agentToolRegistryEnabled','agentToolExplorerEnabled','agentToolBrowserSnapshotEnabled','agentToolBrowserActEnabled','agentToolBrowserUseTaskEnabled','agentQqToolsEnabled','agentQqContextEnabled','agentQqGroupContextEnabled','agentQqGroupContextAuto','agentToolQqUserInfoEnabled','agentToolQqGroupInfoEnabled','agentToolQqGroupExtendedEnabled','agentToolQqNapcatEnabled','agentToolQqNapcatAllowWrite','agentToolQqNapcatDangerGuard','agentToolQqGroupContextEnabled','agentBiliToolsEnabled','agentToolBiliCatalogEnabled','agentToolBiliCallEnabled','agentToolBiliQuickEnabled','agentToolBiliLoginQrEnabled','agentToolBiliAllowWrite','agentToolBiliDangerGuard','agentDangerGuardEnabled','agentDangerRequireAdmin','agentDangerRequireWebConfirm','agentDangerOnSystemPower','agentDangerOnShellDelete','agentDangerOnFileDelete','agentDangerOnRegistryWrite'].forEach(function(k){
         const el = document.getElementById('tgl-' + k);
         if (el) el.classList.toggle('on', config[k] !== false);
       });
@@ -9131,7 +10904,7 @@ npx playwright install chromium</pre>
       const gch = config.fakeHumanGroupChance || {};
       document.getElementById('cfg-fakeHumanGroupChance').value = Object.keys(gch).map((k) => k + ':' + gch[k]).join('\n');
       document.getElementById('cfg-fakeHumanMinInterval').value = config.fakeHumanMinInterval ?? 90;
-      document.getElementById('cfg-fakeHumanReplyMode').value = (config.fakeHumanReplyMode || 'mixed').toLowerCase();
+      document.getElementById('cfg-fakeHumanReplyMode').value = (config.fakeHumanReplyMode || 'ai').toLowerCase();
       document.getElementById('cfg-fakeHumanTextList').value = Array.isArray(config.fakeHumanTextList) ? config.fakeHumanTextList.join('\n') : (config.fakeHumanTextList || '哈哈\n确实\n666').replace(/,/g, '\n');
       document.getElementById('cfg-fakeHumanEmojiList').value = Array.isArray(config.fakeHumanEmojiList) ? config.fakeHumanEmojiList.join('\n') : (config.fakeHumanEmojiList || '哈\n6\n草').replace(/,/g, '\n');
       document.getElementById('cfg-fakeHumanSystemPrompt').value = config.fakeHumanSystemPrompt || '';
@@ -9147,6 +10920,28 @@ npx playwright install chromium</pre>
       if (fhActionPrompt) fhActionPrompt.value = config.fakeHumanActionChoosePrompt || '';
       const fhImgPrompt = document.getElementById('cfg-fakeHumanImageDescribePrompt');
       if (fhImgPrompt) fhImgPrompt.value = config.fakeHumanImageDescribePrompt || '';
+      const fhMaisaka = document.getElementById('tgl-fakeHumanMaisakaMode');
+      if (fhMaisaka) fhMaisaka.classList.toggle('on', config.fakeHumanMaisakaMode !== false);
+      const fhPlanner = document.getElementById('tgl-fakeHumanPlannerLoop');
+      if (fhPlanner) fhPlanner.classList.toggle('on', config.fakeHumanPlannerLoop !== false);
+      const fhPlannerRounds = document.getElementById('cfg-fakeHumanPlannerMaxRounds');
+      if (fhPlannerRounds) fhPlannerRounds.value = config.fakeHumanPlannerMaxRounds ?? 5;
+      const fhMultiP = document.getElementById('cfg-fakeHumanMultipleProbability');
+      if (fhMultiP) fhMultiP.value = config.fakeHumanMultipleProbability ?? 0.12;
+      const fhMultiStyle = document.getElementById('cfg-fakeHumanMultipleReplyStyle');
+      if (fhMultiStyle) fhMultiStyle.value = Array.isArray(config.fakeHumanMultipleReplyStyle) ? config.fakeHumanMultipleReplyStyle.join('\n') : '';
+      const fhGroupAtt = document.getElementById('cfg-fakeHumanGroupChatAttention');
+      if (fhGroupAtt) fhGroupAtt.value = config.fakeHumanGroupChatAttention || '';
+      const fhMem = document.getElementById('tgl-fakeHumanEnableMemoryRecall');
+      if (fhMem) fhMem.classList.toggle('on', config.fakeHumanEnableMemoryRecall !== false);
+      const fhExp = document.getElementById('tgl-fakeHumanEnableExpressionLearning');
+      if (fhExp) fhExp.classList.toggle('on', config.fakeHumanEnableExpressionLearning !== false);
+      const fhSlang = document.getElementById('tgl-fakeHumanEnableSlangLearning');
+      if (fhSlang) fhSlang.classList.toggle('on', config.fakeHumanEnableSlangLearning !== false);
+      const fhBeh = document.getElementById('tgl-fakeHumanEnableBehaviorLearning');
+      if (fhBeh) fhBeh.classList.toggle('on', config.fakeHumanEnableBehaviorLearning !== false);
+      const fhMemLim = document.getElementById('cfg-fakeHumanMemoryRecallLimit');
+      if (fhMemLim) fhMemLim.value = config.fakeHumanMemoryRecallLimit ?? 3;
       document.getElementById('cfg-fakeHumanMaxLength').value = config.fakeHumanMaxLength ?? 80;
       document.getElementById('cfg-fakeHumanAtChance').value = config.fakeHumanAtChance ?? 0.25;
       document.getElementById('cfg-fakeHumanAtWho').value = (config.fakeHumanAtWho || 'sender').toLowerCase();
@@ -9157,8 +10952,13 @@ npx playwright install chromium</pre>
       document.getElementById('cfg-fakeHumanFollowUpTimeoutMs').value = config.fakeHumanFollowUpTimeoutMs ?? 120000;
       document.getElementById('cfg-fakeHumanActionMode').value = (config.fakeHumanActionMode || 'reply').toLowerCase();
       document.getElementById('tgl-fakeHumanParseImage').classList.toggle('on', config.fakeHumanParseImage !== false);
-      const vModelEl = document.getElementById('cfg-fakeHumanVisionModel');
-      if (vModelEl) vModelEl.value = config.fakeHumanVisionModel || '';
+      document.getElementById('tgl-fakeHumanBurstEnabled')?.classList.toggle('on', config.fakeHumanBurstEnabled !== false);
+      const burstDelayEl = document.getElementById('cfg-fakeHumanBurstDelayMs');
+      if (burstDelayEl) burstDelayEl.value = config.fakeHumanBurstDelayMs ?? 800;
+      const burstLenEl = document.getElementById('cfg-fakeHumanBurstMaxLen');
+      if (burstLenEl) burstLenEl.value = config.fakeHumanBurstMaxLen ?? 28;
+      const burstMaxEl = document.getElementById('cfg-fakeHumanBurstMaxMessages');
+      if (burstMaxEl) burstMaxEl.value = config.fakeHumanBurstMaxMessages ?? 4;
       refreshStructuredSummaries();
       if (typeof allFakeHumanGroups !== 'undefined') {
         const enabled = config.fakeHumanEnableGroups || [];
@@ -9731,6 +11531,26 @@ npx playwright install chromium</pre>
         desc: '用户发图时先描述图片内容。',
         valueType: 'text'
       },
+      fakeHumanGroupChatAttention: {
+        title: '群聊注意力块',
+        desc: 'MaiBot group_chat_attention_block。',
+        valueType: 'text'
+      },
+      fakeHumanLearnStylePrompt: {
+        title: '表达学习提示词',
+        desc: 'learn_style.prompt',
+        valueType: 'text'
+      },
+      fakeHumanLearnBehaviorPrompt: {
+        title: '行为学习提示词',
+        desc: 'learn_behavior.prompt',
+        valueType: 'text'
+      },
+      fakeHumanEvaluateBehaviorPrompt: {
+        title: '行为评估提示词',
+        desc: 'evaluate_behavior_feedback.prompt',
+        valueType: 'text'
+      },
       stickerSelectionPrompt: {
         title: '表情拼图选择提示词',
         desc: 'MaiBot 风格，变量 {grid_rows} {grid_columns} {emoji_count}，返回 JSON emoji_index。',
@@ -9740,7 +11560,9 @@ npx playwright install chromium</pre>
 
     const STRUCTURED_TEXT_TYPES = new Set([
       'fakeHumanSystemPrompt', 'fakeHumanIdentity', 'fakeHumanReplyStyle', 'fakeHumanReplyPrompt',
-      'fakeHumanActionChoosePrompt', 'fakeHumanImageDescribePrompt', 'stickerSelectionPrompt'
+      'fakeHumanActionChoosePrompt', 'fakeHumanImageDescribePrompt', 'fakeHumanGroupChatAttention',
+      'fakeHumanLearnStylePrompt', 'fakeHumanLearnBehaviorPrompt', 'fakeHumanEvaluateBehaviorPrompt',
+      'stickerSelectionPrompt'
     ]);
 
     function parseStructuredItems(type, raw) {
@@ -10804,7 +12626,16 @@ npx playwright install chromium</pre>
         return '';
       }
       const needPwd = config.agentDangerPasswordSet === true || Boolean(config.agentDangerPasswordHash);
-      const pwd = needPwd ? String(window.prompt('请输入危险操作密码以确认执行：', '') || '').trim() : '';
+      let pwd = '';
+      if (needPwd) {
+        const pwdData = await showAppPrompt({
+          title: '危险操作密码',
+          confirmText: '确认',
+          fields: [{ id: 'password', label: '请输入危险操作密码', type: 'password', required: true }]
+        });
+        if (!pwdData) return '';
+        pwd = pwdData.password || '';
+      }
       const r = await fetch(BASE + '/agent/risk/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -13258,7 +15089,7 @@ npx playwright install chromium</pre>
       }
       cfg.agentBrowserCookieSites = Array.isArray(config.agentBrowserCookieSites) ? config.agentBrowserCookieSites : [];
       cfg.agentBrowserCookies = flattenBrowserCookieSites(cfg.agentBrowserCookieSites);
-      ['agentToolWebSearchEnabled','agentToolCurrentTimeEnabled','agentToolMcpEnabled','agentToolShellExecEnabled','agentToolFileManagerEnabled','agentToolRegistryEnabled','agentToolExplorerEnabled','agentToolBrowserSnapshotEnabled','agentToolBrowserActEnabled','agentToolBrowserUseTaskEnabled','agentQqToolsEnabled','agentQqContextEnabled','agentQqGroupContextEnabled','agentQqGroupContextAuto','agentToolQqUserInfoEnabled','agentToolQqGroupInfoEnabled','agentToolQqGroupContextEnabled','agentDangerGuardEnabled','agentDangerRequireAdmin','agentDangerRequireWebConfirm','agentDangerOnSystemPower','agentDangerOnShellDelete','agentDangerOnFileDelete','agentDangerOnRegistryWrite'].forEach(function(k){
+      ['agentToolWebSearchEnabled','agentToolCurrentTimeEnabled','agentToolMcpEnabled','agentToolShellExecEnabled','agentToolFileManagerEnabled','agentToolRegistryEnabled','agentToolExplorerEnabled','agentToolBrowserSnapshotEnabled','agentToolBrowserActEnabled','agentToolBrowserUseTaskEnabled','agentQqToolsEnabled','agentQqContextEnabled','agentQqGroupContextEnabled','agentQqGroupContextAuto','agentToolQqUserInfoEnabled','agentToolQqGroupInfoEnabled','agentToolQqGroupExtendedEnabled','agentToolQqNapcatEnabled','agentToolQqNapcatAllowWrite','agentToolQqNapcatDangerGuard','agentToolQqGroupContextEnabled','agentBiliToolsEnabled','agentToolBiliCatalogEnabled','agentToolBiliCallEnabled','agentToolBiliQuickEnabled','agentToolBiliLoginQrEnabled','agentToolBiliAllowWrite','agentToolBiliDangerGuard','agentDangerGuardEnabled','agentDangerRequireAdmin','agentDangerRequireWebConfirm','agentDangerOnSystemPower','agentDangerOnShellDelete','agentDangerOnFileDelete','agentDangerOnRegistryWrite'].forEach(function(k){
         const el = document.getElementById('tgl-' + k);
         if (el) cfg[k] = el.classList.contains('on');
       });
@@ -13627,8 +15458,11 @@ npx playwright install chromium</pre>
         fakeHumanFollowUpTimeoutMs: Math.max(10000, parseInt(document.getElementById('cfg-fakeHumanFollowUpTimeoutMs').value, 10) || 120000),
         fakeHumanActionMode: (document.getElementById('cfg-fakeHumanActionMode').value || 'reply').toLowerCase(),
         fakeHumanParseImage: document.getElementById('tgl-fakeHumanParseImage').classList.contains('on'),
-        fakeHumanVisionModel: ((document.getElementById('cfg-fakeHumanVisionModel') && document.getElementById('cfg-fakeHumanVisionModel').value) || '').trim(),
-        fakeHumanReplyMode: (document.getElementById('cfg-fakeHumanReplyMode').value || 'mixed').toLowerCase(),
+        fakeHumanBurstEnabled: document.getElementById('tgl-fakeHumanBurstEnabled')?.classList.contains('on') !== false,
+        fakeHumanBurstDelayMs: Math.max(200, Math.min(5000, parseInt(document.getElementById('cfg-fakeHumanBurstDelayMs')?.value, 10) || 800)),
+        fakeHumanBurstMaxLen: Math.max(8, Math.min(80, parseInt(document.getElementById('cfg-fakeHumanBurstMaxLen')?.value, 10) || 28)),
+        fakeHumanBurstMaxMessages: Math.max(1, Math.min(8, parseInt(document.getElementById('cfg-fakeHumanBurstMaxMessages')?.value, 10) || 4)),
+        fakeHumanReplyMode: (document.getElementById('cfg-fakeHumanReplyMode').value || 'ai').toLowerCase(),
         fakeHumanTextList: textList.length ? textList : ['哈哈', '确实', '666'],
         fakeHumanEmojiList: emojiList.length ? emojiList : ['哈', '6', '草'],
         fakeHumanSystemPrompt: (document.getElementById('cfg-fakeHumanSystemPrompt') && document.getElementById('cfg-fakeHumanSystemPrompt').value || '').trim(),
@@ -13638,6 +15472,17 @@ npx playwright install chromium</pre>
         fakeHumanReplyPrompt: (document.getElementById('cfg-fakeHumanReplyPrompt') && document.getElementById('cfg-fakeHumanReplyPrompt').value || '').trim(),
         fakeHumanActionChoosePrompt: (document.getElementById('cfg-fakeHumanActionChoosePrompt') && document.getElementById('cfg-fakeHumanActionChoosePrompt').value || '').trim(),
         fakeHumanImageDescribePrompt: (document.getElementById('cfg-fakeHumanImageDescribePrompt') && document.getElementById('cfg-fakeHumanImageDescribePrompt').value || '').trim(),
+        fakeHumanMaisakaMode: document.getElementById('tgl-fakeHumanMaisakaMode')?.classList.contains('on') !== false,
+        fakeHumanPlannerLoop: document.getElementById('tgl-fakeHumanPlannerLoop')?.classList.contains('on') !== false,
+        fakeHumanPlannerMaxRounds: Math.max(1, Math.min(8, parseInt(document.getElementById('cfg-fakeHumanPlannerMaxRounds')?.value, 10) || 5)),
+        fakeHumanMultipleProbability: Math.max(0, Math.min(1, parseFloat(document.getElementById('cfg-fakeHumanMultipleProbability')?.value) || 0.12)),
+        fakeHumanMultipleReplyStyle: (document.getElementById('cfg-fakeHumanMultipleReplyStyle')?.value || '').split(/\n/).map((s) => s.trim()).filter(Boolean),
+        fakeHumanGroupChatAttention: (document.getElementById('cfg-fakeHumanGroupChatAttention')?.value || '').trim(),
+        fakeHumanEnableMemoryRecall: document.getElementById('tgl-fakeHumanEnableMemoryRecall')?.classList.contains('on') !== false,
+        fakeHumanEnableExpressionLearning: document.getElementById('tgl-fakeHumanEnableExpressionLearning')?.classList.contains('on') !== false,
+        fakeHumanEnableSlangLearning: document.getElementById('tgl-fakeHumanEnableSlangLearning')?.classList.contains('on') !== false,
+        fakeHumanEnableBehaviorLearning: document.getElementById('tgl-fakeHumanEnableBehaviorLearning')?.classList.contains('on') !== false,
+        fakeHumanMemoryRecallLimit: Math.max(1, Math.min(10, parseInt(document.getElementById('cfg-fakeHumanMemoryRecallLimit')?.value, 10) || 3)),
         fakeHumanMaxLength: Math.max(10, Math.min(200, parseInt(document.getElementById('cfg-fakeHumanMaxLength').value, 10) || 80)),
         fakeHumanAtChance: Math.max(0, Math.min(1, parseFloat(document.getElementById('cfg-fakeHumanAtChance').value) || 0.25)),
         fakeHumanAtWho: (document.getElementById('cfg-fakeHumanAtWho').value || 'sender').toLowerCase(),
@@ -13724,13 +15569,15 @@ npx playwright install chromium</pre>
       if (page === 'groups') loadGroups();
       if (page === 'users') { mergeUserProfilesFromConfig(); renderUserLists(); }
       if (page === 'fakehuman') loadFakeHumanGroups();
+      if (page === 'observe') initObservePage();
+      else destroyObservePage();
       if (page === 'conversations') loadConversations();
       if (page === 'tokens') loadTokenStats();
       else destroyTokenCharts();
       if (page === 'logs') { fetchLogsPage(); toggleLogsPagePoll(); updateLogsLiveBadge(); }
       else if (window._logsPagePoll) { clearInterval(window._logsPagePoll); window._logsPagePoll = null; }
       if (page === 'search') showSearchProviderRows();
-      if (page === 'api') showProviderRows();
+      if (page === 'api') { showProviderRows(); switchApiTab('basic'); }
       if (page === 'permissions') {
         applyConfigToPermissionState();
         loadPermissionUsers();
@@ -13739,10 +15586,14 @@ npx playwright install chromium</pre>
       if (page === 'stickers') {
         syncStickerFormFromConfig();
         renderStickerGrid();
+        loadEmojiRegistry();
       }
+      if (page === 'emoji-library') loadEmojiLibraryPage();
+      if (page === 'expressions') loadExpressionsPage();
+      if (page === 'slang') loadSlangPage();
       if (page === 'reactions') updateReactionEmojiSummary();
       if (page === 'imagegen') onImageGenProviderChange();
-      if (page === 'agent') loadAgentStatus();
+      if (page === 'agent') switchAgentTab('core');
       // if (page === 'skillhub') loadSkillhubPage(); // Skills 商店界面已隐藏
       if (page === 'about') refreshUpdateStatus();
       if (page === 'changelog') loadChangelogPage();

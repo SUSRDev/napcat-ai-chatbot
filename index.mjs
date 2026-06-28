@@ -8,9 +8,9 @@ import fs from 'fs';
 import path from 'path';
 import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import { fileURLToPath } from 'url';
-import { generateImage, IMAGE_GEN_PRESETS } from './lib/image-gen.mjs';
-import { createDrawBot, DRAW_BOT_DEFAULTS, parseDrawMetaCommand } from './lib/draw-bot.mjs';
-import { resolveTemplate, MESSAGE_TEMPLATE_DEFAULTS, normalizeMessagesConfig } from './lib/messages.mjs';
+import { generateImage, IMAGE_GEN_PRESETS } from './lib/core/image-gen.mjs';
+import { createDrawBot, DRAW_BOT_DEFAULTS, parseDrawMetaCommand } from './lib/core/draw-bot.mjs';
+import { resolveTemplate, MESSAGE_TEMPLATE_DEFAULTS, normalizeMessagesConfig } from './lib/core/messages.mjs';
 import {
   checkForUpdate as checkPluginUpdate,
   applyReleaseUpdate,
@@ -18,7 +18,7 @@ import {
   compareSemver,
   UPDATE_REPO,
   UPDATE_REPO_URL
-} from './lib/self-update.mjs';
+} from './lib/core/self-update.mjs';
 import {
   listMirrors,
   getMirrorById,
@@ -31,34 +31,89 @@ import {
   benchmarkMirrors,
   mergeBenchmarkResults,
   MIRROR_DIRECT_ID
-} from './lib/github-mirrors.mjs';
+} from './lib/core/github-mirrors.mjs';
 
 const CHANGELOG_GITHUB_URL = `https://github.com/${UPDATE_REPO}/raw/master/CHANGELOG.md`;
 
 import {
   smartSearchMulti,
   detectSearchRegion
-} from './lib/smart-search.mjs';
+} from './lib/core/smart-search.mjs';
 import {
   tryReloadPluginAll,
   pingDebugService,
   collectPluginReloadIds
-} from './lib/plugin-reload.mjs';
+} from './lib/core/plugin-reload.mjs';
 import {
   discoverSkills,
   skillsToApiList
-} from './lib/skills.mjs';
+} from './lib/agent/skills.mjs';
 import {
   buildBuiltinTools,
   buildAgentSystemExtras,
   createAgentMcpHub,
   runAgentToolLoop,
   toolTraceToHistoryMeta
-} from './lib/agent-runtime.mjs';
+} from './lib/agent/agent-runtime.mjs';
 import {
   buildQqSessionContextBlock,
   buildQqGroupContextBlock
-} from './lib/agent-qq.mjs';
+} from './lib/agent/agent-qq.mjs';
+import {
+  searchNapCatCatalog,
+  listNapCatCategories
+} from './lib/napcat/napcat-api-gateway.mjs';
+import { NAPCAT_API_CATALOG, NAPCAT_API_DOC_URL } from './lib/napcat/napcat-api-catalog.mjs';
+import {
+  searchBiliCatalog,
+  listBiliCategories,
+  describeBiliCookieStatus
+} from './lib/bili/bili-api-gateway.mjs';
+import { BILI_API_CATALOG, BILI_API_DOC_URL } from './lib/bili/bili-api-catalog.mjs';
+import {
+  openDatabase,
+  closeDatabase,
+  getDbPath,
+  loadStoreFromDb,
+  persistStoreToDb,
+  migrateFromJson,
+  getMeta
+} from './lib/storage/sqlite-db.mjs';
+import { getSqliteSetupState, runSqliteSetup, detectSqliteDriver, NPM_MIRRORS } from './lib/storage/sqlite-setup.mjs';
+import {
+  startBiliQrLogin,
+  pollBiliQrLogin,
+  getBiliSession,
+  listBiliSessions,
+  deleteBiliSession
+} from './lib/bili/bili-auth.mjs';
+import {
+  detectBiliLoginIntent,
+  initiateBiliChatLogin,
+  scheduleBiliChatQrPoll,
+  stopAllBiliChatQrPolls,
+  buildBiliQrImageUrl
+} from './lib/bili/bili-chat-login.mjs';
+import { upsertUserProfile, listUserProfiles, getUserProfile, buildGroupUsersContextBlock } from './lib/storage/user-profiles.mjs';
+import {
+  recordObserveChat,
+  recordObservePlannerStart,
+  recordObservePlannerRound,
+  recordObservePlannerEnd,
+  recordObserveDecision,
+  recordObserveOutbound,
+  listObserveGroups,
+  getObserveEvents,
+  getObserveChat,
+  getObserveStats,
+  getObserveGlobalStats,
+  startObserveLoop,
+  stopObserveLoop,
+  isObserveLoopRunning,
+  stopAllObserveLoops,
+  touchObserveGroupName,
+  clearObserveGroup
+} from './lib/maisaka/behavior-observer.mjs';
 import {
   MAX_CHAT_FILE_BYTES,
   extractFileFromEvent,
@@ -71,7 +126,7 @@ import {
   isPreviewableTextFile,
   buildAgentFileSendBlock,
   enrichReplyWithAgentFiles
-} from './lib/media-files.mjs';
+} from './lib/core/media-files.mjs';
 import {
   DEFAULT_STICKER_SELECTION_PROMPT,
   DEFAULT_FAKEHUMAN_IDENTITY,
@@ -80,12 +135,72 @@ import {
   DEFAULT_FAKEHUMAN_PLANNER_PROMPT,
   DEFAULT_FAKEHUMAN_ACTION_CHOOSE_PROMPT,
   DEFAULT_FAKEHUMAN_IMAGE_DESCRIBE_PROMPT,
+  DEFAULT_FAKEHUMAN_GROUP_CHAT_ATTENTION,
+  DEFAULT_LEARN_STYLE_PROMPT,
+  DEFAULT_LEARN_SLANG_PROMPT,
+  DEFAULT_LEARN_BEHAVIOR_PROMPT,
+  DEFAULT_EVALUATE_BEHAVIOR_PROMPT,
   renderPromptTemplate
-} from './lib/emoji-prompts.mjs';
+} from './lib/maisaka/emoji-prompts.mjs';
 import {
   selectStickerWithVision,
   touchStickerUsage
-} from './lib/emoji-grid-select.mjs';
+} from './lib/emoji/emoji-grid-select.mjs';
+import { parseCqTextToSegments, buildAtSegments, flattenMessageSegments } from './lib/core/cq-message.mjs';
+import {
+  runMaisakaFakeHumanChat,
+  runMaisakaLearning,
+  loadMaisakaStore,
+  saveMaisakaStore
+} from './lib/maisaka/maisaka-fakehuman.mjs';
+import { expandBurstReplies } from './lib/maisaka/fakehuman-burst.mjs';
+import { resolveQqFaceId } from './lib/emoji/qq-face.mjs';
+import {
+  captureAndRegisterEmoji,
+  extractEmojiUrlsFromEvent,
+  pickRegisteredEmojiWithGrid,
+  registeredEmojisToStickerCandidates,
+  getRegisteredEmojis,
+  DEFAULT_EMOJI_VLM_PROMPT,
+  ensureEmojiRegistry
+} from './lib/emoji/emoji-manager.mjs';
+import {
+  listEmojiLibrary,
+  getEmojiLibraryStats,
+  listEmojiSourceGroups,
+  updateEmojiStatus,
+  batchUpdateEmojiStatus,
+  deleteEmojiRecord,
+  clearEmojiByStatus,
+  findEmojiRecord,
+  EMOJI_STATUSES
+} from './lib/emoji/emoji-library.mjs';
+import {
+  listExpressions,
+  getExpressionStats,
+  listExpressionGroups,
+  createExpression,
+  updateExpression,
+  reviewExpression,
+  deleteExpression,
+  clearExpressions,
+  getExpressionSettings,
+  findExpression
+} from './lib/maisaka/expression-library.mjs';
+import {
+  listSlangs,
+  getSlangStats,
+  listSlangGroups,
+  createSlang,
+  updateSlang,
+  reviewSlang,
+  deleteSlang,
+  clearSlangs,
+  getSlangSettings,
+  findSlang,
+  parseSlangImport,
+  importSlangs
+} from './lib/maisaka/slang-library.mjs';
 import {
   detectSkillhubCli,
   getSkillhubInstallDir,
@@ -93,7 +208,7 @@ import {
   skillhubInstall,
   skillhubRemove,
   scanInstalledSkillhubSkills
-} from './lib/skillhub-cli.mjs';
+} from './lib/skillhub/skillhub-cli.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -401,7 +516,7 @@ const DEFAULT_CONFIG = {
   fakeHumanChance: 0.05,
   fakeHumanGroupChance: {},
   fakeHumanMinInterval: 90,
-  fakeHumanReplyMode: 'mixed',
+  fakeHumanReplyMode: 'ai',
   fakeHumanTextList: ['哈哈', '确实', '666', '笑死', '草', '好家伙', '可以'],
   fakeHumanEmojiList: ['哈', '6', '草', 'ok', '行', '可以'],
   fakeHumanAtChance: 0.25,
@@ -414,7 +529,42 @@ const DEFAULT_CONFIG = {
   fakeHumanPlannerPrompt: DEFAULT_FAKEHUMAN_PLANNER_PROMPT,
   fakeHumanActionChoosePrompt: DEFAULT_FAKEHUMAN_ACTION_CHOOSE_PROMPT,
   fakeHumanImageDescribePrompt: DEFAULT_FAKEHUMAN_IMAGE_DESCRIBE_PROMPT,
+  fakeHumanMaisakaMode: true,
+  fakeHumanGroupChatAttention: DEFAULT_FAKEHUMAN_GROUP_CHAT_ATTENTION,
+  fakeHumanMultipleReplyStyle: [
+    '你的风格平淡但不失讽刺，很简短，很白话，像贴吧老哥。',
+    '用 1-2 个字回复，能一个字就不两个字。',
+    '稍微阴阳怪气一点，但别太过分，像群友互怼。'
+  ],
+  fakeHumanMultipleProbability: 0.12,
+  fakeHumanPersonalityStates: [],
+  fakeHumanStateProbability: 0,
+  fakeHumanEnableMemoryRecall: true,
+  fakeHumanEnableExpressionLearning: true,
+  fakeHumanEnableSlangLearning: true,
+  fakeHumanEnableBehaviorLearning: true,
+  fakeHumanSlangInjectLimit: 6,
+  fakeHumanLearnSlangPrompt: DEFAULT_LEARN_SLANG_PROMPT,
+  fakeHumanMemoryRecallLimit: 3,
+  fakeHumanMemoryWindowSize: 20,
+  fakeHumanMemoryMinIntervalSec: 120,
+  fakeHumanMemoryMinNewMessages: 6,
+  fakeHumanLearnStylePrompt: DEFAULT_LEARN_STYLE_PROMPT,
+  fakeHumanLearnBehaviorPrompt: DEFAULT_LEARN_BEHAVIOR_PROMPT,
+  fakeHumanEvaluateBehaviorPrompt: DEFAULT_EVALUATE_BEHAVIOR_PROMPT,
+  fakeHumanPlannerLoop: true,
+  fakeHumanPlannerMaxRounds: 5,
+  observeLoopIntervalMs: 15000,
+  emojiCacheEnabled: true,
+  emojiAutoRegister: true,
+  emojiUseRegistry: true,
+  emojiMaxCacheSizeMb: 5,
+  emojiVlmPrompt: DEFAULT_EMOJI_VLM_PROMPT,
   fakeHumanMaxLength: 80,
+  fakeHumanBurstEnabled: true,
+  fakeHumanBurstDelayMs: 800,
+  fakeHumanBurstMaxLen: 28,
+  fakeHumanBurstMaxMessages: 4,
   fakeHumanParseImage: true,
   fakeHumanVisionModel: '',
   fakeHumanEnableGroups: [],
@@ -493,6 +643,20 @@ const DEFAULT_CONFIG = {
   agentToolQqUserInfoEnabled: true,
   agentToolQqGroupInfoEnabled: true,
   agentToolQqGroupContextEnabled: true,
+  agentToolQqGroupExtendedEnabled: true,
+  agentToolQqNapcatEnabled: true,
+  agentToolQqNapcatAllowWrite: true,
+  agentToolQqNapcatDangerGuard: true,
+  agentToolQqNapcatMaxResultChars: 12000,
+  agentBiliToolsEnabled: true,
+  agentToolBiliCatalogEnabled: true,
+  agentToolBiliCallEnabled: true,
+  agentToolBiliQuickEnabled: true,
+  agentToolBiliLoginQrEnabled: true,
+  agentToolBiliAllowWrite: false,
+  agentToolBiliDangerGuard: true,
+  agentToolBiliMaxResultChars: 12000,
+  agentToolBiliTimeoutMs: 30000,
   agentBrowserAdvancedEnabled: true,
   agentBrowserUserAgent: '',
   agentBrowserExtraHeaders: {},
@@ -506,6 +670,206 @@ const cooldownUntil = new Map();
 const fakeHumanLastTime = new Map();
 const recentGroupMessages = new Map();
 const fakeHumanTalkingTo = new Map();
+let maisakaStoreCache = null;
+let maisakaStorePathCache = '';
+let sqliteDbRef = null;
+
+function getConfigDir(ctx) {
+  return path.dirname(getConfigPath(ctx));
+}
+
+async function initSqliteStore(ctx) {
+  try {
+    const configDir = getConfigDir(ctx);
+    const { db, error } = await openDatabase(configDir, __dirname);
+    if (!db) {
+      log('warn', 'SQLite 未就绪（将使用 JSON 存储）', error || '', 'system');
+      return null;
+    }
+    const mig = migrateFromJson(db, getMaisakaStorePath(ctx));
+    if (mig.migrated) {
+      log('info', 'maisaka-data.json 已迁移至 SQLite', mig.counts || {}, 'system');
+    }
+    sqliteDbRef = db;
+    maisakaStoreCache = loadStoreFromDb(db);
+    maisakaStorePathCache = getDbPath(configDir);
+    return db;
+  } catch (e) {
+    log('warn', 'SQLite 初始化失败', e.message, 'system');
+    return null;
+  }
+}
+
+function getSqliteDb() {
+  return sqliteDbRef;
+}
+
+function getMaisakaStorePath(ctx) {
+  const cfgPath = getConfigPath(ctx);
+  return path.join(path.dirname(cfgPath), 'maisaka-data.json');
+}
+
+function getMaisakaStore(ctx) {
+  const p = sqliteDbRef ? getDbPath(getConfigDir(ctx)) : getMaisakaStorePath(ctx);
+  if (maisakaStoreCache && maisakaStorePathCache === p) return maisakaStoreCache;
+  if (sqliteDbRef) {
+    maisakaStoreCache = loadStoreFromDb(sqliteDbRef);
+  } else {
+    maisakaStoreCache = loadMaisakaStore(getMaisakaStorePath(ctx));
+  }
+  maisakaStorePathCache = p;
+  return maisakaStoreCache;
+}
+
+function persistMaisakaStore(ctx) {
+  if (!maisakaStoreCache) return;
+  if (sqliteDbRef) {
+    persistStoreToDb(sqliteDbRef, maisakaStoreCache);
+    return;
+  }
+  saveMaisakaStore(getMaisakaStorePath(ctx), maisakaStoreCache);
+}
+
+function appendRecentGroupBotMessage(groupId, selfId, botName, text) {
+  const list = recentGroupMessages.get(String(groupId)) || [];
+  list.push({ userId: selfId || 'self', userName: botName || 'SELF', text: String(text || '').slice(0, 500), ts: Date.now() });
+  recordObserveChat(String(groupId), {
+    userId: selfId || 'self',
+    userName: botName || 'SELF',
+    text: String(text || '').slice(0, 500),
+    ts: Date.now(),
+    isBot: true
+  });
+  const cfgLines = pluginState.config || {};
+  const maxLines = Math.max(5, Math.min(50, Math.max(
+    Number(cfgLines.fakeHumanContextLines) || 5,
+    Number(cfgLines.agentQqGroupContextLines) || 10
+  )));
+  if (list.length > maxLines) list.splice(0, list.length - maxLines);
+  recentGroupMessages.set(String(groupId), list);
+}
+
+/** 观察页：对指定群运行一次 Planner（仅记录，默认不出站） */
+async function runObservePlannerForGroup(ctx, groupId, source = 'loop', executeOutbound = false) {
+  const cfg = pluginState.config || {};
+  const g = String(groupId);
+  const contextLines = Math.max(1, Math.min(50, Number(cfg.fakeHumanContextLines) ?? 10));
+  const recentContext = getFormattedRecentGroupContext(g, contextLines, cfg);
+  const store = getMaisakaStore(ctx);
+  const botName = (cfg.fakeHumanBotName || cfg.botDisplayName || '机器人').trim();
+  recordObservePlannerStart(g, { source, contextLines, recentLines: recentContext.split('\n').filter(Boolean).length });
+  const t0 = Date.now();
+  try {
+    const result = await runMaisakaFakeHumanChat({
+      cfg,
+      groupId: g,
+      userId: '0',
+      recentContext,
+      plainText: source === 'loop' ? '[观察循环]' : '[观察触发]',
+      personaContext: '',
+      imageDesc: '',
+      store,
+      db: sqliteDbRef,
+      llmText: (opts) => callFakeHumanLlm(cfg, opts),
+      llmWithTools: (opts) => callFakeHumanLlmWithTools(cfg, opts),
+      onPlannerRound: async (round) => {
+        recordObservePlannerRound(g, round);
+      },
+      executePlannerTool: async (name, args) => {
+        if (name === 'reply') return `[观察] 排程回复：${String(args.message || '').slice(0, 60)}`;
+        if (name === 'send_emoji') return `[观察] 排程表情：${args.emotion || '自动'}`;
+        if (name === 'send_file') return `[观察] 排程文件：${args.path || ''}`;
+        if (name === 'no_action') return '本轮不发言（观察模式）';
+        return 'ok';
+      },
+      buildReplySystemPrompt: (vars) => buildFakeHumanSystemPrompt({
+        ...cfg,
+        fakeHumanIdentity: vars.identity,
+        fakeHumanReplyStyle: vars.replyStyle,
+        _groupAttention: vars.groupChatAttentionBlock,
+        _replyInstruction: vars.replyerOutputInstruction
+      })
+    });
+    const outbound = result.outbound || [];
+    recordObservePlannerEnd(g, {
+      source,
+      action: result.action,
+      rounds: result.plan?.rounds || 0,
+      reasoning: result.reasoning || result.plan?.reasoning || '',
+      durationMs: Date.now() - t0,
+      outboundCount: outbound.length,
+      roundDetails: result.plan?.roundDetails || []
+    });
+    if (result.action === 'skip') {
+      recordObserveDecision(g, 'no_action', { source, reasoning: result.reasoning || result.plan?.reasoning || '' });
+    } else if (outbound.length) {
+      recordObserveOutbound(g, { source, steps: outbound.length, preview: outbound.slice(0, 3) });
+    }
+    if (executeOutbound && outbound.length && cfg.fakeHumanEnabled) {
+      await deliverFakeHumanOutbound(ctx, g, null, outbound, { cfg, store, recentContext, plainText: '', userId: '0' });
+    }
+    return result;
+  } catch (e) {
+    recordObservePlannerEnd(g, { source, error: e.message, durationMs: Date.now() - t0 });
+    throw e;
+  }
+}
+
+/** 对话中 B 站扫码登录：发二维码 + 后台轮询通知 */
+async function handleBiliLoginInChat(ctx, { userId, groupId, isGroup, key }) {
+  const cfg = pluginState.config || {};
+  if (!sqliteDbRef) {
+    try { await initSqliteStore(ctx); } catch { /* ignore */ }
+  }
+  if (!sqliteDbRef) {
+    const err = 'SQLite 未就绪，请管理员在 Dashboard 一键部署 SQLite 后再试。';
+    if (isGroup) await sendGroup(ctx, groupId, formatReply(cfg.replyPrefix || '', { user_id: userId }) + err);
+    else await sendPrivate(ctx, userId, err);
+    return;
+  }
+  try {
+    const login = await initiateBiliChatLogin(sqliteDbRef, userId);
+    const prefix = isGroup ? formatReply(cfg.replyPrefix || '', { user_id: userId }) : '';
+    const cq = prefix + login.message + '\n[CQ:image,url=' + login.qrImageUrl + ']';
+    if (isGroup) await sendGroup(ctx, groupId, cq);
+    else await sendPrivate(ctx, userId, cq);
+    pushHistory(key, 'user', '[B站登录请求]');
+    pushHistory(key, 'assistant', login.message + ' [二维码已发送]', { tools: [{ type: 'bili_qr_login', sessionKey: login.sessionKey }] });
+    makeBiliQrPollHandler(ctx, userId, groupId, isGroup)(login);
+  } catch (e) {
+    const err = 'B 站登录失败：' + e.message;
+    if (isGroup) await sendGroup(ctx, groupId, formatReply(cfg.replyPrefix || '', { user_id: userId }) + err);
+    else await sendPrivate(ctx, userId, err);
+  }
+}
+
+function makeBiliQrPollHandler(ctx, userId, groupId, isGroup) {
+  const cfg = pluginState.config || {};
+  return (login) => {
+    if (!login?.sessionKey || !sqliteDbRef) return;
+    scheduleBiliChatQrPoll({
+      sessionKey: login.sessionKey,
+      qqUserId: userId,
+      db: sqliteDbRef,
+      onConfirmed: async (st) => {
+        const name = st.biliUname || st.session?.biliUname || '已绑定';
+        const msg = `B 站登录成功！账号：${name}（mid ${st.biliMid || st.session?.biliMid || ''}）\n此后你的 B 站 API 请求将使用你的 Cookie。`;
+        try {
+          if (isGroup && groupId) await sendGroup(ctx, groupId, formatReply(cfg.replyPrefix || '', { user_id: userId }) + msg);
+          else await sendPrivate(ctx, userId, msg);
+        } catch { /* ignore */ }
+      },
+      onExpired: async (st) => {
+        const msg = st?.message || 'B 站二维码已过期，请再说「登录 B 站」重新获取。';
+        try {
+          if (isGroup && groupId) await sendGroup(ctx, groupId, formatReply(cfg.replyPrefix || '', { user_id: userId }) + msg);
+          else await sendPrivate(ctx, userId, msg);
+        } catch { /* ignore */ }
+      }
+    });
+  };
+}
+
 const tokenStats = {
   totalPrompt: 0,
   totalCompletion: 0,
@@ -973,7 +1337,7 @@ function chatHeadersFromApiConfig(extra = {}) {
 }
 
 /** 辅助 AI 请求体：与主对话一致，未开高级采样时不带 temperature（Kimi Code 等会 400） */
-function buildAuxiliaryChatBody(cfg, { model, messages, max_tokens, temperature }) {
+function buildAuxiliaryChatBody(cfg, { model, messages, max_tokens, temperature, tools, tool_choice }) {
   const body = {
     model: model || 'deepseek-ai/DeepSeek-V3',
     messages,
@@ -982,6 +1346,10 @@ function buildAuxiliaryChatBody(cfg, { model, messages, max_tokens, temperature 
   };
   if (cfg.advancedSamplingEnabled === true && temperature != null) {
     body.temperature = Math.max(0, Math.min(2, Number(temperature)));
+  }
+  if (Array.isArray(tools) && tools.length) {
+    body.tools = tools;
+    if (tool_choice) body.tool_choice = tool_choice;
   }
   return body;
 }
@@ -1219,17 +1587,19 @@ function buildFakeHumanSystemPrompt(cfg) {
   const replyStyle = (cfg.fakeHumanReplyStyle || DEFAULT_FAKEHUMAN_REPLY_STYLE).trim();
   const maxLen = Math.max(10, Math.min(200, Number(cfg.fakeHumanMaxLength) ?? 80));
   const customReply = (cfg.fakeHumanReplyPrompt || '').trim();
+  const groupBlock = (cfg._groupAttention || cfg.fakeHumanGroupChatAttention || DEFAULT_FAKEHUMAN_GROUP_CHAT_ATTENTION).trim();
+  const outputInstruction = (cfg._replyInstruction || `回复长度不超过${maxLen}字，不要换行。只输出回复正文。`).trim();
   if (customReply) {
     return renderPromptTemplate(customReply, {
       identity,
       reply_style: replyStyle,
-      group_chat_attention_block: '',
-      replyer_output_instruction: `回复长度不超过${maxLen}字，不要换行。只输出回复正文。`,
+      group_chat_attention_block: groupBlock,
+      replyer_output_instruction: outputInstruction,
       bot_name: (cfg.fakeHumanBotName || '机器人').trim()
     });
   }
   const legacy = (cfg.fakeHumanSystemPrompt || DEFAULT_CONFIG.fakeHumanSystemPrompt).trim();
-  return `${legacy}\n回复长度不超过${maxLen}字，不要换行。`;
+  return `${legacy}\n${groupBlock}\n${outputInstruction}`;
 }
 
 const ISOLATION_MODES = ['user_group', 'group', 'user', 'none'];
@@ -2359,28 +2729,61 @@ function normalizeUserProfile(raw, userId = '') {
 }
 
 async function fetchStrangerProfile(userId) {
+  const detailed = await fetchStrangerInfoDetailed(userId);
+  if (!detailed) return null;
+  return { userId: detailed.userId, nickname: detailed.nickname, avatar: detailed.avatar };
+}
+
+async function fetchStrangerInfoDetailed(userId, { noCache = false } = {}) {
   const uid = String(userId || '').trim();
   if (!uid) return null;
   try {
-    const res = await callAction('get_stranger_info', { user_id: uid });
+    const payload = { user_id: uid };
+    if (noCache) payload.no_cache = true;
+    const res = await callAction('get_stranger_info', payload);
     const data = res?.data ?? res ?? {};
     const profile = normalizeUserProfile(data, uid);
-    if (!profile.nickname) {
-      log('debug', '陌生人信息无昵称，使用 QQ 号占位', { userId: uid, keys: Object.keys(data || {}) }, 'config');
-    }
-    return profile;
+    return {
+      userId: uid,
+      uid: String(data.uid ?? '').trim(),
+      nickname: profile.nickname || String(data.nickname ?? data.nick ?? '').trim(),
+      qid: String(data.qid ?? data.QID ?? '').trim(),
+      sex: data.sex ?? data.gender ?? '',
+      age: data.age ?? '',
+      qqLevel: data.qqLevel ?? data.qq_level ?? data.level ?? '',
+      longNick: String(data.long_nick ?? data.sign ?? data.signature ?? '').trim(),
+      regTime: data.reg_time ?? data.regTime ?? '',
+      isVip: data.is_vip ?? data.isVip ?? false,
+      isYearsVip: data.is_years_vip ?? data.isYearsVip ?? false,
+      vipLevel: data.vip_level ?? data.vipLevel ?? '',
+      remark: String(data.remark ?? '').trim(),
+      status: data.status ?? '',
+      loginDays: data.login_days ?? data.loginDays ?? '',
+      avatar: profile.avatar || buildQqAvatarUrl(uid)
+    };
   } catch (e) {
-    log('debug', '获取用户信息失败', { userId: uid, err: e.message }, 'config');
-    return normalizeUserProfile({}, uid);
+    log('debug', '获取陌生人信息失败', { userId: uid, err: e.message }, 'config');
+    return null;
   }
 }
 
-async function fetchGroupProfile(groupId) {
+async function fetchGroupProfile(groupId, { detail = true } = {}) {
   const gid = String(groupId || '').trim();
   if (!gid) return null;
   try {
-    const res = await callAction('get_group_info', { group_id: gid });
-    const data = res?.data ?? res ?? {};
+    let data = {};
+    if (detail) {
+      try {
+        const detailRes = await callAction('get_group_detail_info', { group_id: gid });
+        data = detailRes?.data ?? detailRes ?? {};
+      } catch {
+        /* 回退 get_group_info */
+      }
+    }
+    if (!data.group_id && !data.group_name) {
+      const res = await callAction('get_group_info', { group_id: gid });
+      data = res?.data ?? res ?? {};
+    }
     let avatar = String(data.group_avatar ?? data.avatar ?? data.face_url ?? data.faceUrl ?? '').trim();
     if (!avatar) avatar = buildGroupAvatarUrl(gid);
     return {
@@ -2390,11 +2793,147 @@ async function fetchGroupProfile(groupId) {
       maxMemberCount: Number(data.max_member_count ?? data.maxMemberCount ?? 0) || 0,
       groupCreateTime: data.group_create_time ?? data.create_time ?? '',
       groupLevel: data.group_level ?? data.level ?? '',
+      groupAllShut: data.group_all_shut ?? data.groupAllShut ?? null,
+      groupRemark: String(data.group_remark ?? data.groupRemark ?? '').trim(),
       avatar
     };
   } catch (e) {
     log('debug', '获取群信息失败', { groupId: gid, err: e.message }, 'config');
     return { groupId: gid, groupName: '', memberCount: 0, avatar: buildGroupAvatarUrl(gid) };
+  }
+}
+
+async function fetchGroupList({ noCache = false } = {}) {
+  try {
+    const payload = noCache ? { no_cache: true } : {};
+    const raw = await callAction('get_group_list', payload);
+    const list = Array.isArray(raw) ? raw : (raw?.data || raw?.result || []);
+    return list.map((g) => ({
+      groupId: String(g.group_id ?? g.groupId ?? ''),
+      groupName: String(g.group_name ?? g.name ?? '').trim(),
+      memberCount: Number(g.member_count ?? g.memberCount ?? 0) || 0,
+      maxMemberCount: Number(g.max_member_count ?? g.maxMemberCount ?? 0) || 0,
+      groupAllShut: g.group_all_shut ?? g.groupAllShut ?? null,
+      groupRemark: String(g.group_remark ?? g.groupRemark ?? '').trim()
+    })).filter((g) => g.groupId);
+  } catch (e) {
+    log('debug', '获取群列表失败', e.message, 'config');
+    return [];
+  }
+}
+
+async function fetchGroupMemberList(groupId, { noCache = false, limit = 50 } = {}) {
+  const gid = String(groupId || '').trim();
+  if (!gid) return [];
+  const cap = Math.max(1, Math.min(200, Number(limit) || 50));
+  try {
+    const payload = { group_id: gid };
+    if (noCache) payload.no_cache = true;
+    const raw = await callAction('get_group_member_list', payload);
+    const list = Array.isArray(raw) ? raw : (raw?.data || raw?.result || []);
+    return list.slice(0, cap).map((m) => ({
+      userId: String(m.user_id ?? m.userId ?? ''),
+      nickname: String(m.nickname ?? m.nick ?? '').trim(),
+      card: String(m.card ?? m.group_card ?? '').trim(),
+      role: String(m.role ?? '').trim(),
+      title: String(m.title ?? '').trim(),
+      level: m.level ?? m.qq_level ?? '',
+      joinTime: m.join_time ?? m.joinTime ?? '',
+      lastSentTime: m.last_sent_time ?? m.lastSentTime ?? ''
+    })).filter((m) => m.userId);
+  } catch (e) {
+    log('debug', '获取群成员列表失败', { groupId: gid, err: e.message }, 'config');
+    return [];
+  }
+}
+
+async function fetchGroupMemberInfoDetail(groupId, userId, { noCache = false } = {}) {
+  const gid = String(groupId || '').trim();
+  const uid = String(userId || '').trim();
+  if (!gid || !uid) return null;
+  try {
+    const payload = { group_id: gid, user_id: uid };
+    if (noCache) payload.no_cache = true;
+    const res = await callAction('get_group_member_info', payload);
+    const data = res?.data ?? res ?? {};
+    return {
+      userId: uid,
+      groupId: gid,
+      nickname: String(data.nickname ?? data.nick ?? '').trim(),
+      card: String(data.card ?? data.group_card ?? '').trim(),
+      sex: data.sex ?? data.gender ?? '',
+      age: data.age ?? '',
+      role: String(data.role ?? '').trim(),
+      title: String(data.title ?? '').trim(),
+      level: data.level ?? '',
+      qqLevel: data.qq_level ?? data.qqLevel ?? '',
+      joinTime: data.join_time ?? data.joinTime ?? '',
+      lastSentTime: data.last_sent_time ?? data.lastSentTime ?? '',
+      shutUpTimestamp: data.shut_up_timestamp ?? data.shutUpTimestamp ?? '',
+      area: String(data.area ?? '').trim(),
+      isRobot: data.is_robot ?? data.isRobot ?? false,
+      unfriendly: data.unfriendly ?? false
+    };
+  } catch (e) {
+    log('debug', '获取群成员详情失败', { groupId: gid, userId: uid, err: e.message }, 'config');
+    return null;
+  }
+}
+
+async function fetchGroupNotices(groupId) {
+  const gid = String(groupId || '').trim();
+  if (!gid) return [];
+  try {
+    const raw = await callAction('_get_group_notice', { group_id: gid });
+    const list = Array.isArray(raw) ? raw : (raw?.data || []);
+    return list.map((n) => ({
+      noticeId: String(n.notice_id ?? n.noticeId ?? ''),
+      senderId: String(n.sender_id ?? n.senderId ?? ''),
+      publishTime: n.publish_time ?? n.publishTime ?? '',
+      readNum: n.read_num ?? n.readNum ?? '',
+      message: n.message ?? n.content ?? ''
+    }));
+  } catch (e) {
+    log('debug', '获取群公告失败', { groupId: gid, err: e.message }, 'config');
+    return [];
+  }
+}
+
+async function fetchGroupEssenceMessages(groupId) {
+  const gid = String(groupId || '').trim();
+  if (!gid) return [];
+  try {
+    const raw = await callAction('get_essence_msg_list', { group_id: gid });
+    const list = Array.isArray(raw) ? raw : (raw?.data || []);
+    return list.map((m) => ({
+      messageId: String(m.message_id ?? m.messageId ?? ''),
+      senderId: String(m.sender_id ?? m.senderId ?? ''),
+      senderNick: String(m.sender_nick ?? m.senderNick ?? '').trim(),
+      operatorId: String(m.operator_id ?? m.operatorId ?? ''),
+      operatorNick: String(m.operator_nick ?? m.operatorNick ?? '').trim(),
+      operatorTime: m.operator_time ?? m.operatorTime ?? '',
+      content: m.content ?? m.message ?? ''
+    }));
+  } catch (e) {
+    log('debug', '获取群精华消息失败', { groupId: gid, err: e.message }, 'config');
+    return [];
+  }
+}
+
+async function fetchGroupShutList(groupId) {
+  const gid = String(groupId || '').trim();
+  if (!gid) return [];
+  try {
+    const raw = await callAction('get_group_shut_list', { group_id: gid });
+    const list = Array.isArray(raw) ? raw : (raw?.data || []);
+    return list.map((m) => ({
+      userId: String(m.user_id ?? m.userId ?? ''),
+      nickname: String(m.nickname ?? m.nick ?? '').trim(),
+      shutUpTime: m.shut_up_time ?? m.shutUpTime ?? m.shut_up_timestamp ?? ''
+    })).filter((m) => m.userId);
+  } catch (e) {
+    log('debug', '获取群禁言列表失败', { groupId: gid, err: e.message }, 'config');
+    return [];
   }
 }
 
@@ -2524,10 +3063,31 @@ function createQqApi(session) {
     async fetchUserProfile(userId) {
       return fetchStrangerProfile(userId);
     },
-    async fetchGroupProfile(groupId) {
-      const profile = await fetchGroupProfile(groupId);
+    async fetchStrangerInfo(userId, opts) {
+      return fetchStrangerInfoDetailed(userId, opts);
+    },
+    async fetchGroupProfile(groupId, opts) {
+      const profile = await fetchGroupProfile(groupId, opts);
       if (profile) touchGroupProfileCache(cfg, profile);
       return profile;
+    },
+    async fetchGroupList(opts) {
+      return fetchGroupList(opts);
+    },
+    async fetchGroupMemberList(groupId, opts) {
+      return fetchGroupMemberList(groupId, opts);
+    },
+    async fetchGroupMemberInfo(groupId, userId, opts) {
+      return fetchGroupMemberInfoDetail(groupId, userId, opts);
+    },
+    async fetchGroupNotices(groupId) {
+      return fetchGroupNotices(groupId);
+    },
+    async fetchGroupEssenceMessages(groupId) {
+      return fetchGroupEssenceMessages(groupId);
+    },
+    async fetchGroupShutList(groupId) {
+      return fetchGroupShutList(groupId);
     },
     async resolveUserQuery(query) {
       return resolveQqUserQuery(query, session.groupId);
@@ -2535,6 +3095,9 @@ function createQqApi(session) {
     getGroupRecentContext(limit) {
       if (!session.groupId) return '';
       return getFormattedRecentGroupContext(session.groupId, limit, cfg);
+    },
+    async callNapCatAction(action, params) {
+      return callAction(String(action || '').trim(), params || {});
     }
   };
 }
@@ -2548,6 +3111,10 @@ function buildAgentQqContextExtras(cfg, session) {
       extra += buildQqGroupContextBlock(cfg, lines);
       groupContextMeta = { type: 'qq_group_context', name: 'builtin_qq_group_context', result: lines.slice(0, 4000) };
     }
+  }
+  if (sqliteDbRef && session.groupId) {
+    const usersBlock = buildGroupUsersContextBlock(sqliteDbRef, session.groupId, Math.max(1, Math.min(20, Number(cfg.agentQqGroupUsersLimit) || 8)));
+    if (usersBlock) extra += '\n' + usersBlock;
   }
   return { extra, groupContextMeta };
 }
@@ -2948,19 +3515,34 @@ async function applyAfterReplyReaction(cfg, messageId) {
 
 async function sendGroup(ctx, groupId, message) {
   try {
-    await callAction('send_group_msg', { group_id: String(groupId), message: String(message) });
+    const msg = String(message || '');
+    if (/\[CQ:/i.test(msg)) {
+      await sendGroupStructured(ctx, groupId, null, parseCqTextToSegments(msg));
+      return;
+    }
+    await callAction('send_group_msg', { group_id: String(groupId), message: msg });
   } catch (e) {
     pluginState.logger?.error?.('[chat-bot] 发送群消息失败: ' + e.message);
   }
 }
 
-/** 发送群回复（回复某条消息，message 为 array 时 type 含 reply） */
+/** 发送结构化群消息（正确渲染 @/face/image） */
+async function sendGroupStructured(ctx, groupId, replyMessageId, segments) {
+  try {
+    const message = [];
+    if (replyMessageId != null) message.push({ type: 'reply', data: { id: String(replyMessageId) } });
+    message.push(...flattenMessageSegments(segments));
+    if (!message.length) return;
+    await callAction('send_group_msg', { group_id: String(groupId), message });
+  } catch (e) {
+    pluginState.logger?.warn?.('[chat-bot] 发送群结构化消息失败: ' + e.message);
+  }
+}
+
+/** 发送群回复（回复某条消息，支持 CQ 码转 segment） */
 async function sendGroupReply(ctx, groupId, replyMessageId, text) {
   try {
-    const message = replyMessageId != null
-      ? [{ type: 'reply', data: { id: String(replyMessageId) } }, { type: 'text', data: { text: String(text || '') } }]
-      : [{ type: 'text', data: { text: String(text || '') } }];
-    await callAction('send_group_msg', { group_id: String(groupId), message });
+    await sendGroupStructured(ctx, groupId, replyMessageId, parseCqTextToSegments(text));
     log('info', '已发送群回复', { groupId, replyMessageId });
   } catch (e) {
     pluginState.logger?.warn?.('[chat-bot] 发送群回复失败: ' + e.message);
@@ -2970,11 +3552,7 @@ async function sendGroupReply(ctx, groupId, replyMessageId, text) {
 /** 发送群消息数组（可含 reply + 其他 segment，如 face） */
 async function sendGroupMessageArray(ctx, groupId, replyMessageId, segments) {
   try {
-    const message = [];
-    if (replyMessageId != null) message.push({ type: 'reply', data: { id: String(replyMessageId) } });
-    message.push(...segments);
-    if (!message.length) return;
-    await callAction('send_group_msg', { group_id: String(groupId), message });
+    await sendGroupStructured(ctx, groupId, replyMessageId, segments);
   } catch (e) {
     pluginState.logger?.warn?.('[chat-bot] 发送群消息数组失败: ' + e.message);
   }
@@ -3207,12 +3785,27 @@ function pickWeightedStickerId(candidates) {
   return items[items.length - 1].id;
 }
 
-/** 构建回复后发表情的候选列表 */
-async function buildStickerCandidates(cfg) {
+/** 构建回复后发表情的候选列表（合并群聊缓存注册库 + 配置池 + 收藏回退） */
+async function buildStickerCandidates(cfg, store = null) {
+  const seen = new Set();
+  const merged = [];
+  const push = (c) => {
+    const id = String(c?.id || '').trim();
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    merged.push(c);
+  };
+
+  if (store && cfg.emojiUseRegistry !== false) {
+    for (const c of registeredEmojisToStickerCandidates(store)) push(c);
+  }
+
   const pool = normalizeStickerPool(cfg.stickerPool);
   if (pool.length > 0) {
-    return pool.map((p) => ({ id: p.id, weight: p.weight, preview: p.preview, name: p.name }));
+    for (const p of pool) push({ id: p.id, weight: p.weight, preview: p.preview, name: p.name });
   }
+  if (merged.length > 0) return merged;
+
   if (cfg.stickerRandomFromFavorites === false) return [];
   const count = Math.max(1, Math.min(100, Number(cfg.stickerFaceCount) || 48));
   const detailed = await fetchCustomFacesDetailed(count);
@@ -3257,8 +3850,8 @@ async function pickStickerWithGridOrText(cfg, candidates, userText, replyText, c
 }
 
 /** 根据配置选取要发送的表情 id */
-async function pickStickerFaceId(cfg, userText, replyText, contextLines = '') {
-  const candidates = await buildStickerCandidates(cfg);
+async function pickStickerFaceId(cfg, userText, replyText, contextLines = '', store = null) {
+  const candidates = await buildStickerCandidates(cfg, store);
   if (!candidates.length) return null;
   const mode = String(cfg.stickerSelectMode || 'ai').toLowerCase();
   if (mode === 'fixed') {
@@ -3273,10 +3866,12 @@ async function pickStickerFaceId(cfg, userText, replyText, contextLines = '') {
   return pickStickerWithGridOrText(cfg, candidates, userText, replyText, contextLines);
 }
 
-/** 判断是否为 URL（收藏表情可能返回 URL，需用 image 段发送） */
+/** 判断是否为 URL 或本地图片路径（收藏/缓存表情需用 image 段发送） */
 function isFaceIdUrl(faceId) {
   const s = String(faceId).trim();
-  return /^https?:\/\//i.test(s);
+  if (/^https?:\/\//i.test(s)) return true;
+  if (/^[a-zA-Z]:[\\/]/.test(s) || s.startsWith('/') || s.startsWith('\\\\')) return true;
+  return false;
 }
 
 /** 发送群聊表情（支持数字 face id 或 URL；URL 时以图片形式发送） */
@@ -3365,7 +3960,165 @@ async function aiChooseFakeHumanAction(recentContext) {
   return 1;
 }
 
-/** 伪人：根据配置在群里随机插话，支持多条上下文、联网、与主对话同步、连续对话、@/戳/回复 3 选 1 */
+function getEmojiCacheDir(ctx) {
+  return path.join(path.dirname(getMaisakaStorePath(ctx)), 'emoji-cache');
+}
+
+/** 伪人 LLM tool_calls 调用 */
+async function callFakeHumanLlmWithTools(cfg, { messages, tools, maxTokens = 400, temperature = 0.7 }) {
+  const { apiUrl, apiKey, model } = getApiConfig();
+  if (!apiKey) return { content: '', tool_calls: [] };
+  try {
+    const res = await fetch(apiUrl, {
+      method: 'POST',
+      headers: chatHeadersFromApiConfig({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(buildAuxiliaryChatBody(cfg, {
+        model,
+        messages,
+        tools,
+        tool_choice: 'auto',
+        max_tokens: maxTokens,
+        temperature
+      }))
+    });
+    if (!res.ok) return { content: '', tool_calls: [] };
+    const data = await res.json();
+    const msg = data?.choices?.[0]?.message || {};
+    return {
+      content: msg.content || '',
+      tool_calls: Array.isArray(msg.tool_calls) ? msg.tool_calls : []
+    };
+  } catch (e) {
+    log('warn', '伪人 Planner LLM 失败', e.message);
+    return { content: '', tool_calls: [] };
+  }
+}
+
+/** 从群消息缓存表情并 VLM 打标 */
+async function queueCaptureGroupEmojis(ctx, event, groupId) {
+  const cfg = pluginState.config;
+  if (cfg.emojiCacheEnabled === false) return;
+  const urls = extractEmojiUrlsFromEvent(event, (ev) => {
+    const items = extractImageFromEvent(ev);
+    return items.map((i) => i?.url).filter(Boolean);
+  });
+  if (!urls.length) return;
+  const store = getMaisakaStore(ctx);
+  ensureEmojiRegistry(store);
+  const cacheDir = getEmojiCacheDir(ctx);
+  const visionModel = (cfg.kimiVisionModel || KIMI_CODE_DEFAULT_MODEL).trim();
+  for (const url of urls) {
+    try {
+      const r = await captureAndRegisterEmoji({
+        store,
+        cacheDir,
+        imageUrl: url,
+        groupId,
+        autoRegister: cfg.emojiAutoRegister !== false,
+        maxSizeMb: cfg.emojiMaxCacheSizeMb ?? 5,
+        promptTemplate: (cfg.emojiVlmPrompt || DEFAULT_EMOJI_VLM_PROMPT).trim(),
+        callVision: ({ systemPrompt, userText, imageUrls }) => callVisionChatRaw({ systemPrompt, userText, imageUrls, model: visionModel })
+      });
+      if (r.status === 'registered') log('info', '群聊表情已缓存注册', { groupId, hash: r.emoji?.hash?.slice(0, 12), emotions: r.emoji?.emotions }, 'sticker');
+    } catch (e) {
+      log('debug', '群聊表情缓存失败', e.message, 'sticker');
+    }
+  }
+  persistMaisakaStore(ctx);
+}
+
+/** 对话与伪人共用的视觉模型 */
+function getChatVisionModel(cfg) {
+  const c = cfg || pluginState.config || {};
+  return String(c.chatVisionModel || c.kimiVisionModel || KIMI_CODE_DEFAULT_MODEL).trim() || KIMI_CODE_DEFAULT_MODEL;
+}
+
+/** 执行 Planner 出站动作序列（文字+文件+表情，支持连发短句） */
+async function deliverFakeHumanOutbound(ctx, groupId, replyMsgId, outbound, { cfg, store, recentContext, plainText, userId }) {
+  const expanded = expandBurstReplies(outbound || [], cfg);
+  let first = true;
+  const burstDelay = Math.max(200, Number(cfg.fakeHumanBurstDelayMs) ?? 800);
+  let step = 0;
+  for (const ob of expanded) {
+    if (step > 0 && cfg.fakeHumanBurstEnabled !== false) {
+      await new Promise((res) => setTimeout(res, burstDelay));
+    }
+    step += 1;
+    const rid = first ? replyMsgId : null;
+    first = false;
+    if (ob.type === 'reply' && ob.message) {
+      await deliverFakeHumanMessage(ctx, groupId, rid, { atUserId: ob.atUserId || '', message: ob.message });
+    } else if (ob.type === 'at' && ob.atUserId) {
+      await deliverFakeHumanMessage(ctx, groupId, rid, { atUserId: ob.atUserId, message: '' });
+    } else if (ob.type === 'poke' && ob.userId) {
+      await sendGroupPoke(ctx, groupId, ob.userId);
+    } else if (ob.type === 'qq_face') {
+      const faceId = resolveQqFaceId(ob.faceId || ob.emotion || '微笑');
+      await deliverFakeHumanMessage(ctx, groupId, rid, {
+        messageArray: [{ type: 'face', data: { id: String(faceId) } }]
+      });
+    } else if (ob.type === 'file' && ob.path) {
+      if (ob.caption) await deliverFakeHumanMessage(ctx, groupId, rid, { message: ob.caption });
+      await deliverChatReply(ctx, { isGroup: true, groupId, userId, prefix: '', replyText: `[发送文件:${ob.path}]` });
+    } else if (ob.type === 'emoji') {
+      const pick = await pickRegisteredEmojiWithGrid({
+        store,
+        cfg,
+        userText: plainText || recentContext,
+        replyText: ob.emotion || '',
+        contextLines: recentContext,
+        callVisionChat: (opts) => callVisionChatRaw({ ...opts, model: getChatVisionModel(cfg) })
+      });
+      const faceId = pick?.id || (await pickStickerFaceId(cfg, plainText, ob.emotion || '', recentContext, store));
+      if (faceId) {
+        const arr = [{ type: isFaceIdUrl(faceId) ? 'image' : 'face', data: isFaceIdUrl(faceId) ? { file: faceId } : { id: String(faceId) } }];
+        await deliverFakeHumanMessage(ctx, groupId, rid, { messageArray: arr });
+      }
+    }
+  }
+}
+
+/** 伪人 LLM 调用封装 */
+async function callFakeHumanLlm(cfg, { systemPrompt, userPrompt, maxTokens = 120, temperature = 0.85 }) {
+  const { apiUrl, apiKey, model } = getApiConfig();
+  if (!apiKey) return '';
+  try {
+    const res = await fetch(apiUrl, {
+      method: 'POST',
+      headers: chatHeadersFromApiConfig({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(buildAuxiliaryChatBody(cfg, {
+        model,
+        messages: [
+          { role: 'system', content: String(systemPrompt || '').trim() },
+          { role: 'user', content: String(userPrompt || '').trim() }
+        ],
+        max_tokens: maxTokens,
+        temperature
+      }))
+    });
+    if (!res.ok) return '';
+    const data = await res.json();
+    return (data?.choices?.[0]?.message?.content || '').trim();
+  } catch (e) {
+    log('warn', '伪人 LLM 调用失败', e.message);
+    return '';
+  }
+}
+
+/** 发送伪人消息（@ 使用 segment，不再裸发 CQ 字符串） */
+async function deliverFakeHumanMessage(ctx, groupId, replyMsgId, { atUserId, message, messageArray }) {
+  const segments = [];
+  if (atUserId) segments.push(...buildAtSegments(atUserId, ''));
+  if (messageArray?.length) {
+    segments.push(...messageArray);
+  } else if (message) {
+    segments.push(...parseCqTextToSegments(message));
+  }
+  if (!segments.length) return;
+  await sendGroupStructured(ctx, groupId, replyMsgId, segments);
+}
+
+/** 伪人：MaiBot 风格 Planner+Reply / 表达/黑话/行为学习 / 长期记忆 */
 async function tryFakeHumanReply(ctx, event, groupId, userId, plainText) {
   const cfg = pluginState.config;
   if (!cfg.fakeHumanEnabled) return;
@@ -3423,7 +4176,7 @@ async function tryFakeHumanReply(ctx, event, groupId, userId, plainText) {
       const rid = await getRandomGroupMember(groupId, selfId);
       if (rid) targetId = rid;
     }
-    await sendGroup(ctx, groupId, `[CQ:at,qq=${targetId}] `);
+    await deliverFakeHumanMessage(ctx, groupId, event.message_id ?? event.message?.id ?? null, { atUserId: targetId, message: '' });
     log('info', '伪人插话', { groupId: g, action: 'at' });
     return;
   }
@@ -3433,28 +4186,102 @@ async function tryFakeHumanReply(ctx, event, groupId, userId, plainText) {
     return;
   }
 
-  const mode = (cfg.fakeHumanReplyMode || 'mixed').toLowerCase();
-  const modes = ['ai', 'random_text', 'emoji', 'sticker'];
-  const pickMode = mode === 'mixed' ? modes[Math.floor(Math.random() * modes.length)] : mode;
-
-  let atPrefix = '';
-  const atChance = Math.max(0, Math.min(1, Number(cfg.fakeHumanAtChance) ?? 0.25));
-  if (Math.random() < atChance) {
-    const atWho = (cfg.fakeHumanAtWho || 'sender').toLowerCase();
-    let targetId = userId;
-    if (atWho === 'random') {
-      const randomId = await getRandomGroupMember(groupId, selfId);
-      if (randomId) targetId = randomId;
-    }
-    atPrefix = `[CQ:at,qq=${targetId}] `;
+  const visionModel = getChatVisionModel(cfg);
+  let imageDesc = '';
+  if (imageUrls.length && cfg.fakeHumanParseImage) {
+    const descPrompt = (cfg.fakeHumanImageDescribePrompt || DEFAULT_FAKEHUMAN_IMAGE_DESCRIBE_PROMPT).trim();
+    imageDesc = await callVisionChatRaw({
+      systemPrompt: descPrompt,
+      userText: '请描述这张图片。',
+      imageUrls: [imageUrls[0]],
+      model: visionModel
+    });
   }
 
+  const mode = (cfg.fakeHumanReplyMode || 'ai').toLowerCase();
+  let pickMode = mode;
+  if (mode === 'mixed') {
+    const r = Math.random();
+    pickMode = r < 0.75 ? 'ai' : ['random_text', 'emoji', 'sticker'][Math.floor(Math.random() * 3)];
+  }
+
+  const useMaisaka = cfg.fakeHumanMaisakaMode !== false && pickMode === 'ai';
+  const store = getMaisakaStore(ctx);
+  const storePath = getMaisakaStorePath(ctx);
+  const botName = (cfg.fakeHumanBotName || cfg.botDisplayName || '机器人').trim();
+  let atUserId = '';
   let message = '';
   let sendAsArray = false;
   let messageArray = null;
 
-  if (pickMode === 'sticker') {
-    const faceId = await pickStickerFaceId(cfg, plainText || recentContext, '', recentContext);
+  if (useMaisaka) {
+    recordObservePlannerStart(g, { source: 'fakehuman', userId, trigger: (plainText || '').slice(0, 120) });
+    const plannerT0 = Date.now();
+    const result = await runMaisakaFakeHumanChat({
+      cfg,
+      groupId: g,
+      userId,
+      recentContext,
+      plainText: plainText || '',
+      personaContext,
+      imageDesc: imageDesc ? imageDesc.slice(0, 200) : '',
+      store,
+      db: sqliteDbRef,
+      llmText: (opts) => callFakeHumanLlm(cfg, opts),
+      llmWithTools: (opts) => callFakeHumanLlmWithTools(cfg, opts),
+      onPlannerRound: async (round) => {
+        recordObservePlannerRound(g, round);
+      },
+      executePlannerTool: async (name, args) => {
+        if (name === 'reply') return `已排程回复：${String(args.message || '').slice(0, 40)}`;
+        if (name === 'send_qq_face') return `已排程小黄脸：${args.face_id || args.emotion || '默认'}`;
+        if (name === 'send_emoji') return `已排程表情：${args.emotion || '自动'}`;
+        if (name === 'send_file') return `已排程文件：${args.path || ''}`;
+        if (name === 'no_action') return '本轮不发言';
+        return 'ok';
+      },
+      buildReplySystemPrompt: (vars) => buildFakeHumanSystemPrompt({ ...cfg, fakeHumanIdentity: vars.identity, fakeHumanReplyStyle: vars.replyStyle, _groupAttention: vars.groupChatAttentionBlock, _replyInstruction: vars.replyerOutputInstruction })
+    });
+    persistMaisakaStore(ctx);
+    recordObservePlannerEnd(g, {
+      source: 'fakehuman',
+      action: result.action,
+      rounds: result.plan?.rounds || 0,
+      reasoning: result.reasoning || result.plan?.reasoning || '',
+      durationMs: Date.now() - plannerT0,
+      outboundCount: (result.outbound || []).length,
+      roundDetails: result.plan?.roundDetails || []
+    });
+
+    if (result.action === 'skip') {
+      recordObserveDecision(g, 'no_action', { source: 'fakehuman', reasoning: result.reasoning || result.plan?.reasoning || '' });
+      return;
+    }
+
+    const replyMsgId = event.message_id ?? event.message?.id ?? null;
+    const outbound = result.outbound || [];
+
+    if (outbound.length) {
+      recordObserveOutbound(g, { source: 'fakehuman', steps: outbound.length, preview: outbound.slice(0, 4) });
+      await deliverFakeHumanOutbound(ctx, groupId, replyMsgId, outbound, { cfg, store, recentContext, plainText, userId });
+      const sentText = outbound.filter((o) => o.type === 'reply').map((o) => o.message).join(' ') || '[组合动作]';
+      appendRecentGroupBotMessage(g, selfId, botName, sentText);
+      log('info', '伪人 Planner 出站', { groupId: g, steps: outbound.length, rounds: result.plan?.rounds });
+      setImmediate(() => {
+        runMaisakaLearning({ cfg, store: getMaisakaStore(ctx), storePath, groupId: g, recentContext, botName, botReply: sentText, llmText: (opts) => callFakeHumanLlm(cfg, opts) }).catch(() => {});
+      });
+      return;
+    }
+
+    message = result.message || '';
+    atUserId = result.atUserId || '';
+    if (!message && !(result.outbound || []).length) {
+      log('warn', '伪人 AI 未生成内容', { groupId: g, hint: getApiConfig().apiKey ? 'Planner/Reply 返回空' : '请配置 API Key' });
+      const textList = cfg.fakeHumanTextList || DEFAULT_CONFIG.fakeHumanTextList;
+      message = (Array.isArray(textList) && textList.length) ? textList[Math.floor(Math.random() * textList.length)] : '哈哈';
+    }
+  } else if (pickMode === 'sticker') {
+    const faceId = await pickStickerFaceId(cfg, plainText || recentContext, '', recentContext, store);
     if (faceId) {
       messageArray = [{ type: isFaceIdUrl(faceId) ? 'image' : 'face', data: isFaceIdUrl(faceId) ? { file: faceId } : { id: String(faceId) } }];
       sendAsArray = true;
@@ -3470,18 +4297,8 @@ async function tryFakeHumanReply(ctx, event, groupId, userId, plainText) {
     message = (Array.isArray(textList) && textList.length) ? textList[Math.floor(Math.random() * textList.length)] : '哈哈';
   } else {
     let userContent = '【回复信息参考】\n最近群消息：\n' + (recentContext || (plainText || '')).slice(0, 800) + (personaContext ? '\n' + personaContext.slice(0, 500) : '');
-    const visionModel = (cfg.fakeHumanVisionModel || '').trim() || (cfg.kimiVisionModel || KIMI_CODE_DEFAULT_MODEL).trim();
-    if (imageUrls.length && cfg.fakeHumanParseImage) {
-      const descPrompt = (cfg.fakeHumanImageDescribePrompt || DEFAULT_FAKEHUMAN_IMAGE_DESCRIBE_PROMPT).trim();
-      const imageDesc = await callVisionChatRaw({
-        systemPrompt: descPrompt,
-        userText: '请描述这张图片。',
-        imageUrls: [imageUrls[0]],
-        model: visionModel
-      });
-      if (imageDesc) userContent += '\n\n用户本条消息图片内容：' + imageDesc.slice(0, 200);
-      else userContent += '\n\n用户本条消息包含图片，请结合图片语境简要插话。';
-    }
+    if (imageDesc) userContent += '\n\n用户本条消息图片内容：' + imageDesc.slice(0, 200);
+    else if (imageUrls.length && cfg.fakeHumanParseImage) userContent += '\n\n用户本条消息包含图片，请结合图片语境简要插话。';
     if (cfg.fakeHumanWebSearch && cfg.webSearchEnabled) {
       const query = (plainText || recentContext.split('\n').pop() || '').slice(0, 50);
       const searchResult = await webSearchMulti(query, cfg);
@@ -3518,26 +4335,42 @@ async function tryFakeHumanReply(ctx, event, groupId, userId, plainText) {
       const textList = cfg.fakeHumanTextList || DEFAULT_CONFIG.fakeHumanTextList;
       message = (Array.isArray(textList) && textList.length) ? textList[Math.floor(Math.random() * textList.length)] : '哈哈';
     }
+    const atChance = Math.max(0, Math.min(1, Number(cfg.fakeHumanAtChance) ?? 0.25));
+    if (!atUserId && Math.random() < atChance) {
+      const atWho = (cfg.fakeHumanAtWho || 'sender').toLowerCase();
+      atUserId = userId;
+      if (atWho === 'random') {
+        const randomId = await getRandomGroupMember(groupId, selfId);
+        if (randomId) atUserId = randomId;
+      }
+    }
   }
 
   const replyMsgId = event.message_id ?? event.message?.id ?? null;
-  const finalContent = atPrefix + message;
   if (sendAsArray && messageArray) {
-    const seg = messageArray[0];
-    const segments = seg ? (seg.type === 'face' ? [{ type: 'face', data: { id: String(seg.data?.id || '') } }] : seg.data?.file ? [{ type: 'image', data: { file: seg.data.file } }] : []) : [];
-    if (segments.length) {
-      await sendGroupMessageArray(ctx, groupId, replyMsgId, segments);
-    } else {
-      const faceCq = seg?.data?.id ? (isFaceIdUrl(seg.data.id) ? `[CQ:image,file=${seg.data.id}]` : `[CQ:face,id=${seg.data.id}]`) : '';
-      const toSend = (atPrefix + faceCq).trim() || faceCq;
-      if (toSend) await sendGroup(ctx, groupId, toSend);
-    }
+    await deliverFakeHumanMessage(ctx, groupId, replyMsgId, { atUserId, messageArray });
   } else {
-    const text = (finalContent || message || ' ').trim();
-    if (replyMsgId != null) await sendGroupReply(ctx, groupId, replyMsgId, text);
-    else await sendGroup(ctx, groupId, text);
+    await deliverFakeHumanMessage(ctx, groupId, replyMsgId, { atUserId, message: message || ' ' });
   }
-  log('info', '伪人插话', { groupId: g, mode: pickMode });
+
+  const sentText = message || (sendAsArray ? '[表情]' : '');
+  appendRecentGroupBotMessage(g, selfId, botName, sentText);
+  log('info', '伪人插话', { groupId: g, mode: useMaisaka ? 'maisaka' : pickMode, atUserId: atUserId || null });
+
+  if (useMaisaka && (cfg.fakeHumanEnableExpressionLearning !== false || cfg.fakeHumanEnableSlangLearning !== false || cfg.fakeHumanEnableBehaviorLearning !== false)) {
+    setImmediate(() => {
+      runMaisakaLearning({
+        cfg,
+        store: getMaisakaStore(ctx),
+        storePath,
+        groupId: g,
+        recentContext,
+        botName,
+        botReply: sentText,
+        llmText: (opts) => callFakeHumanLlm(cfg, opts)
+      }).catch((e) => log('warn', '伪人学习后台任务失败', e.message));
+    });
+  }
 }
 
 /** 多提供商图像生成，返回图片 URL 或 null */
@@ -4139,8 +4972,13 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
     pluginState.pluginId = String(ctx.fileId || c.fileId || ctx.pluginName || c.pluginName || path.basename(__dirname) || 'napcat-plugin-chat-bot');
     pluginState.runtimeCtx = ctx;
     loadConfig(ctx);
+    try {
+      await initSqliteStore(ctx);
+    } catch (e) {
+      log('warn', 'SQLite 初始化失败', e.message, 'system');
+    }
 
-    log('info', '聊天插件已初始化', { apiProvider: pluginState.config.apiProvider || 'siliconflow' }, 'system');
+    log('info', '聊天插件已初始化', { apiProvider: pluginState.config.apiProvider || 'siliconflow', sqlite: !!sqliteDbRef }, 'system');
 
     if (pluginState.config.mcpEnabled) {
       ensureAgentMcpHub(pluginState.config).catch((e) => {
@@ -4439,6 +5277,29 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         if (body.fakeHumanPlannerPrompt !== undefined) cfg.fakeHumanPlannerPrompt = String(body.fakeHumanPlannerPrompt || DEFAULT_FAKEHUMAN_PLANNER_PROMPT).trim() || DEFAULT_FAKEHUMAN_PLANNER_PROMPT;
         if (body.fakeHumanActionChoosePrompt !== undefined) cfg.fakeHumanActionChoosePrompt = String(body.fakeHumanActionChoosePrompt || DEFAULT_FAKEHUMAN_ACTION_CHOOSE_PROMPT).trim() || DEFAULT_FAKEHUMAN_ACTION_CHOOSE_PROMPT;
         if (body.fakeHumanImageDescribePrompt !== undefined) cfg.fakeHumanImageDescribePrompt = String(body.fakeHumanImageDescribePrompt || DEFAULT_FAKEHUMAN_IMAGE_DESCRIBE_PROMPT).trim() || DEFAULT_FAKEHUMAN_IMAGE_DESCRIBE_PROMPT;
+        if (body.fakeHumanMaisakaMode !== undefined) cfg.fakeHumanMaisakaMode = Boolean(body.fakeHumanMaisakaMode);
+        if (body.fakeHumanPlannerLoop !== undefined) cfg.fakeHumanPlannerLoop = Boolean(body.fakeHumanPlannerLoop);
+        if (body.fakeHumanPlannerMaxRounds !== undefined) cfg.fakeHumanPlannerMaxRounds = Math.max(1, Math.min(8, parseInt(body.fakeHumanPlannerMaxRounds, 10) || 5));
+        if (body.emojiCacheEnabled !== undefined) cfg.emojiCacheEnabled = Boolean(body.emojiCacheEnabled);
+        if (body.emojiAutoRegister !== undefined) cfg.emojiAutoRegister = Boolean(body.emojiAutoRegister);
+        if (body.emojiUseRegistry !== undefined) cfg.emojiUseRegistry = Boolean(body.emojiUseRegistry);
+        if (body.emojiMaxCacheSizeMb !== undefined) cfg.emojiMaxCacheSizeMb = Math.max(1, Math.min(20, parseInt(body.emojiMaxCacheSizeMb, 10) || 5));
+        if (body.emojiVlmPrompt !== undefined) cfg.emojiVlmPrompt = String(body.emojiVlmPrompt || DEFAULT_EMOJI_VLM_PROMPT).trim() || DEFAULT_EMOJI_VLM_PROMPT;
+        if (body.fakeHumanGroupChatAttention !== undefined) cfg.fakeHumanGroupChatAttention = String(body.fakeHumanGroupChatAttention || DEFAULT_FAKEHUMAN_GROUP_CHAT_ATTENTION).trim();
+        if (body.fakeHumanMultipleReplyStyle !== undefined) cfg.fakeHumanMultipleReplyStyle = Array.isArray(body.fakeHumanMultipleReplyStyle) ? body.fakeHumanMultipleReplyStyle.map(String).filter(Boolean) : cfg.fakeHumanMultipleReplyStyle;
+        if (body.fakeHumanMultipleProbability !== undefined) cfg.fakeHumanMultipleProbability = Math.max(0, Math.min(1, parseFloat(body.fakeHumanMultipleProbability) || 0));
+        if (body.fakeHumanPersonalityStates !== undefined) cfg.fakeHumanPersonalityStates = Array.isArray(body.fakeHumanPersonalityStates) ? body.fakeHumanPersonalityStates.map(String).filter(Boolean) : [];
+        if (body.fakeHumanStateProbability !== undefined) cfg.fakeHumanStateProbability = Math.max(0, Math.min(1, parseFloat(body.fakeHumanStateProbability) || 0));
+        if (body.fakeHumanEnableMemoryRecall !== undefined) cfg.fakeHumanEnableMemoryRecall = Boolean(body.fakeHumanEnableMemoryRecall);
+        if (body.fakeHumanEnableExpressionLearning !== undefined) cfg.fakeHumanEnableExpressionLearning = Boolean(body.fakeHumanEnableExpressionLearning);
+        if (body.fakeHumanEnableSlangLearning !== undefined) cfg.fakeHumanEnableSlangLearning = Boolean(body.fakeHumanEnableSlangLearning);
+        if (body.fakeHumanEnableBehaviorLearning !== undefined) cfg.fakeHumanEnableBehaviorLearning = Boolean(body.fakeHumanEnableBehaviorLearning);
+        if (body.fakeHumanMemoryRecallLimit !== undefined) cfg.fakeHumanMemoryRecallLimit = Math.max(1, Math.min(10, parseInt(body.fakeHumanMemoryRecallLimit, 10) || 3));
+        if (body.fakeHumanMemoryMinIntervalSec !== undefined) cfg.fakeHumanMemoryMinIntervalSec = Math.max(30, parseInt(body.fakeHumanMemoryMinIntervalSec, 10) || 120);
+        if (body.fakeHumanMemoryMinNewMessages !== undefined) cfg.fakeHumanMemoryMinNewMessages = Math.max(1, parseInt(body.fakeHumanMemoryMinNewMessages, 10) || 6);
+        if (body.fakeHumanLearnStylePrompt !== undefined) cfg.fakeHumanLearnStylePrompt = String(body.fakeHumanLearnStylePrompt || DEFAULT_LEARN_STYLE_PROMPT).trim();
+        if (body.fakeHumanLearnBehaviorPrompt !== undefined) cfg.fakeHumanLearnBehaviorPrompt = String(body.fakeHumanLearnBehaviorPrompt || DEFAULT_LEARN_BEHAVIOR_PROMPT).trim();
+        if (body.fakeHumanEvaluateBehaviorPrompt !== undefined) cfg.fakeHumanEvaluateBehaviorPrompt = String(body.fakeHumanEvaluateBehaviorPrompt || DEFAULT_EVALUATE_BEHAVIOR_PROMPT).trim();
         if (body.fakeHumanMaxLength !== undefined) cfg.fakeHumanMaxLength = Math.max(10, Math.min(200, parseInt(body.fakeHumanMaxLength, 10) || 80));
         if (body.fakeHumanEnableGroups !== undefined) cfg.fakeHumanEnableGroups = Array.isArray(body.fakeHumanEnableGroups) ? body.fakeHumanEnableGroups.map(String).filter(Boolean) : [];
         if (body.fakeHumanContextLines !== undefined) cfg.fakeHumanContextLines = Math.max(1, Math.min(50, parseInt(body.fakeHumanContextLines, 10) || 5));
@@ -4459,6 +5320,10 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         if (body.updateMirrorBestId !== undefined) cfg.updateMirrorBestId = String(body.updateMirrorBestId || '');
         if (body.updateMirrorBestTestedAt !== undefined) cfg.updateMirrorBestTestedAt = num('updateMirrorBestTestedAt', 0, 0, Number.MAX_SAFE_INTEGER);
         if (body.fakeHumanParseImage !== undefined) cfg.fakeHumanParseImage = Boolean(body.fakeHumanParseImage);
+        if (body.fakeHumanBurstEnabled !== undefined) cfg.fakeHumanBurstEnabled = Boolean(body.fakeHumanBurstEnabled);
+        if (body.fakeHumanBurstDelayMs !== undefined) cfg.fakeHumanBurstDelayMs = num('fakeHumanBurstDelayMs', 800, 200, 5000);
+        if (body.fakeHumanBurstMaxLen !== undefined) cfg.fakeHumanBurstMaxLen = num('fakeHumanBurstMaxLen', 28, 8, 80);
+        if (body.fakeHumanBurstMaxMessages !== undefined) cfg.fakeHumanBurstMaxMessages = num('fakeHumanBurstMaxMessages', 4, 1, 8);
         if (body.fakeHumanVisionModel !== undefined) cfg.fakeHumanVisionModel = String(body.fakeHumanVisionModel || '').trim();
         if (body.agentToolsEnabled !== undefined) cfg.agentToolsEnabled = Boolean(body.agentToolsEnabled);
         if (body.agentMaxToolRounds !== undefined) cfg.agentMaxToolRounds = num('agentMaxToolRounds', 6, 1, 999);
@@ -4524,6 +5389,20 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         if (body.agentToolQqUserInfoEnabled !== undefined) cfg.agentToolQqUserInfoEnabled = Boolean(body.agentToolQqUserInfoEnabled);
         if (body.agentToolQqGroupInfoEnabled !== undefined) cfg.agentToolQqGroupInfoEnabled = Boolean(body.agentToolQqGroupInfoEnabled);
         if (body.agentToolQqGroupContextEnabled !== undefined) cfg.agentToolQqGroupContextEnabled = Boolean(body.agentToolQqGroupContextEnabled);
+        if (body.agentToolQqGroupExtendedEnabled !== undefined) cfg.agentToolQqGroupExtendedEnabled = Boolean(body.agentToolQqGroupExtendedEnabled);
+        if (body.agentToolQqNapcatEnabled !== undefined) cfg.agentToolQqNapcatEnabled = Boolean(body.agentToolQqNapcatEnabled);
+        if (body.agentToolQqNapcatAllowWrite !== undefined) cfg.agentToolQqNapcatAllowWrite = Boolean(body.agentToolQqNapcatAllowWrite);
+        if (body.agentToolQqNapcatDangerGuard !== undefined) cfg.agentToolQqNapcatDangerGuard = Boolean(body.agentToolQqNapcatDangerGuard);
+        if (body.agentToolQqNapcatMaxResultChars !== undefined) cfg.agentToolQqNapcatMaxResultChars = Math.max(2000, Math.min(50000, parseInt(body.agentToolQqNapcatMaxResultChars, 10) || 12000));
+        if (body.agentBiliToolsEnabled !== undefined) cfg.agentBiliToolsEnabled = Boolean(body.agentBiliToolsEnabled);
+        if (body.agentToolBiliCatalogEnabled !== undefined) cfg.agentToolBiliCatalogEnabled = Boolean(body.agentToolBiliCatalogEnabled);
+        if (body.agentToolBiliCallEnabled !== undefined) cfg.agentToolBiliCallEnabled = Boolean(body.agentToolBiliCallEnabled);
+        if (body.agentToolBiliQuickEnabled !== undefined) cfg.agentToolBiliQuickEnabled = Boolean(body.agentToolBiliQuickEnabled);
+        if (body.agentToolBiliAllowWrite !== undefined) cfg.agentToolBiliAllowWrite = Boolean(body.agentToolBiliAllowWrite);
+        if (body.agentToolBiliLoginQrEnabled !== undefined) cfg.agentToolBiliLoginQrEnabled = Boolean(body.agentToolBiliLoginQrEnabled);
+        if (body.agentToolBiliDangerGuard !== undefined) cfg.agentToolBiliDangerGuard = Boolean(body.agentToolBiliDangerGuard);
+        if (body.agentToolBiliMaxResultChars !== undefined) cfg.agentToolBiliMaxResultChars = Math.max(2000, Math.min(50000, parseInt(body.agentToolBiliMaxResultChars, 10) || 12000));
+        if (body.agentToolBiliTimeoutMs !== undefined) cfg.agentToolBiliTimeoutMs = Math.max(5000, Math.min(120000, parseInt(body.agentToolBiliTimeoutMs, 10) || 30000));
         if (body.agentBrowserAdvancedEnabled !== undefined) cfg.agentBrowserAdvancedEnabled = Boolean(body.agentBrowserAdvancedEnabled);
         if (body.agentBrowserUserAgent !== undefined) cfg.agentBrowserUserAgent = String(body.agentBrowserUserAgent || '').trim();
         if (body.agentBrowserExtraHeaders !== undefined) cfg.agentBrowserExtraHeaders = body.agentBrowserExtraHeaders && typeof body.agentBrowserExtraHeaders === 'object' && !Array.isArray(body.agentBrowserExtraHeaders) ? body.agentBrowserExtraHeaders : {};
@@ -4568,6 +5447,656 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         } catch (e) {
           res.json({ success: false, data: [], error: e.message });
         }
+      });
+
+      router.getNoAuth('/emoji-registry', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          ensureEmojiRegistry(store);
+          const status = req.query?.registered === 'true' ? 'owned' : (req.query?.status || 'all');
+          const result = listEmojiLibrary(store, {
+            status,
+            groupId: req.query?.groupId || '',
+            q: req.query?.q || '',
+            limit: parseInt(req.query?.limit, 10) || 500,
+            imageBase: 'emoji-library/image'
+          });
+          res.json({ success: true, stats: getEmojiLibraryStats(store), total: result.total, data: result.data });
+        } catch (e) {
+          res.json({ success: false, data: [], error: e.message });
+        }
+      });
+
+      router.getNoAuth('/emoji-library/stats', (_, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          ensureEmojiRegistry(store);
+          res.json({ success: true, stats: getEmojiLibraryStats(store), groups: listEmojiSourceGroups(store) });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.getNoAuth('/emoji-library/image/:id', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const rec = findEmojiRecord(store, decodeURIComponent(req.params.id || ''));
+          if (!rec?.localPath || !fs.existsSync(rec.localPath)) return res.status(404).end();
+          const ext = path.extname(rec.localPath).toLowerCase();
+          const mime = ext === '.png' ? 'image/png' : ext === '.gif' ? 'image/gif' : 'image/jpeg';
+          res.setHeader('Content-Type', mime);
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+          fs.createReadStream(rec.localPath).pipe(res);
+        } catch {
+          res.status(500).end();
+        }
+      });
+
+      router.getNoAuth('/emoji-library', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          ensureEmojiRegistry(store);
+          const imageBase = 'emoji-library/image';
+          const result = listEmojiLibrary(store, {
+            status: req.query?.status || 'all',
+            groupId: req.query?.groupId || req.query?.group_id || '',
+            q: req.query?.q || '',
+            limit: parseInt(req.query?.limit, 10) || 50,
+            offset: parseInt(req.query?.offset, 10) || 0,
+            imageBase
+          });
+          res.json({
+            success: true,
+            statuses: EMOJI_STATUSES,
+            stats: getEmojiLibraryStats(store),
+            groups: listEmojiSourceGroups(store),
+            total: result.total,
+            data: result.data
+          });
+        } catch (e) {
+          res.json({ success: false, data: [], error: e.message });
+        }
+      });
+
+      router.postNoAuth('/emoji-library/status', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const id = String(req.body?.id || req.body?.hash || '').trim();
+          const status = String(req.body?.status || '').trim();
+          const rec = updateEmojiStatus(store, id, status);
+          if (!rec) return res.json({ success: false, error: 'not_found' });
+          persistMaisakaStore(rtCtx);
+          res.json({ success: true, emoji: rec });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.postNoAuth('/emoji-library/batch', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(String) : [];
+          const status = String(req.body?.status || '').trim();
+          const updated = batchUpdateEmojiStatus(store, ids, status);
+          persistMaisakaStore(rtCtx);
+          res.json({ success: true, count: updated.length });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.postNoAuth('/emoji-library/delete', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const cacheDir = getEmojiCacheDir(rtCtx);
+          const id = String(req.body?.id || '').trim();
+          if (!deleteEmojiRecord(store, id, cacheDir)) return res.json({ success: false, error: 'not_found' });
+          persistMaisakaStore(rtCtx);
+          res.json({ success: true });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.postNoAuth('/emoji-library/clear', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const cacheDir = getEmojiCacheDir(rtCtx);
+          const status = String(req.body?.status || '').trim();
+          const n = clearEmojiByStatus(store, status, cacheDir);
+          persistMaisakaStore(rtCtx);
+          res.json({ success: true, cleared: n });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.postNoAuth('/emoji-registry/toggle', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const id = String(req.body?.id || req.body?.hash || '').trim();
+          const registered = req.body?.registered !== false;
+          const rec = updateEmojiStatus(store, id, registered ? 'owned' : 'recognized');
+          if (!rec) return res.json({ success: false, error: 'not_found' });
+          persistMaisakaStore(rtCtx);
+          res.json({ success: true, emoji: rec });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.getNoAuth('/expressions/stats', (_, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          res.json({
+            success: true,
+            stats: getExpressionStats(store),
+            settings: getExpressionSettings(store),
+            groups: listExpressionGroups(store)
+          });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.getNoAuth('/expressions', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const result = listExpressions(store, {
+            status: req.query?.status || 'all',
+            groupId: req.query?.groupId || req.query?.group_id || '',
+            q: req.query?.q || '',
+            limit: parseInt(req.query?.limit, 10) || 50,
+            offset: parseInt(req.query?.offset, 10) || 0
+          });
+          res.json({
+            success: true,
+            stats: getExpressionStats(store),
+            settings: getExpressionSettings(store),
+            groups: listExpressionGroups(store),
+            total: result.total,
+            data: result.data
+          });
+        } catch (e) {
+          res.json({ success: false, data: [], error: e.message });
+        }
+      });
+
+      router.postNoAuth('/expressions', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const rec = createExpression(store, req.body || {});
+          persistMaisakaStore(rtCtx);
+          res.json({ success: true, expression: rec });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.postNoAuth('/expressions/update', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const id = String(req.body?.id || '').trim();
+          const rec = updateExpression(store, id, req.body || {});
+          if (!rec) return res.json({ success: false, error: 'not_found' });
+          persistMaisakaStore(rtCtx);
+          res.json({ success: true, expression: rec });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.postNoAuth('/expressions/review', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const id = String(req.body?.id || '').trim();
+          const action = String(req.body?.action || 'pass').trim();
+          const rec = reviewExpression(store, id, action, req.body?.reviewer || 'manual');
+          if (!rec) return res.json({ success: false, error: 'not_found' });
+          persistMaisakaStore(rtCtx);
+          res.json({ success: true, expression: rec });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.postNoAuth('/expressions/delete', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const id = String(req.body?.id || '').trim();
+          if (!deleteExpression(store, id)) return res.json({ success: false, error: 'not_found' });
+          persistMaisakaStore(rtCtx);
+          res.json({ success: true });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.postNoAuth('/expressions/clear', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const status = String(req.body?.status || 'all').trim();
+          const n = clearExpressions(store, status === 'all' ? '' : status);
+          persistMaisakaStore(rtCtx);
+          res.json({ success: true, cleared: n });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.postNoAuth('/expressions/settings', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const settings = getExpressionSettings(store);
+          if (req.body?.learningEnabled != null) settings.learningEnabled = !!req.body.learningEnabled;
+          if (req.body?.usageEnabled != null) settings.usageEnabled = !!req.body.usageEnabled;
+          if (req.body?.autoAiPass != null) settings.autoAiPass = !!req.body.autoAiPass;
+          store.expressionSettings = settings;
+          persistMaisakaStore(rtCtx);
+          res.json({ success: true, settings });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.getNoAuth('/slangs/stats', (_, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          res.json({
+            success: true,
+            stats: getSlangStats(store),
+            settings: getSlangSettings(store),
+            groups: listSlangGroups(store)
+          });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.getNoAuth('/slangs', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const result = listSlangs(store, {
+            status: req.query?.status || 'all',
+            groupId: req.query?.groupId || req.query?.group_id || '',
+            type: req.query?.type || '',
+            q: req.query?.q || '',
+            limit: parseInt(req.query?.limit, 10) || 50,
+            offset: parseInt(req.query?.offset, 10) || 0
+          });
+          res.json({
+            success: true,
+            stats: getSlangStats(store),
+            settings: getSlangSettings(store),
+            groups: listSlangGroups(store),
+            total: result.total,
+            data: result.data
+          });
+        } catch (e) {
+          res.json({ success: false, data: [], error: e.message });
+        }
+      });
+
+      router.postNoAuth('/slangs', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const rec = createSlang(store, req.body || {});
+          persistMaisakaStore(rtCtx);
+          res.json({ success: true, data: rec });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.postNoAuth('/slangs/import', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const raw = String(req.body?.content || req.body?.text || '').trim();
+          const format = String(req.body?.format || 'auto').trim();
+          const groupId = String(req.body?.groupId || req.body?.group_id || '').trim();
+          const parsed = parseSlangImport(raw, format);
+          if (!parsed.items.length) {
+            return res.json({ success: false, error: parsed.errors.join('；') || '未解析到词条', errors: parsed.errors });
+          }
+          const result = importSlangs(store, parsed.items, { groupId, skipDuplicate: req.body?.skipDuplicate !== false });
+          persistMaisakaStore(rtCtx);
+          res.json({ success: true, ...result, errors: parsed.errors });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.postNoAuth('/slangs/update', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const id = String(req.body?.id || '').trim();
+          const rec = updateSlang(store, id, req.body || {});
+          if (!rec) return res.json({ success: false, error: 'not_found' });
+          persistMaisakaStore(rtCtx);
+          res.json({ success: true, data: rec });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.postNoAuth('/slangs/review', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const id = String(req.body?.id || '').trim();
+          const action = String(req.body?.action || 'pass').trim();
+          const rec = reviewSlang(store, id, action);
+          if (!rec) return res.json({ success: false, error: 'not_found' });
+          persistMaisakaStore(rtCtx);
+          res.json({ success: true, data: rec });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.postNoAuth('/slangs/delete', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const id = String(req.body?.id || '').trim();
+          const ok = deleteSlang(store, id);
+          persistMaisakaStore(rtCtx);
+          res.json({ success: ok, error: ok ? undefined : 'not_found' });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.postNoAuth('/slangs/clear', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const status = String(req.body?.status || 'all').trim();
+          const n = clearSlangs(store, status === 'all' ? '' : status);
+          persistMaisakaStore(rtCtx);
+          res.json({ success: true, cleared: n });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.postNoAuth('/slangs/settings', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const settings = getSlangSettings(store);
+          if (req.body?.learningEnabled != null) settings.learningEnabled = !!req.body.learningEnabled;
+          if (req.body?.usageEnabled != null) settings.usageEnabled = !!req.body.usageEnabled;
+          if (req.body?.autoAiPass != null) settings.autoAiPass = !!req.body.autoAiPass;
+          store.slangSettings = settings;
+          persistMaisakaStore(rtCtx);
+          res.json({ success: true, settings });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.getNoAuth('/napcat-api/catalog', (req, res) => {
+        try {
+          const q = String(req.query?.q || req.query?.keyword || '').trim();
+          const category = String(req.query?.category || '').trim();
+          const limit = Math.max(1, Math.min(200, parseInt(req.query?.limit, 10) || 50));
+          const list = q || category
+            ? searchNapCatCatalog({ keyword: q, category, limit })
+            : NAPCAT_API_CATALOG.slice(0, limit);
+          res.json({
+            success: true,
+            total: NAPCAT_API_CATALOG.length,
+            docUrl: NAPCAT_API_DOC_URL,
+            categories: listNapCatCategories(),
+            data: list
+          });
+        } catch (e) {
+          res.json({ success: false, data: [], error: e.message });
+        }
+      });
+
+      router.getNoAuth('/bili-api/catalog', (req, res) => {
+        try {
+          const cfg = pluginState.config || {};
+          const q = String(req.query?.q || req.query?.keyword || '').trim();
+          const category = String(req.query?.category || '').trim();
+          const limit = Math.max(1, Math.min(200, parseInt(req.query?.limit, 10) || 50));
+          const qqUserId = String(req.query?.qqUserId || '').trim();
+          const list = q || category
+            ? searchBiliCatalog({ keyword: q, category, limit })
+            : BILI_API_CATALOG.slice(0, limit);
+          res.json({
+            success: true,
+            total: BILI_API_CATALOG.length,
+            docUrl: BILI_API_DOC_URL,
+            cookieStatus: describeBiliCookieStatus(cfg, undefined, qqUserId, sqliteDbRef),
+            categories: listBiliCategories(),
+            data: list
+          });
+        } catch (e) {
+          res.json({ success: false, data: [], error: e.message });
+        }
+      });
+
+      router.getNoAuth('/sqlite/env/status', async (_, res) => {
+        try {
+          const detected = await detectSqliteDriver(__dirname);
+          const configDir = getConfigDir(ctx);
+          const dbPath = getDbPath(configDir);
+          res.json({
+            success: true,
+            data: {
+              driver: detected.driver || '',
+              ready: detected.ok,
+              dbPath: fs.existsSync(dbPath) ? dbPath : '',
+              dbOpen: !!sqliteDbRef,
+              migrated: sqliteDbRef ? getMeta(sqliteDbRef, 'json_migrated') === '1' : false,
+              error: detected.error || ''
+            },
+            mirrors: NPM_MIRRORS
+          });
+        } catch (e) {
+          res.json({ success: false, error: e?.message || String(e) });
+        }
+      });
+
+      router.getNoAuth('/sqlite/env/progress', (req, res) => {
+        const since = Number(req.query?.since) || 0;
+        res.json({ success: true, ...getSqliteSetupState(since) });
+      });
+
+      router.postNoAuth('/sqlite/env/install', async (req, res) => {
+        try {
+          const mirror = String(req.body?.mirror || 'npmmirror').trim();
+          if (getSqliteSetupState().running) {
+            res.json({ success: false, error: 'SQLite 安装任务进行中' });
+            return;
+          }
+          res.json({ success: true, started: true });
+          runSqliteSetup(__dirname, { mirror }).then(async (result) => {
+            if (result.ok) {
+              closeDatabase();
+              sqliteDbRef = null;
+              maisakaStoreCache = null;
+              await initSqliteStore(ctx);
+              log('info', 'SQLite 环境部署完成', { driver: result.driver }, 'system');
+            }
+          }).catch((e) => log('error', 'SQLite 安装失败', e.message, 'system'));
+        } catch (e) {
+          res.json({ success: false, error: e?.message || String(e) });
+        }
+      });
+
+      router.postNoAuth('/bili/auth/qr/start', async (req, res) => {
+        try {
+          const qqUserId = String(req.body?.qqUserId || '').trim();
+          if (!qqUserId) return res.status(400).json({ success: false, error: 'qqUserId 不能为空' });
+          if (!sqliteDbRef) await initSqliteStore(ctx);
+          if (!sqliteDbRef) return res.json({ success: false, error: 'SQLite 未就绪，请先在 Dashboard 一键部署 SQLite' });
+          const data = await startBiliQrLogin(sqliteDbRef, qqUserId);
+          res.json({ success: true, data });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.getNoAuth('/bili/auth/qr/poll', async (req, res) => {
+        try {
+          const sessionKey = String(req.query?.sessionKey || '').trim();
+          if (!sessionKey) return res.status(400).json({ success: false, error: 'sessionKey 不能为空' });
+          if (!sqliteDbRef) return res.json({ success: false, error: 'SQLite 未就绪' });
+          const data = await pollBiliQrLogin(sqliteDbRef, sessionKey);
+          res.json({ success: true, data });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.getNoAuth('/bili/auth/sessions', (_, res) => {
+        res.json({ success: true, data: sqliteDbRef ? listBiliSessions(sqliteDbRef) : [] });
+      });
+
+      router.getNoAuth('/bili/auth/session', (req, res) => {
+        const qqUserId = String(req.query?.qqUserId || '').trim();
+        if (!sqliteDbRef || !qqUserId) return res.json({ success: true, data: null });
+        const session = getBiliSession(sqliteDbRef, qqUserId);
+        const safe = session ? { ...session, cookies: undefined, cookieCount: (session.cookies || []).length } : null;
+        res.json({ success: true, data: safe });
+      });
+
+      router.postNoAuth('/bili/auth/session/delete', (req, res) => {
+        try {
+          const qqUserId = String(req.body?.qqUserId || '').trim();
+          if (!sqliteDbRef || !qqUserId) return res.json({ success: false, error: '无效参数' });
+          const ok = deleteBiliSession(sqliteDbRef, qqUserId);
+          res.json({ success: ok, deleted: ok });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.getNoAuth('/user-profiles', (req, res) => {
+        try {
+          if (!sqliteDbRef) return res.json({ success: true, data: [] });
+          const data = listUserProfiles(sqliteDbRef, {
+            groupId: req.query?.groupId,
+            q: req.query?.q,
+            limit: req.query?.limit
+          });
+          res.json({ success: true, data });
+        } catch (e) {
+          res.json({ success: false, data: [], error: e.message });
+        }
+      });
+
+      router.getNoAuth('/observe/groups', async (_, res) => {
+        try {
+          const groups = listObserveGroups();
+          try {
+            const raw = await callAction('get_group_list', {});
+            const glist = Array.isArray(raw) ? raw : (raw?.data || raw?.result || []);
+            for (const g of glist) {
+              const id = String(g.group_id ?? g.groupId ?? '');
+              if (id) touchObserveGroupName(id, g.group_name || g.groupName || '');
+            }
+          } catch { /* ignore */ }
+          res.json({ success: true, data: listObserveGroups(), global: getObserveGlobalStats() });
+        } catch (e) {
+          res.json({ success: false, data: [], error: e.message });
+        }
+      });
+
+      router.getNoAuth('/observe/feed', (req, res) => {
+        try {
+          const groupId = String(req.query?.groupId || '').trim();
+          if (!groupId) return res.status(400).json({ success: false, error: 'groupId 必填' });
+          const sinceId = Number(req.query?.sinceEventId) || 0;
+          const chatLimit = Math.max(10, Math.min(200, Number(req.query?.chatLimit) || 80));
+          res.json({
+            success: true,
+            groupId,
+            chat: getObserveChat(groupId, chatLimit),
+            events: getObserveEvents(groupId, sinceId),
+            stats: getObserveStats(groupId),
+            loopRunning: isObserveLoopRunning(groupId)
+          });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.getNoAuth('/observe/stats', (req, res) => {
+        const groupId = String(req.query?.groupId || '').trim();
+        if (!groupId) {
+          return res.json({ success: true, global: getObserveGlobalStats(), groups: listObserveGroups() });
+        }
+        res.json({ success: true, data: getObserveStats(groupId) });
+      });
+
+      router.postNoAuth('/observe/loop/start', async (req, res) => {
+        try {
+          const groupId = String(req.body?.groupId || '').trim();
+          if (!groupId) return res.status(400).json({ success: false, error: 'groupId 必填' });
+          const intervalMs = Math.max(5000, Math.min(120000, Number(req.body?.intervalMs) || Number(pluginState.config.observeLoopIntervalMs) || 15000));
+          const executeOutbound = Boolean(req.body?.executeOutbound);
+          if (isObserveLoopRunning(groupId)) {
+            return res.json({ success: false, error: '该群观察循环已在运行' });
+          }
+          const r = startObserveLoop(groupId, async () => {
+            await runObservePlannerForGroup(ctx, groupId, 'loop', executeOutbound);
+          }, intervalMs);
+          res.json({ success: r.ok !== false, ...r, intervalMs });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.postNoAuth('/observe/loop/stop', (req, res) => {
+        const groupId = String(req.body?.groupId || '').trim();
+        if (!groupId) return res.status(400).json({ success: false, error: 'groupId 必填' });
+        res.json({ success: true, ...stopObserveLoop(groupId) });
+      });
+
+      router.postNoAuth('/observe/planner/tick', async (req, res) => {
+        try {
+          const groupId = String(req.body?.groupId || '').trim();
+          if (!groupId) return res.status(400).json({ success: false, error: 'groupId 必填' });
+          const executeOutbound = Boolean(req.body?.executeOutbound);
+          await runObservePlannerForGroup(ctx, groupId, 'manual', executeOutbound);
+          res.json({ success: true, feed: getObserveEvents(groupId, 0).slice(-20) });
+        } catch (e) {
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.postNoAuth('/observe/clear', (req, res) => {
+        const groupId = String(req.body?.groupId || '').trim();
+        if (!groupId) return res.status(400).json({ success: false, error: 'groupId 必填' });
+        clearObserveGroup(groupId);
+        res.json({ success: true });
       });
 
       router.getNoAuth('/kimi/models', async (req, res) => {
@@ -5262,7 +6791,10 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
                 cfg,
                 webSearchMulti,
                 pluginRoot: __dirname,
+                db: sqliteDbRef,
+                qqUserId: userId,
                 qqApi: createQqApi(qqSession),
+                onBiliQrLoginStarted: makeBiliQrPollHandler(ctx, userId, groupId || '', !!groupId),
                 requestRiskApproval: async (risk) => {
                   if (cfg.agentDangerGuardEnabled === false) return { approved: true };
                   if (cfg.agentDangerRequireAdmin !== false && !isAdminUser(userId, cfg)) {
@@ -5382,7 +6914,7 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
 
       router.getNoAuth('/skillhub/env/status', async (_, res) => {
         try {
-          const { getSkillhubEnvStatus } = await import('./lib/skillhub-env.mjs');
+          const { getSkillhubEnvStatus } = await import('./lib/skillhub/skillhub-env.mjs');
           const cfg = pluginState.config || {};
           const status = await getSkillhubEnvStatus(cfg, __dirname);
           res.json({ success: true, ...status });
@@ -5404,7 +6936,7 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
       router.getNoAuth('/skillhub/env/logs', async (req, res) => {
         const since = parseInt(req.query?.since, 10) || 0;
         try {
-          const setup = await import('./lib/skillhub-setup.mjs');
+          const setup = await import('./lib/skillhub/skillhub-setup.mjs');
           res.json({ success: true, pluginVersion: PLUGIN_VERSION, ...setup.getSkillhubSetupLogs(since) });
         } catch (e) {
           res.json({ success: false, error: e?.message || String(e), pluginVersion: PLUGIN_VERSION });
@@ -5416,7 +6948,7 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         const body = req.body || {};
         let setupMod;
         try {
-          setupMod = await import('./lib/skillhub-setup.mjs');
+          setupMod = await import('./lib/skillhub/skillhub-setup.mjs');
         } catch (e) {
           res.json({ success: false, error: `无法加载 lib/skillhub-setup.mjs: ${e?.message || e}` });
           return;
@@ -5461,7 +6993,7 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
       router.postNoAuth('/skillhub/env/playwright', async (_, res) => {
         let setupMod;
         try {
-          setupMod = await import('./lib/skillhub-setup.mjs');
+          setupMod = await import('./lib/skillhub/skillhub-setup.mjs');
         } catch (e) {
           res.json({ success: false, error: `无法加载 lib/skillhub-setup.mjs: ${e?.message || e}` });
           return;
@@ -5484,7 +7016,7 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
 
       router.getNoAuth('/browser-use/env/status', async (_, res) => {
         try {
-          const bu = await import('./lib/agent-browser-use.mjs');
+          const bu = await import('./lib/agent/agent-browser-use.mjs');
           const cfg = pluginState.config || {};
           const status = await bu.getBrowserUseEnvStatus(__dirname, cfg);
           res.json({ success: true, data: status, mirrors: bu.PIP_MIRRORS || [] });
@@ -5495,7 +7027,7 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
 
       router.getNoAuth('/browser-use/env/progress', async (req, res) => {
         try {
-          const bu = await import('./lib/agent-browser-use.mjs');
+          const bu = await import('./lib/agent/agent-browser-use.mjs');
           const since = Number(req.query?.since) || 0;
           res.json({ success: true, ...bu.getBrowserUseSetupState(since) });
         } catch (e) {
@@ -5505,7 +7037,7 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
 
       router.postNoAuth('/browser-use/env/install', async (req, res) => {
         try {
-          const bu = await import('./lib/agent-browser-use.mjs');
+          const bu = await import('./lib/agent/agent-browser-use.mjs');
           const mirror = String(req.body?.mirror || 'auto').trim();
           if (!bu.armBrowserUseInstall(mirror)) {
             res.json({ success: false, error: 'browser-use 安装任务进行中' });
@@ -5532,7 +7064,7 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
 
       router.postNoAuth('/browser-use/env/verify', async (_, res) => {
         try {
-          const bu = await import('./lib/agent-browser-use.mjs');
+          const bu = await import('./lib/agent/agent-browser-use.mjs');
           const result = await bu.verifyAgentBrowserUseEnv(__dirname);
           if (result.ok) {
             pluginState.config.agentBrowserUseEnvReady = true;
@@ -5728,6 +7260,7 @@ const plugin_onmessage = async (ctx, event) => {
     const list = recentGroupMessages.get(String(groupId)) || [];
     const msgText = plainText.length > 0 ? plainText.slice(0, 500) : (hasImages ? '[图片]' : (hasFiles ? '[文件]' : ''));
     list.push({ userId, userName: senderName, text: msgText, ts: Date.now() });
+    recordObserveChat(groupId, { userId, userName: senderName, text: msgText, ts: Date.now() });
     const cfgLines = pluginState.config || {};
     const maxLines = Math.max(5, Math.min(50, Math.max(
       Number(cfgLines.fakeHumanContextLines) || 5,
@@ -5735,6 +7268,26 @@ const plugin_onmessage = async (ctx, event) => {
     )));
     if (list.length > maxLines) list.splice(0, list.length - maxLines);
     recentGroupMessages.set(String(groupId), list);
+    if (hasImages && cfg.emojiCacheEnabled !== false) {
+      setImmediate(() => {
+        queueCaptureGroupEmojis(ctx, event, groupId).catch((e) => log('debug', '群聊表情采集失败', e.message, 'sticker'));
+      });
+    }
+    if (sqliteDbRef) {
+      setImmediate(() => {
+        try {
+          upsertUserProfile(sqliteDbRef, {
+            qqUserId: userId,
+            nickname: event.sender?.nickname || event.sender?.nick || '',
+            card: event.sender?.card || '',
+            groupId,
+            sex: event.sender?.sex || '',
+            age: event.sender?.age,
+            qqLevel: event.sender?.level || event.sender?.qq_level || ''
+          });
+        } catch { /* ignore */ }
+      });
+    }
   }
 
   if (isGroup) {
@@ -5798,6 +7351,10 @@ const plugin_onmessage = async (ctx, event) => {
   const userCard = event.sender?.card || '';
 
   const imageGen = isImageGenTrigger(plainText, userText, cfg);
+  if (cfg.agentToolBiliLoginQrEnabled !== false && detectBiliLoginIntent(userText || plainText)) {
+    await handleBiliLoginInChat(ctx, { userId, groupId, isGroup, key });
+    return;
+  }
   if (imageGen) {
     if (!canUseFeature(userId, 'imageGen')) {
       const msg = cfg.messages?.noFeaturePermission || DEFAULT_CONFIG.messages.noFeaturePermission;
@@ -6027,7 +7584,10 @@ const plugin_onmessage = async (ctx, event) => {
           cfg,
           webSearchMulti,
           pluginRoot: __dirname,
+          db: sqliteDbRef,
+          qqUserId: userId,
           qqApi: createQqApi(qqSession),
+          onBiliQrLoginStarted: makeBiliQrPollHandler(ctx, userId, groupId || '', isGroup),
           requestRiskApproval: async (risk) => {
             if (cfg.agentDangerGuardEnabled === false) return { approved: true };
             if (cfg.agentDangerRequireAdmin !== false && !isAdminUser(userId, cfg)) {
@@ -6102,7 +7662,8 @@ const plugin_onmessage = async (ctx, event) => {
   if (userMessageId) await applyAfterReplyReaction(cfg, userMessageId);
 
   if (cfg.appendStickerAfterReply) {
-    const faceId = await pickStickerFaceId(cfg, userText, replyText, `用户：${String(userText || '').slice(0, 200)}\n机器人：${String(replyText || '').slice(0, 400)}`);
+    const stickerStore = isGroup ? getMaisakaStore(ctx) : null;
+    const faceId = await pickStickerFaceId(cfg, userText, replyText, `用户：${String(userText || '').slice(0, 200)}\n机器人：${String(replyText || '').slice(0, 400)}`, stickerStore);
     if (faceId) {
       if (isGroup) await sendGroupFace(ctx, groupId, faceId);
       else await sendPrivateFace(ctx, userId, faceId);
@@ -6169,6 +7730,11 @@ const plugin_cleanup = async () => {
   pluginState.updateRunning = false;
   pluginState.mirrorBenchmarkRunning = false;
   drawBotEngine?.cleanup?.();
+  closeDatabase();
+  sqliteDbRef = null;
+  maisakaStoreCache = null;
+  stopAllObserveLoops();
+  stopAllBiliChatQrPolls();
   pluginState.logger?.info?.('[chat-bot] 插件已卸载');
 };
 

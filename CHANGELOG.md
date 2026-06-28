@@ -1,5 +1,24 @@
 # 更新日志
 
+## [2.9.0] — 2026-06-28
+
+### 新增
+
+- **Maisaka 拟人模式**：新增 `fakeHumanMaisakaMode` 完整拟人框架，支持风格学习、俚语学习、行为学习与记忆召回，让 Bot 在群聊中更接近真实用户。
+- **连发回复（Burst）**：新增 `fakeHumanBurstEnabled` 配置，Bot 可拆分为多条短消息连续发送，模拟真人打字节奏。
+- **B 站 Agent 工具集**：新增哔哩哔哩 API 网关与目录查询工具，支持 Agent 调用 B 站接口，并支持扫码登录与多账号 Session 管理。
+- **NapCat API 工具**：新增 `agentToolQqNapcatEnabled` 系列配置，Agent 可通过内置目录直接调用 NapCat 扩展接口，并提供写操作开关与危险操作防护。
+- **SQLite 持久化存储**：引入 SQLite 作为 maisaka 数据的默认后端，自动从 `maisaka-data.json` 迁移，提升读写性能与数据可靠性。
+- **表情注册与管理**：新增 `emojiAutoRegister` / `emojiUseRegistry` 机制，Bot 可自动识别、注册并复用群内表情包，支持表情库的增删改查。
+- **表达式与俚语库**：新增独立的表达式库（`expression-library`）与俚语库（`slang-library`），支持审核、分组、导入等完整管理流程。
+
+### 改进
+
+- **模块目录重组**：核心模块统一迁移至 `lib/core/`、Agent 相关模块移至 `lib/agent/`，B 站、表情、存储等各归其类，结构更清晰。
+- **拟人回复默认模式**：`fakeHumanReplyMode` 默认值由 `mixed` 改为 `ai`，减少固定文本回复比例。
+
+---
+
 ## [2.8.1] — 2026-06-28
 
 ### 新增
