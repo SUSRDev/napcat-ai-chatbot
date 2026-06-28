@@ -4493,7 +4493,11 @@ async function tryFakeHumanReply(ctx, event, groupId, userId, plainText) {
     const outbound = result.outbound || [];
 
     if (outbound.length) {
-      recordObserveOutbound(g, { source: 'fakehuman', steps: outbound.length, preview: outbound.slice(0, 4) });
+      recordObserveOutbound(g, {
+        source: 'fakehuman',
+        steps: outbound.length,
+        preview: outbound.slice(0, 4).map((o) => o.type === 'reply' ? o.message : ('[' + o.type + ']')).filter(Boolean)
+      });
       const sentCount = await deliverFakeHumanOutbound(ctx, groupId, replyMsgId, outbound, { cfg, store, recentContext, plainText, userId });
       if (sentCount === 0) {
         const fallbackMsg = await resolveFakeHumanFallbackMessage(cfg, pickMode, {

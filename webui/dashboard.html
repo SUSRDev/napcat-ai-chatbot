@@ -4728,7 +4728,7 @@ npx playwright install chromium</pre>
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span id="sidebar-version">NapCat 插件 · v3.0.0</span>
+          <span id="sidebar-version">NapCat 插件 · v3.0.1</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -9406,8 +9406,11 @@ npx playwright install chromium</pre>
           (ev.data?.reasoning ? ' — ' + escapeHtml(String(ev.data.reasoning).slice(0, 200)) : '') + '</div>';
       }
       if (ev.type === 'outbound') {
+        const preview = Array.isArray(ev.data?.preview) ? ev.data.preview.map(String).filter(Boolean).join(' · ') : '';
         return '<div class="observe-decision-card" data-ev="' + ev.id + '" style="border-color:#16a34a">出站 ' +
-          escapeHtml(String(ev.data?.steps || 0)) + ' 步 · ' + escapeHtml(ev.data?.source || '') + '</div>';
+          escapeHtml(String(ev.data?.steps || 0)) + ' 步 · ' + escapeHtml(ev.data?.source || '') +
+          (preview ? '<div class="observe-planner-body" style="margin-top:6px;font-weight:600">' + escapeHtml(preview) + '</div>' : '') +
+          '</div>';
       }
       if (ev.type === 'loop_start') {
         return '<div class="observe-decision-card" data-ev="' + ev.id + '" style="border-color:#3b82f6">▶ 观察循环已启动（间隔 ' + Math.round((ev.data?.intervalMs || 0) / 1000) + 's）</div>';
