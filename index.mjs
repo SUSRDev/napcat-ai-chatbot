@@ -1470,7 +1470,7 @@ async function analyzeImageWithKimi(imageUrls, userQuestion, model) {
     log('warn', '未配置视觉 API Key，跳过图片分析', null, 'image');
     return '';
   }
-  const settings = getVisionFailoverSettings(cfg);
+  const settings = getEffectiveVisionFailoverSettings(cfg);
   const q = String(userQuestion || '').trim();
   const userContent = buildKimiAnalyzeContent(urls, q);
   let lastStatus = 0;
@@ -1564,39 +1564,66 @@ async function callVisionChatRaw({ systemPrompt, userText, imageUrls, model }) {
   const cfg = pluginState.config;
   const endpoints = buildVisionEndpointList(cfg);
   if (!endpoints.length) return '';
-  const settings = getVisionFailoverSettings(cfg);
+  const settings = getEffectiveVisionFailoverSettings(cfg);
   const userContent = [
     { type: 'text', text: String(userText || '').trim() || '请查看图片并按要求回复。' },
     ...urls.map((url) => ({ type: 'image_url', image_url: { url, detail: 'low' } }))
   ];
+  let lastStatus = 0;
 
   for (let ei = 0; ei < endpoints.length; ei++) {
     const endpoint = endpoints[ei];
     const useModel = (model || endpoint.model || KIMI_CODE_DEFAULT_MODEL).trim() || KIMI_CODE_DEFAULT_MODEL;
-    try {
-      const res = await fetchWithTimeout(endpoint.apiUrl, {
-        method: 'POST',
-        headers: visionHeadersForEndpoint(endpoint, { 'Content-Type': 'application/json' }),
-        body: JSON.stringify({
-          model: useModel,
-          messages: [
-            { role: 'system', content: String(systemPrompt || '').trim() || '你是视觉助手。' },
-            { role: 'user', content: userContent }
-          ],
-          stream: false,
-          temperature: 0.6,
-          max_tokens: 400
-        })
-      }, settings.timeoutMs);
-      const text = await res.text();
-      if (!res.ok) continue;
-      const data = text ? JSON.parse(text) : {};
-      const out = extractKimiMessageText(data?.choices?.[0]?.message);
-      if (out) return out;
-    } catch (e) {
-      log('warn', '视觉对话请求失败', { endpoint: endpoint.name, err: e.message }, 'image');
+    const retries = settings.enabled ? settings.retries : 1;
+
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const res = await fetchWithTimeout(endpoint.apiUrl, {
+          method: 'POST',
+          headers: visionHeadersForEndpoint(endpoint, { 'Content-Type': 'application/json' }),
+          body: JSON.stringify({
+            model: useModel,
+            messages: [
+              { role: 'system', content: String(systemPrompt || '').trim() || '你是视觉助手。' },
+              { role: 'user', content: userContent }
+            ],
+            stream: false,
+            temperature: 0.6,
+            max_tokens: 400
+          })
+        }, settings.timeoutMs);
+        const text = await res.text();
+        if (res.ok) {
+          const data = text ? JSON.parse(text) : {};
+          const out = extractKimiMessageText(data?.choices?.[0]?.message);
+          if (out) return out;
+        } else {
+          lastStatus = res.status;
+          log('warn', '视觉对话 API 失败', { endpoint: endpoint.name, status: res.status, body: text.slice(0, 200), attempt }, 'image');
+          if (!settings.enabled || !shouldRotateApiFailure(res.status, text, null, settings)) return '';
+          if (attempt < retries) {
+            await sleep(settings.retryDelayMs);
+            continue;
+          }
+        }
+      } catch (e) {
+        log('warn', '视觉对话请求异常', { endpoint: endpoint.name, err: e.message, attempt }, 'image');
+        if (!settings.enabled || !shouldRotateApiFailure(0, '', e, settings)) return '';
+        if (attempt < retries) {
+          await sleep(settings.retryDelayMs);
+          continue;
+        }
+      }
+      break;
+    }
+
+    if (settings.enabled && ei < endpoints.length - 1) {
+      log('info', '切换下一视觉 API 端点', { from: endpoint.name, to: endpoints[ei + 1]?.name }, 'image');
+      await sleep(settings.retryDelayMs);
     }
   }
+
+  if (lastStatus) log('warn', '所有视觉端点均失败', { lastStatus }, 'image');
   return '';
 }
 
@@ -1989,8 +2016,30 @@ function buildChatEndpointList(cfg = pluginState.config) {
   return list.slice(0, settings.maxEndpoints);
 }
 
+/** 对话 API 池也可作视觉备用（多模态端点） */
+function appendChatPoolAsVisionEndpoints(list, cfg, maxTotal) {
+  const chatSettings = getChatFailoverSettings(cfg);
+  if (!chatSettings.enabled || !Array.isArray(cfg.apiPool)) return list.slice(0, maxTotal);
+  const visionModel = String(cfg.chatVisionModel || cfg.kimiVisionModel || '').trim();
+  for (const raw of cfg.apiPool) {
+    if (!raw?.enabled) continue;
+    const resolved = resolveChatEndpoint(raw, cfg);
+    if (!resolved.apiKey) continue;
+    const useModel = visionModel || resolved.model;
+    if (list.some((e) => e.apiUrl === resolved.apiUrl && e.apiKey === resolved.apiKey && e.model === useModel)) continue;
+    list.push({
+      ...resolved,
+      name: `${resolved.name} (对话池→视觉)`,
+      model: useModel
+    });
+  }
+  return list.slice(0, maxTotal);
+}
+
 function buildVisionEndpointList(cfg = pluginState.config) {
   const settings = getVisionFailoverSettings(cfg);
+  const chatSettings = getChatFailoverSettings(cfg);
+  const maxEndpoints = Math.max(settings.maxEndpoints, chatSettings.enabled ? chatSettings.maxEndpoints : 0);
   const primary = resolveVisionEndpoint({ id: 'vision-primary', name: '主视觉配置', isPrimary: true }, cfg);
   const list = [];
   if (primary.apiKey) list.push(primary);
@@ -2003,6 +2052,7 @@ function buildVisionEndpointList(cfg = pluginState.config) {
       list.push(resolved);
     }
   }
+  appendChatPoolAsVisionEndpoints(list, cfg, maxEndpoints);
   // 未单独配置视觉 API 时，回退到对话 API（多模态模型可识别图片）
   if (!list.length) {
     const visionModel = String(cfg.chatVisionModel || cfg.kimiVisionModel || '').trim();
@@ -2022,7 +2072,7 @@ function buildVisionEndpointList(cfg = pluginState.config) {
       });
     }
   }
-  return list.slice(0, settings.maxEndpoints);
+  return list.slice(0, maxEndpoints);
 }
 
 function getChatFailoverSettings(cfg = pluginState.config) {
@@ -2055,7 +2105,17 @@ function getVisionFailoverSettings(cfg = pluginState.config) {
   };
 }
 
+/** 仅开对话池 failover 时，视觉也可按对话池设置轮转 */
+function getEffectiveVisionFailoverSettings(cfg = pluginState.config) {
+  const vision = getVisionFailoverSettings(cfg);
+  const chat = getChatFailoverSettings(cfg);
+  if (vision.enabled) return vision;
+  if (chat.enabled) return { ...chat, maxEndpoints: Math.max(chat.maxEndpoints, vision.maxEndpoints) };
+  return vision;
+}
+
 function shouldRotateApiFailure(status, text, err, settings) {
+  if (!settings?.enabled) return false;
   if (err?.code === 'TIMEOUT' || err?.message === 'TIMEOUT') return settings.onTimeout;
   if (err && (err.name === 'TypeError' || err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED')) return settings.onNetwork;
   if (status === 401 || status === 403) return settings.onAuth;
@@ -2064,6 +2124,14 @@ function shouldRotateApiFailure(status, text, err, settings) {
   if (isTransientApiError(status, text)) return settings.onServerError;
   if (isModelRouteError(status, text)) return true;
   return false;
+}
+
+function createApiEndpointError(status, message = '', { rotatable = true } = {}) {
+  const err = new Error(message || `API ${status || 'error'}`);
+  if (status === 429) err.code = 'RATE_LIMIT';
+  err.httpStatus = status || 0;
+  if (rotatable) err.apiFailover = true;
+  return err;
 }
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = 60000) {
@@ -2644,11 +2712,13 @@ async function chatCompletionOnEndpoint(messages, options, endpoint, settings) {
         if (first.status === 429 && retry.status !== 429) break;
         if (!isModelRouteError(retry.status, retry.text) && !isTransientApiError(retry.status, retry.text) && first.status !== 429) break;
       }
-      if (first.status === 429) return { ok: false, status: 429, text: resolveTemplate(pluginState.config, 'rateLimit', {}) };
     }
 
     if (!settings.enabled || !shouldRotateApiFailure(first.status, first.text, first.error, settings)) {
-      throw new Error(`API ${first.status || first.error?.message || 'error'}`);
+      if (first.status === 429) {
+        return { ok: false, status: 429, text: resolveTemplate(pluginState.config, 'rateLimit', {}) };
+      }
+      throw createApiEndpointError(first.status, first.text || first.error?.message || 'API error', { rotatable: false });
     }
     if (attempt < retries) {
       await sleep(settings.retryDelayMs);
@@ -2657,8 +2727,10 @@ async function chatCompletionOnEndpoint(messages, options, endpoint, settings) {
     break;
   }
 
-  if (last?.status === 429) return { ok: false, status: 429, text: resolveTemplate(pluginState.config, 'rateLimit', {}) };
-  throw new Error(`API ${last?.status || last?.error?.message || 'error'}`);
+  if (last?.status === 429 && !settings.enabled) {
+    return { ok: false, status: 429, text: resolveTemplate(pluginState.config, 'rateLimit', {}) };
+  }
+  throw createApiEndpointError(last?.status, last?.text || last?.error?.message || 'API error');
 }
 
 async function chatCompletion(messages, options = {}) {
@@ -2675,14 +2747,17 @@ async function chatCompletion(messages, options = {}) {
   for (let i = 0; i < endpoints.length; i++) {
     const endpoint = endpoints[i];
     try {
-      return await chatCompletionOnEndpoint(messages, options, endpoint, settings);
+      const result = await chatCompletionOnEndpoint(messages, options, endpoint, settings);
+      if (result?.ok === false) {
+        throw createApiEndpointError(result.status, result.text);
+      }
+      return result;
     } catch (err) {
       lastErr = err;
-      log('warn', '对话端点失败', { endpoint: endpoint.name, message: err.message }, 'api');
-      if (i < endpoints.length - 1) {
-        log('info', '切换下一对话 API 端点', { from: endpoint.name, to: endpoints[i + 1]?.name }, 'api');
-        await sleep(settings.retryDelayMs);
-      }
+      log('warn', '对话端点失败', { endpoint: endpoint.name, status: err.httpStatus, message: err.message }, 'api');
+      if (!err.apiFailover || i >= endpoints.length - 1) throw err;
+      log('info', '切换下一对话 API 端点', { from: endpoint.name, to: endpoints[i + 1]?.name }, 'api');
+      await sleep(settings.retryDelayMs);
     }
   }
   throw lastErr || new Error('API_FAILOVER_EXHAUSTED');
@@ -4007,55 +4082,31 @@ function getEmojiCacheDir(ctx) {
 
 /** 伪人 LLM tool_calls 调用（支持 API 池 failover；不支持 tools 时回退纯文本） */
 async function callFakeHumanLlmWithTools(cfg, { messages, tools, maxTokens = 400, temperature = 0.7 }) {
-  const endpoints = buildChatEndpointList(cfg);
-  if (!endpoints.length) return { content: '', tool_calls: [] };
-  const settings = getChatFailoverSettings(cfg);
-
-  for (let ei = 0; ei < endpoints.length; ei++) {
-    const endpoint = endpoints[ei];
-    const model = String(endpoint.model || cfg.model || '').trim() || 'deepseek-ai/DeepSeek-V3';
-    for (let attempt = 0; attempt < settings.retries; attempt++) {
-      try {
-        const res = await fetchWithTimeout(endpoint.apiUrl, {
-          method: 'POST',
-          headers: chatHeadersForEndpoint(endpoint, cfg, { 'Content-Type': 'application/json' }),
-          body: JSON.stringify(buildAuxiliaryChatBody(cfg, {
-            model,
-            messages,
-            tools,
-            tool_choice: 'auto',
-            max_tokens: maxTokens,
-            temperature
-          }))
-        }, settings.timeoutMs);
-        const text = await res.text();
-        if (!res.ok) {
-          if (shouldRotateApiFailure(res.status, text, null, settings) && ei < endpoints.length - 1) break;
-          if (res.status === 400 && /tool/i.test(text)) {
-            const plain = await callFakeHumanLlm(cfg, {
-              systemPrompt: messages.find((m) => m.role === 'system')?.content || '',
-              userPrompt: messages.filter((m) => m.role === 'user').map((m) => m.content).join('\n\n'),
-              maxTokens,
-              temperature
-            });
-            return { content: plain, tool_calls: [] };
-          }
-          log('warn', '伪人 Planner LLM HTTP 失败', { status: res.status, endpoint: endpoint.name, body: text.slice(0, 200) });
-          continue;
-        }
-        const data = text ? JSON.parse(text) : {};
-        const msg = data?.choices?.[0]?.message || {};
-        return {
-          content: msg.content || '',
-          tool_calls: Array.isArray(msg.tool_calls) ? msg.tool_calls : []
-        };
-      } catch (e) {
-        log('warn', '伪人 Planner LLM 失败', { endpoint: endpoint.name, err: e.message });
-        if (shouldRotateApiFailure(0, '', e, settings) && ei < endpoints.length - 1) break;
-      }
+  try {
+    const result = await chatCompletion(messages, {
+      tools,
+      tool_choice: 'auto',
+      max_tokens: maxTokens,
+      temperature
+    });
+    return {
+      content: result.content || '',
+      tool_calls: Array.isArray(result.tool_calls) ? result.tool_calls : []
+    };
+  } catch (err) {
+    const body = String(err.message || '');
+    if (err.httpStatus === 400 && /tool/i.test(body)) {
+      const plain = await callFakeHumanLlm(cfg, {
+        systemPrompt: messages.find((m) => m.role === 'system')?.content || '',
+        userPrompt: messages.filter((m) => m.role === 'user').map((m) => m.content).join('\n\n'),
+        maxTokens,
+        temperature
+      });
+      return { content: plain, tool_calls: [] };
     }
+    log('warn', '伪人 Planner LLM 失败', { status: err.httpStatus, message: err.message });
+    return { content: '', tool_calls: [] };
   }
-  return { content: '', tool_calls: [] };
 }
 
 /** 从群消息缓存表情并 VLM 打标 */
@@ -4234,25 +4285,12 @@ async function deliverFakeHumanOutbound(ctx, groupId, replyMsgId, outbound, { cf
 
 /** 伪人 LLM 调用封装 */
 async function callFakeHumanLlm(cfg, { systemPrompt, userPrompt, maxTokens = 120, temperature = 0.85 }) {
-  const { apiUrl, apiKey, model } = getApiConfig();
-  if (!apiKey) return '';
   try {
-    const res = await fetch(apiUrl, {
-      method: 'POST',
-      headers: chatHeadersFromApiConfig({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(buildAuxiliaryChatBody(cfg, {
-        model,
-        messages: [
-          { role: 'system', content: String(systemPrompt || '').trim() },
-          { role: 'user', content: String(userPrompt || '').trim() }
-        ],
-        max_tokens: maxTokens,
-        temperature
-      }))
-    });
-    if (!res.ok) return '';
-    const data = await res.json();
-    return (data?.choices?.[0]?.message?.content || '').trim();
+    const result = await chatCompletion([
+      { role: 'system', content: String(systemPrompt || '').trim() },
+      { role: 'user', content: String(userPrompt || '').trim() }
+    ], { max_tokens: maxTokens, temperature });
+    return result.content || '';
   } catch (e) {
     log('warn', '伪人 LLM 调用失败', e.message);
     return '';
@@ -4270,29 +4308,17 @@ async function generateFakeHumanDirectAiReply(cfg, { recentContext, plainText, p
     const searchResult = await webSearchMulti(query, cfg);
     if (searchResult) userContent += '\n\n联网参考：\n' + searchResult.slice(0, 400);
   }
-  const { apiUrl, apiKey, model } = getApiConfig();
-  if (!apiKey) return '';
+  if (!buildChatEndpointList(cfg).length) return '';
   const sysPrompt = buildFakeHumanSystemPrompt({
     ...cfg,
     _replyInstruction: buildFakeHumanReplyerInstruction(cfg)
   });
   try {
-    const res = await fetch(apiUrl, {
-      method: 'POST',
-      headers: chatHeadersFromApiConfig({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(buildAuxiliaryChatBody(cfg, {
-        model,
-        messages: [
-          { role: 'system', content: sysPrompt },
-          { role: 'user', content: userContent }
-        ],
-        max_tokens: Math.min(120, maxLen * 2),
-        temperature: 0.85
-      }))
-    });
-    if (!res.ok) return '';
-    const data = await res.json();
-    return (data?.choices?.[0]?.message?.content || '').trim().slice(0, maxLen).replace(/\n+/g, ' ');
+    const result = await chatCompletion([
+      { role: 'system', content: sysPrompt },
+      { role: 'user', content: userContent }
+    ], { max_tokens: Math.min(120, maxLen * 2), temperature: 0.85 });
+    return (result.content || '').trim().slice(0, maxLen).replace(/\n+/g, ' ');
   } catch (e) {
     log('warn', '伪人 AI 直接生成失败', e.message);
     return '';

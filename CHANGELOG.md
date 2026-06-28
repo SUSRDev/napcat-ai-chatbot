@@ -1,15 +1,16 @@
 # 更新日志
 
-## [3.0.1] — 2026-06-28
+## [3.0.2] — 2026-06-28
 
 ### 修复
 
-- **Planner 有文字却只发表情**：模型将正文写在 `content`、工具仅调用 `send_qq_face`/`send_emoji` 时，现自动补发 `reply` 文字消息，并去除同轮重复表情，避免消息内容丢失。
+- **API 429 不切换备用端点**：对话 API 遇到 429 时原先提前 `return` 导致 failover 循环未继续执行；现改为 `throw` 并携带 `apiFailover` 标记，`chatCompletion` 层统一判断是否切换下一端点，并打「切换下一对话 API 端点」日志。
 
 ### 改进
 
-- **Dashboard 出站预览**：观察日志「出站」卡片现展示实际消息文本预览，`reply` 类型显示正文内容，其他类型显示 `[type]` 标签，便于快速确认伪人发送内容。
-- **版本号显示修正**：侧边栏版本标签回退为正确值 `v2.9.6`，不再显示错误版本。
+- **视觉 API 支持对话池备用**：新增 `getEffectiveVisionFailoverSettings`，仅开启对话池 failover 时视觉请求也可按对话池配置轮转；`buildVisionEndpointList` 会将对话 API 池追加为视觉备用端点，并打「切换下一视觉 API 端点」日志。
+- **视觉对话失败重试增强**：`callVisionChatRaw` 和 `analyzeImageWithKimi` 统一接入 failover 重试逻辑，支持按 `retries` / `retryDelayMs` 配置多次重试，所有端点均失败时记录 `lastStatus`。
+- **`shouldRotateApiFailure` 防空保护**：`settings` 为空时直接返回 `false`，避免意外轮转。
 
 ---
 
@@ -23,6 +24,7 @@
 - **表情库全部「不认识」**：未配置 Kimi 视觉 API 时 VLM 静默失败；现回退到对话 API 识图，插件启动 12 秒后自动后台识别「不认识」条目，Dashboard 新增「VLM 识别」批量按钮。
 - **伪人选 action=1 不发消息**：Planner 在模型不支持 tool_calls 时空跑并静默跳过；现纯文本回退为 reply、首轮有出站即结束、记忆块不阻塞 Planner；Planner 支持 API 池 failover；异常时走 Replyer 兜底并记 warn 日志。
 - **Planner 有文字却只发表情**：模型把正文写在 content、工具却只调 send_qq_face 时，现补发 reply 文字并去掉同轮重复表情。
+- **API 429 不切换备用端点**：对话 API 遇 429 时提前 return 导致 failover 循环未执行；现改为 throw 并切换下一端点。伪人 Planner / 辅助 LLM 统一走 `chatCompletion` failover；视觉对话与图片分析在开启对话轮询时也会使用对话备用池，并打「切换下一端点」日志。
 - **插件导入后 failed to load**：NapCat 新导入插件默认「已禁用」，需手动打开启用开关；新增启动时包完整性自检（缺 `lib/`、`webui/` 等会给出明确错误）。
 - **黑话导入失败**：插件未启用时 Dashboard 提示「请先启用聊天机器人」；TXT 去除 BOM；新增 `scripts/pack-plugin.mjs` 生成可正确导入的 zip。
 
