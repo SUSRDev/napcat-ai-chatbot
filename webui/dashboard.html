@@ -4728,7 +4728,7 @@ npx playwright install chromium</pre>
         </div>
         <div class="sidebar-brand-text">
           <h1>Chat Bot</h1>
-          <span id="sidebar-version">NapCat 插件 · v3.1.7</span>
+          <span id="sidebar-version">NapCat 插件 · v3.1.8</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -6991,7 +6991,7 @@ npx playwright install chromium</pre>
         </div>
         <div class="mai-main" style="border-radius:0 0 14px 14px;margin-top:0">
           <div class="mai-toolbar">
-            <span class="mai-stat">总数 <strong id="slang-stat-all">0</strong> · 已确认 <strong id="slang-stat-confirmed">0</strong> · 无黑话 <strong id="slang-stat-notSlang">0</strong> · 待推断 <strong id="slang-stat-pendingInfer">0</strong> · 待审核 <strong id="slang-stat-pending">0</strong></span>
+            <span class="mai-stat">总数 <strong id="slang-stat-all">0</strong> · 黑话 <strong id="slang-stat-slang">0</strong> · 梗 <strong id="slang-stat-meme">0</strong> · 口头禅 <strong id="slang-stat-catch">0</strong> · 已确认 <strong id="slang-stat-confirmed">0</strong> · 非黑话 <strong id="slang-stat-notSlang">0</strong> · 待审核 <strong id="slang-stat-pending">0</strong></span>
             <div class="form-row" style="margin:0;gap:12px">
               <div class="form-label" style="margin:0;font-size:12px">开启学习</div>
               <div class="tgl on" id="tgl-slangLearning" onclick="toggleSlangSetting('learningEnabled', this)"></div>
@@ -7000,7 +7000,8 @@ npx playwright install chromium</pre>
               <div class="form-label" style="margin:0;font-size:12px">AI 自动通过</div>
               <div class="tgl" id="tgl-slangAutoAiPass" onclick="toggleSlangSetting('autoAiPass', this)"></div>
             </div>
-            <button type="button" class="btn btn-s btn-s" onclick="triggerSlangInfer()"><span class="material-symbols-outlined">psychology</span>推断待处理</button>
+            <button type="button" class="btn btn-s btn-s" onclick="triggerSlangInfer()"><span class="material-symbols-outlined">psychology</span>AI审核全部</button>
+            <button type="button" class="btn btn-s" onclick="triggerSlangSanitize()"><span class="material-symbols-outlined">cleaning_services</span>清理口语</button>
             <button type="button" class="btn btn-p btn-s" onclick="openSlangCreateModal()"><span class="material-symbols-outlined">add</span>新增词条</button>
             <button type="button" class="btn btn-s" onclick="triggerSlangImport()"><span class="material-symbols-outlined">upload_file</span>导入 TXT/JSON</button>
             <input type="file" id="slang-import-file" accept=".txt,.json,.md" multiple style="display:none" onchange="onSlangImportFile(this)" />
@@ -7028,7 +7029,7 @@ npx playwright install chromium</pre>
             </div>
             <div class="mai-content" style="border:none">
               <div id="slang-list-panel">
-                <table class="mai-table"><thead><tr><th>词条</th><th>含义</th><th>群</th><th>遇见</th><th>推断</th><th>审核</th><th>操作</th></tr></thead><tbody id="slang-table-body"></tbody></table>
+                <table class="mai-table"><thead><tr><th>词条</th><th>含义</th><th>群</th><th>遇见</th><th>类型</th><th>状态</th><th>审核</th><th>操作</th></tr></thead><tbody id="slang-table-body"></tbody></table>
               </div>
               <div id="slang-review-panel" style="display:none">
                 <div id="slang-review-card-wrap"></div>
@@ -10251,23 +10252,33 @@ npx playwright install chromium</pre>
     function slangInferenceBadge(s) {
       const inf = String(s?.inferenceStatus || '');
       const label = s?.inferenceLabel || '';
-      if (inf === 'not_slang') return '<span class="badge-reject">无黑话 AI</span>';
-      if (inf === 'is_slang' && s?.meaning) return '<span class="badge-pass">已推断</span>';
-      if ((Number(s?.count) || 0) >= 2 && !s?.meaning) return '<span class="badge-pending">待推断</span>';
+      if (inf === 'not_slang' || s?.reviewStatus === 'rejected') return '<span class="badge-reject">非黑话</span>';
+      if (inf === 'is_slang' && s?.meaning) return '<span class="badge-pass">已分类</span>';
+      if (s?.reviewStatus === 'pending' || label === '待AI审核') return '<span class="badge-pending">待AI审核</span>';
       return `<span class="badge-pending">${escapeHtml(label || '观察中')}</span>`;
     }
 
     async function triggerSlangInfer() {
       try {
-        toast('正在推断待处理黑话…', 'info');
+        toast('正在 AI 审核待处理词条…', 'info');
         const res = await fetch(BASE + '/slangs/infer-pending', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ groupId: slangGroupId || '' })
         });
         const data = await res.json();
-        if (!data.success) throw new Error(data.error || '推断失败');
-        toast(`推断完成：处理 ${data.count || 0} 条（${data.groups || 0} 个群）${data.skipped === 'no_api' ? '，未配置 API' : ''}`, data.count ? 'success' : 'info');
+        if (!data.success) throw new Error(data.error || '审核失败');
+        toast(`审核完成：处理 ${data.count || 0} 条，清理口语 ${data.sanitized || 0} 条（${data.groups || 0} 个群）${data.skipped === 'no_api' ? '，未配置 API' : ''}`, data.count ? 'success' : 'info');
+        loadSlangPage();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function triggerSlangSanitize() {
+      try {
+        const res = await fetch(BASE + '/slangs/sanitize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || '清理失败');
+        toast(`已清理 ${data.rejected || 0} 条日常口语`, 'success');
         loadSlangPage();
       } catch (e) { toast(e.message, 'error'); }
     }
@@ -10424,7 +10435,7 @@ npx playwright install chromium</pre>
     let slangReviewIndex = 0;
     let slangListCache = [];
     let slangDebounce = null;
-    const SLANG_TYPE_LABEL = { slang: '黑话', meme: '梗', abbrev: '缩写', inside_joke: '群内梗', catchphrase: '口头禅' };
+    const SLANG_TYPE_LABEL = { slang: '黑话', meme: '梗', abbrev: '缩写', inside_joke: '群内梗', catchphrase: '口头禅', unclassified: '待分类' };
 
     function debounceSlangLoad() {
       clearTimeout(slangDebounce);
@@ -10657,9 +10668,12 @@ npx playwright install chromium</pre>
         const st = data.stats || {};
         const set = data.settings || {};
         document.getElementById('slang-stat-all').textContent = st.all || 0;
+        const bt = st.byType || {};
+        document.getElementById('slang-stat-slang').textContent = bt.slang || 0;
+        document.getElementById('slang-stat-meme').textContent = bt.meme || 0;
+        document.getElementById('slang-stat-catch').textContent = bt.catchphrase || 0;
         document.getElementById('slang-stat-confirmed').textContent = st.confirmed || 0;
         document.getElementById('slang-stat-notSlang').textContent = st.notSlang || 0;
-        document.getElementById('slang-stat-pendingInfer').textContent = st.pendingInfer || 0;
         document.getElementById('slang-stat-pending').textContent = st.pending || 0;
         document.getElementById('tgl-slangLearning')?.classList.toggle('on', set.learningEnabled !== false);
         document.getElementById('tgl-slangUsage')?.classList.toggle('on', set.usageEnabled !== false);
@@ -10674,17 +10688,18 @@ npx playwright install chromium</pre>
         if (tbody && slangTab === 'list') {
           tbody.innerHTML = slangListCache.map((s) => {
             return `<tr>
-              <td><strong>${escapeHtml(s.term)}</strong><div style="font-size:11px;color:var(--text3)">${escapeHtml(SLANG_TYPE_LABEL[s.type] || s.type)}</div></td>
+              <td><strong>${escapeHtml(s.term)}</strong></td>
               <td>${escapeHtml(s.meaning || '—')}</td>
               <td>${escapeHtml(s.groupId || '全局')}</td>
               <td>${Number(s.count) || 0}</td>
+              <td><span class="tag-chip">${escapeHtml(SLANG_TYPE_LABEL[s.type] || s.type || '待分类')}</span></td>
               <td>${slangInferenceBadge(s)}</td>
               <td>${reviewBadge(s.reviewStatus)}</td>
               <td>
                 ${s.reviewStatus === 'pending' ? `<button type="button" class="btn btn-s btn-p" onclick="reviewSlangItem('${escapeHtml(s.id)}','pass')">通过</button>` : ''}
                 <button type="button" class="btn btn-s" onclick="deleteSlangItem('${escapeHtml(s.id)}')">删</button>
               </td></tr>`;
-          }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text3)">暂无数据</td></tr>';
+          }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--text3)">暂无数据</td></tr>';
         }
         if (slangTab === 'review') renderSlangReviewCard();
       } catch (e) { toast(e.message, 'error'); }

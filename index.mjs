@@ -155,7 +155,7 @@ import {
 } from './lib/maisaka/maisaka-fakehuman.mjs';
 import { expandBurstReplies, pickFakeHumanRandomText, shouldUseFakeHumanTextList, getEffectiveFakeHumanPickMode, buildFakeHumanReplyerInstruction } from './lib/maisaka/fakehuman-burst.mjs';
 import { pickFakeHumanSendStyle, deliverWithTypoRecall, sleepMs as fakeHumanSleepMs } from './lib/maisaka/fakehuman-humanize.mjs';
-import { observeGroupSlangFromMessage, inferPendingGroupSlangs, getSlangObserveStats } from './lib/maisaka/group-slang-observer.mjs';
+import { observeGroupSlangFromMessage, inferPendingGroupSlangs, getSlangObserveStats, sanitizeObservedSlangs } from './lib/maisaka/group-slang-observer.mjs';
 import { buildKaomojiHint } from './lib/maisaka/kaomoji.mjs';
 import { buildSlangBlock } from './lib/maisaka/maisaka-fakehuman.mjs';
 import {
@@ -611,6 +611,8 @@ const DEFAULT_CONFIG = {
   kaomojiExtraList: [],
   slangObserveEnabled: true,
   slangAutoPassInferred: true,
+  slangInferMinCount: 1,
+  slangInferBatchLimit: 12,
   fakeHumanReplyStyleChance: 0.4,
   fakeHumanAtMessageChance: 0.35,
   fakeHumanInterjectChance: 0.35,
@@ -3805,43 +3807,50 @@ async function recallGroupMessage(ctx, messageId) {
 /** 批量推断待处理群黑话（启动定时 + 手动触发） */
 async function runBatchSlangInference(ctx, groupIdFilter = '') {
   const cfg = pluginState.config;
-  if (cfg.slangObserveEnabled === false) return { count: 0, groups: 0 };
+  if (cfg.slangObserveEnabled === false) return { count: 0, groups: 0, sanitized: 0 };
   const store = getMaisakaStore(ctx);
+  const sanitized = sanitizeObservedSlangs(store);
+  if (sanitized.rejected) persistMaisakaStore(ctx);
+
+  const minCount = Math.max(1, Number(cfg.slangInferMinCount) || 1);
   const groupSet = new Set();
   for (const s of store.slangs || []) {
-    if (s.meaning) continue;
+    if (s.meaning && s.inferenceStatus === 'is_slang') continue;
     const inf = String(s.inferenceStatus || '');
-    if (inf === 'not_slang' || inf === 'is_slang') continue;
-    if ((Number(s.count) || 0) < 2) continue;
+    if (inf === 'not_slang' || s.reviewStatus === 'rejected') continue;
+    if ((Number(s.count) || 0) < minCount) continue;
     const gid = String(s.groupId || '').trim();
     if (!gid) continue;
     if (groupIdFilter && gid !== groupIdFilter) continue;
     groupSet.add(gid);
   }
-  if (!groupSet.size) return { count: 0, groups: 0 };
+  if (!groupSet.size) {
+    return { count: 0, groups: 0, sanitized: sanitized.rejected };
+  }
   if (!buildChatEndpointList(cfg).length) {
     log('warn', '群黑话推断跳过：未配置可用 API', { pendingGroups: groupSet.size }, 'slang');
-    return { count: 0, groups: groupSet.size, skipped: 'no_api' };
+    return { count: 0, groups: groupSet.size, sanitized: sanitized.rejected, skipped: 'no_api' };
   }
   let total = 0;
+  const batchLimit = Math.max(4, Math.min(20, Number(cfg.slangInferBatchLimit) || 12));
   for (const gid of groupSet) {
-    const ctxLines = getFormattedRecentGroupContext(gid, 12, cfg);
+    const ctxLines = getFormattedRecentGroupContext(gid, 15, cfg);
     const results = await inferPendingGroupSlangs({
       cfg,
       store,
       groupId: gid,
       contextLines: ctxLines,
       llmText: (opts) => callFakeHumanLlm(cfg, opts),
-      minCount: 2,
-      limit: 8
+      minCount,
+      limit: batchLimit
     });
     total += results.filter((r) => r.ok).length;
     if (results.length) {
-      log('info', '群黑话批量推断', { groupId: gid, results }, 'slang');
+      log('info', '群黑话 AI 审核', { groupId: gid, results }, 'slang');
     }
   }
-  if (total) persistMaisakaStore(ctx);
-  return { count: total, groups: groupSet.size };
+  persistMaisakaStore(ctx);
+  return { count: total, groups: groupSet.size, sanitized: sanitized.rejected };
 }
 
 /** 发送群回复（回复某条消息，支持 CQ 码转 segment） */
@@ -6681,11 +6690,24 @@ const plugin_init = async (ctxOrCore, _obContext, _actions, _instance) => {
         try {
           const rtCtx = pluginState.runtimeCtx || ctx;
           const groupId = String(req.body?.groupId || req.body?.group_id || '').trim();
-          log('info', '手动触发群黑话推断', { groupId: groupId || 'all' }, 'slang');
+          log('info', '手动触发群黑话 AI 审核', { groupId: groupId || 'all' }, 'slang');
           const result = await runBatchSlangInference(rtCtx, groupId);
           res.json({ success: true, ...result });
         } catch (e) {
-          log('error', '群黑话推断异常', { err: e.message }, 'slang');
+          log('error', '群黑话审核异常', { err: e.message }, 'slang');
+          res.json({ success: false, error: e.message });
+        }
+      });
+
+      router.postNoAuth('/slangs/sanitize', (req, res) => {
+        try {
+          const rtCtx = pluginState.runtimeCtx || ctx;
+          const store = getMaisakaStore(rtCtx);
+          const result = sanitizeObservedSlangs(store);
+          persistMaisakaStore(rtCtx);
+          log('info', '黑话规则清理完成', result, 'slang');
+          res.json({ success: true, ...result });
+        } catch (e) {
           res.json({ success: false, error: e.message });
         }
       });
@@ -8144,21 +8166,21 @@ const plugin_onmessage = async (ctx, event) => {
         try {
           const store = getMaisakaStore(ctx);
           const touched = observeGroupSlangFromMessage(store, groupId, plainText);
-          const needInfer = touched.some((t) => (Number(t.count) || 0) >= 2 && !t.meaning && t.inferenceStatus === 'pending');
+          const needInfer = touched.some((t) => !t.meaning && t.inferenceStatus === 'pending' && t.reviewStatus !== 'rejected');
           if (needInfer && buildChatEndpointList(cfg).length) {
-            const ctxLines = getFormattedRecentGroupContext(groupId, 10, cfg);
+            const ctxLines = getFormattedRecentGroupContext(groupId, 12, cfg);
             inferPendingGroupSlangs({
               cfg,
               store,
               groupId,
               contextLines: ctxLines,
               llmText: (opts) => callFakeHumanLlm(cfg, opts),
-              minCount: 2,
-              limit: 4
+              minCount: Math.max(1, Number(cfg.slangInferMinCount) || 1),
+              limit: 3
             }).then((results) => {
               persistMaisakaStore(ctx);
-              log('info', '群黑话 AI 推断完成', { groupId, count: results.length, results }, 'slang');
-            }).catch((e) => log('warn', '群黑话推断失败', { groupId, err: e.message }, 'slang'));
+              if (results.length) log('info', '群黑话 AI 审核完成', { groupId, results }, 'slang');
+            }).catch((e) => log('warn', '群黑话审核失败', { groupId, err: e.message }, 'slang'));
           } else if (touched.length) {
             persistMaisakaStore(ctx);
           }
